@@ -1,0 +1,170 @@
+const asyncHandler = require('express-async-handler');
+const Transport = require('../models/Transport');
+const StockRequest = require('../models/StockRequest');
+const User = require('../models/User');
+
+// @desc    Get all transport details
+// @route   GET /api/transport
+// @access  Private (Admin, BrandOwner, Manager, BranchOwner)
+const getTransports = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id);
+
+  if (!user) {
+    res.status(401);
+    throw new Error('User not found');
+  }
+
+  let transports;
+  if (user.role === 'Admin') {
+    transports = await Transport.find({}).populate({
+      path: 'stockRequest',
+      populate: {
+        path: 'branchOwner',
+        select: 'name email',
+      },
+    });
+  } else if (user.role === 'BrandOwner') {
+    const branchOwners = await User.find({ assignedManager: user._id, role: 'BranchOwner' });
+    const branchOwnerIds = branchOwners.map(owner => owner._id);
+    const stockRequests = await StockRequest.find({ branchOwner: { $in: branchOwnerIds } });
+    const stockRequestIds = stockRequests.map(request => request._id);
+    transports = await Transport.find({ stockRequest: { $in: stockRequestIds } }).populate({
+      path: 'stockRequest',
+      populate: {
+        path: 'branchOwner',
+        select: 'name email',
+      },
+    });
+  } else if (user.role === 'Manager') {
+    const branchOwners = await User.find({ assignedManager: user._id, role: 'BranchOwner' });
+    const branchOwnerIds = branchOwners.map(owner => owner._id);
+    const stockRequests = await StockRequest.find({ branchOwner: { $in: branchOwnerIds } });
+    const stockRequestIds = stockRequests.map(request => request._id);
+    transports = await Transport.find({ stockRequest: { $in: stockRequestIds } }).populate({
+      path: 'stockRequest',
+      populate: {
+        path: 'branchOwner',
+        select: 'name email',
+      },
+    });
+  } else if (user.role === 'BranchOwner') {
+    const stockRequests = await StockRequest.find({ branchOwner: req.user.id });
+    const stockRequestIds = stockRequests.map(request => request._id);
+    transports = await Transport.find({ stockRequest: { $in: stockRequestIds } }).populate({
+      path: 'stockRequest',
+      populate: {
+        path: 'branchOwner',
+        select: 'name email',
+      },
+    });
+  } else {
+    res.status(403);
+    throw new Error('Not authorized to view transport details');
+  }
+
+  res.status(200).json(transports);
+});
+
+// @desc    Create new transport details (BrandOwner only)
+// @route   POST /api/transport
+// @access  Private (BrandOwner)
+const createTransport = asyncHandler(async (req, res) => {
+  const { stockRequest, bundleSize, quantity, from, to } = req.body;
+
+  if (!stockRequest || !bundleSize || !quantity || !from || !to) {
+    res.status(400);
+    throw new Error('Please add all required fields');
+  }
+
+  const user = await User.findById(req.user.id);
+
+  if (!user) {
+    res.status(401);
+    throw new Error('User not found');
+  }
+
+  if (user.role !== 'BrandOwner' && user.role !== 'Admin') {
+    res.status(403);
+    throw new Error('Not authorized to create transport details');
+  }
+
+  const transport = await Transport.create({
+    stockRequest,
+    bundleSize,
+    quantity,
+    from,
+    to,
+  });
+
+  res.status(201).json(transport);
+});
+
+// @desc    Confirm received quantity for transport (BranchOwner only)
+// @route   PUT /api/transport/:id/receive
+// @access  Private (BranchOwner)
+const confirmReceivedTransport = asyncHandler(async (req, res) => {
+  const { receivedQuantity } = req.body;
+
+  const transport = await Transport.findById(req.params.id).populate('stockRequest');
+
+  if (!transport) {
+    res.status(404);
+    throw new Error('Transport not found');
+  }
+
+  const user = await User.findById(req.user.id);
+
+  if (!user) {
+    res.status(401);
+    throw new Error('User not found');
+  }
+
+  if (user.role !== 'BranchOwner') {
+    res.status(403);
+    throw new Error('Not authorized to confirm received quantity');
+  }
+
+  if (transport.stockRequest.branchOwner.toString() !== req.user.id.toString()) {
+    res.status(403);
+    throw new Error('Not authorized to confirm this transport');
+  }
+
+  transport.receivedQuantity = receivedQuantity;
+  const updatedTransport = await transport.save();
+
+  res.status(200).json(updatedTransport);
+});
+
+// @desc    Delete transport (Admin, BrandOwner only)
+// @route   DELETE /api/transport/:id
+// @access  Private (Admin, BrandOwner)
+const deleteTransport = asyncHandler(async (req, res) => {
+  const transport = await Transport.findById(req.params.id);
+
+  if (!transport) {
+    res.status(404);
+    throw new Error('Transport not found');
+  }
+
+  const user = await User.findById(req.user.id);
+
+  if (!user) {
+    res.status(401);
+    throw new Error('User not found');
+  }
+
+  if (user.role !== 'Admin' && user.role !== 'BrandOwner') {
+    res.status(403);
+    throw new Error('Not authorized to delete transport details');
+  }
+
+  await transport.remove();
+  res.status(200).json({ message: 'Transport removed' });
+});
+
+module.exports = {
+  getTransports,
+  createTransport,
+  confirmReceivedTransport,
+  deleteTransport,
+};

@@ -1,0 +1,139 @@
+const asyncHandler = require('express-async-handler');
+const Expense = require('../models/Expense');
+const User = require('../models/User');
+
+// @desc    Get all expenses
+// @route   GET /api/expenses
+// @access  Private (Admin, BrandOwner, Manager, BranchOwner)
+const getExpenses = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id);
+
+  if (!user) {
+    res.status(401);
+    throw new Error('User not found');
+  }
+
+  let expenses;
+  if (user.role === 'Admin') {
+    expenses = await Expense.find({}).populate('branchOwner', 'name email');
+  } else if (user.role === 'BrandOwner') {
+    const branchOwners = await User.find({ assignedManager: user._id, role: 'BranchOwner' });
+    const branchOwnerIds = branchOwners.map(owner => owner._id);
+    expenses = await Expense.find({ branchOwner: { $in: branchOwnerIds } }).populate('branchOwner', 'name email');
+  } else if (user.role === 'Manager') {
+    const branchOwners = await User.find({ assignedManager: user._id, role: 'BranchOwner' });
+    const branchOwnerIds = branchOwners.map(owner => owner._id);
+    expenses = await Expense.find({ branchOwner: { $in: branchOwnerIds } }).populate('branchOwner', 'name email');
+  } else if (user.role === 'BranchOwner') {
+    expenses = await Expense.find({ branchOwner: req.user.id }).populate('branchOwner', 'name email');
+  } else {
+    res.status(403);
+    throw new Error('Not authorized to view expenses');
+  }
+
+  res.status(200).json(expenses);
+});
+
+// @desc    Create new expense (BranchOwner only)
+// @route   POST /api/expenses
+// @access  Private (BranchOwner)
+const createExpense = asyncHandler(async (req, res) => {
+  const { category, amount, description, date } = req.body;
+
+  if (!category || !amount) {
+    res.status(400);
+    throw new Error('Please add category and amount');
+  }
+
+  const user = await User.findById(req.user.id);
+
+  if (!user) {
+    res.status(401);
+    throw new Error('User not found');
+  }
+
+  if (user.role !== 'BranchOwner') {
+    res.status(403);
+    throw new Error('Not authorized to create expenses');
+  }
+
+  const expense = await Expense.create({
+    branchOwner: req.user.id,
+    category,
+    amount,
+    description,
+    date: date || Date.now(),
+  });
+
+  res.status(201).json(expense);
+});
+
+// @desc    Update expense (Admin, BrandOwner only)
+// @route   PUT /api/expenses/:id
+// @access  Private (Admin, BrandOwner)
+const updateExpense = asyncHandler(async (req, res) => {
+  const expense = await Expense.findById(req.params.id);
+
+  if (!expense) {
+    res.status(404);
+    throw new Error('Expense not found');
+  }
+
+  const user = await User.findById(req.user.id);
+
+  if (!user) {
+    res.status(401);
+    throw new Error('User not found');
+  }
+
+  if (user.role !== 'Admin' && user.role !== 'BrandOwner') {
+    res.status(403);
+    throw new Error('Not authorized to update expenses');
+  }
+
+  const updatedExpense = await Expense.findByIdAndUpdate(
+    req.params.id,
+    req.body,
+    { new: true, runValidators: true }
+  ).populate('branchOwner', 'name email');
+
+  res.status(200).json(updatedExpense);
+});
+
+// @desc    Delete expense (Admin, BrandOwner only)
+// @route   DELETE /api/expenses/:id
+// @access  Private (Admin, BrandOwner)
+const deleteExpense = asyncHandler(async (req, res) => {
+  const expense = await Expense.findById(req.params.id);
+
+  if (!expense) {
+    res.status(404);
+    throw new Error('Expense not found');
+  }
+
+  const user = await User.findById(req.user.id);
+
+  if (!user) {
+    res.status(401);
+    throw new Error('User not found');
+  }
+
+  if (user.role !== 'Admin' && user.role !== 'BrandOwner') {
+    res.status(403);
+    throw new Error('Not authorized to delete expenses');
+  }
+
+  await Expense.findByIdAndDelete(req.params.id);
+  res.status(200).json({ message: 'Expense removed' });
+});
+
+
+
+
+
+module.exports = {
+  getExpenses,
+  createExpense,
+  updateExpense,
+  deleteExpense,
+};
