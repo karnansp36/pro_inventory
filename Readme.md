@@ -1,238 +1,161 @@
-MERN Stack Multi-Level Shop Management System – AI Agent Prompt
-1. Project Overview
-
-Create a multi-level shop management system with role-based access control for Admin, Brand Owner, Manager, and Branch Owner. The system should manage:
-
-Stock requests
-
-Sales & income tracking
-
-Expense tracking
-
-Transport management
-
-Reporting (daily, weekly, monthly, custom)
-
-Tech Stack
-
-Frontend: React + JavaScript + TailwindCSS
-
-Backend: Express.js + Node.js + JWT authentication
-
-Database: MongoDB
-
-Authentication: JWT, Role-based
-
-Reporting: PDF, Excel, CSV export
-
-2. Project Folder Structure (Suggested)
-/shop-management-app
-│
-├─ backend
-│  ├─ models
-│  │  ├─ User.js
-│  │  ├─ StockRequest.js
-│  │  ├─ Sales.js
-│  │  ├─ Expense.js
-│  │  └─ Transport.js
-│  ├─ routes
-│  │  ├─ authRoutes.js
-│  │  ├─ userRoutes.js
-│  │  ├─ stockRoutes.js
-│  │  ├─ salesRoutes.js
-│  │  ├─ expenseRoutes.js
-│  │  └─ transportRoutes.js
-│  ├─ controllers
-│  ├─ middleware
-│  │  └─ authMiddleware.js
-│  └─ server.js
-│
-├─ frontend
-│  ├─ src
-│  │  ├─ components
-│  │  ├─ pages
-│  │  ├─ context
-│  │  ├─ services
-│  │  ├─ App.js
-│  │  └─ index.js
-│  └─ tailwind.config.js
-│
-└─ README.md
-
-3. Database Schema (MongoDB)
-3.1 User
-{
-  _id: ObjectId,
-  name: String,
-  email: String,
-  password: String, // hashed
-  role: String, // Admin, BrandOwner, Manager, BranchOwner
-  assignedManager: ObjectId, // For BranchOwner
-  assignedBranchOwners: [ObjectId], // For BrandOwner
-  createdAt: Date,
-  updatedAt: Date
-}
 
-3.2 StockRequest
-{
-  _id: ObjectId,
-  branchOwner: ObjectId, // ref User
-  productName: String,
-  quantity: Number,
-  priority: String, // Urgent, Required, Normal
-  approved: Boolean,
-  createdAt: Date,
-  updatedAt: Date
-}
+---
+
+## 👑 ADMIN - Full System Control
+
+### User Management
+- ✅ Create, view, update, delete all users (Brand Owners, Managers, Branch Owners)  
+- ✅ Assign Managers to Brand Owners  
+- ✅ Assign Branch Owners to Managers  
+- ✅ Reset passwords for any user  
+
+### Data Management
+- ✅ View ALL data across the entire system  
+- ✅ Edit/Delete ANY records (sales, expenses, stock requests, transport)  
+- ✅ Approve/reject stock requests  
+- ✅ Manage transport details  
+
+### Reporting & Analytics
+- ✅ Generate comprehensive reports for entire system  
+- ✅ Filter by any branch, manager, or date range  
+- ✅ Sales reports with payment type breakdown  
+- ✅ Expense reports by category  
+- ✅ Stock request reports with priority filtering  
+- ✅ Profit/Loss analysis  
+- ✅ Export capabilities (PDF, Excel, CSV)  
+
+### System Access
+- ✅ Access to all modules and features  
+- ✅ Override any restrictions  
+- ✅ System-wide configuration  
+
+---
+
+## 🏢 BRAND OWNER - Business Unit Management
+
+### User Management
+- ✅ Create and assign Managers  
+- ✅ Create and assign Branch Owners  
+- ✅ View/edit Branch Owners under their management  
+- ❌ Cannot manage other Brand Owners or Admins  
+
+### Data Management
+- ✅ View all data from assigned Branch Owners  
+- ✅ Edit/Delete sales, expenses, stock requests for their branches  
+- ✅ Approve/reject stock requests from their branches  
+- ✅ Create and manage transport details  
+- ✅ Delete transport records  
+
+### Reporting & Analytics
+- ✅ Generate reports for their assigned branches only  
+- ✅ Filter by assigned managers and branches  
+- ✅ Sales, expense, and stock reports  
+- ✅ Performance analysis of their business unit  
+
+### Restrictions
+- ❌ Cannot access other Brand Owners' data  
+- ❌ Cannot manage system-wide settings  
+- ❌ Cannot create/edit other Brand Owners or Admins  
+
+---
+
+## 👨‍💼 MANAGER - Supervisory Role
+
+### Data Viewing
+- ✅ View data from Branch Owners assigned to them  
+- ✅ Read-only access to sales, expenses, stock requests  
+- ✅ Monitor transport status and receipts  
+
+### Reporting
+- ✅ Generate read-only reports for their assigned branches  
+- ✅ View performance metrics  
+- ✅ Filter data by date ranges and categories  
+
+### Restrictions
+- ❌ Cannot add, edit, or delete any data  
+- ❌ Cannot approve stock requests  
+- ❌ Cannot manage transport  
+- ❌ Cannot create users  
+- ❌ Read-only access only  
+
+---
+
+## 🏪 BRANCH OWNER - Operational Level
+
+### Data Entry
+- ✅ Add stock requests (Product name, quantity, priority: Urgent/Required/Normal)  
+- ✅ Record daily sales (Cash, GPay, Credit Card with automatic total calculation)  
+- ✅ Record expenses (Category, amount, description, date)  
+- ✅ Confirm transport receipts (Compare sent vs received quantities)  
+
+### Data Viewing
+- ✅ View their own sales, expenses, and stock requests  
+- ✅ View transport details assigned to their branch  
+- ✅ Track approval status of their requests  
+
+### Reporting
+- ✅ Generate reports for their own branch only  
+- ✅ View their performance metrics  
+- ✅ Daily sales summaries  
+
+### Restrictions
+- ❌ Cannot edit or delete any data once submitted  
+- ❌ Cannot view other branches' data  
+- ❌ Cannot approve their own stock requests  
+- ❌ Cannot manage users  
+- ❌ Read-only for others' data  
+
+---
+
+## 📊 Feature Matrix by Role
+
+| Feature              | Admin | Brand Owner       | Manager          | Branch Owner     |
+|----------------------|-------|------------------|-----------------|-----------------|
+| User Management      | ✅ Full | ✅ Limited        | ❌ None          | ❌ None          |
+| Create Sales         | ✅     | ✅                | ❌               | ✅               |
+| View Sales           | ✅ All | ✅ Assigned       | ✅ Assigned      | ✅ Own only      |
+| Edit/Delete Sales    | ✅ All | ✅ Assigned       | ❌               | ❌               |
+| Create Expenses      | ✅     | ✅                | ❌               | ✅               |
+| View Expenses        | ✅ All | ✅ Assigned       | ✅ Assigned      | ✅ Own only      |
+| Edit/Delete Expenses | ✅ All | ✅ Assigned       | ❌               | ❌               |
+| Create Stock Requests| ✅     | ✅                | ❌               | ✅               |
+| View Stock Requests  | ✅ All | ✅ Assigned       | ✅ Assigned      | ✅ Own only      |
+| Approve Stock Req.   | ✅ All | ✅ Assigned       | ❌               | ❌               |
+| Delete Stock Req.    | ✅ All | ✅ Assigned       | ❌               | ❌               |
+| Create Transport     | ✅     | ✅                | ❌               | ❌               |
+| View Transport       | ✅ All | ✅ Assigned       | ✅ Assigned      | ✅ Own only      |
+| Confirm Receipt      | ✅     | ✅                | ❌               | ✅               |
+| Delete Transport     | ✅ All | ✅ Assigned       | ❌               | ❌               |
+| Generate Reports     | ✅ All | ✅ Assigned only  | ✅ Assigned only | ✅ Own branch    |
+| Export Reports       | ✅ All | ✅ All formats    | ✅ All formats   | ✅ All formats   |
+
+---
+
+## 🔐 Key Security Rules
+- **Data Isolation**: Users can only access data within their hierarchy  
+- **Role-based Permissions**: Each role has strictly defined capabilities  
+- **Branch Owner Restrictions**: Cannot modify data after submission  
+- **Manager Read-Only**: Supervisory role with no modification rights  
+- **Approval Workflow**: Stock requests require Brand Owner/Admin approval  
+
+---
+
+## 🚀 Typical Workflow
+
+1. Branch Owner creates stock request → Brand Owner/Admin approves → Transport created → Branch Owner confirms receipt  
+2. Branch Owner records daily sales → Manager/Brand Owner monitors performance  
+3. Branch Owner logs expenses → System calculates profit/loss  
+4. All roles generate relevant reports for their scope  
+
+---
+
+## 🛠️ Tech Stack
+- **Frontend:** React + JavaScript + TailwindCSS  
+- **Backend:** Node.js + Express.js  
+- **Database:** MongoDB + Mongoose  
+- **Authentication:** JWT-based authentication  
+
+---
+
+## 📂 Project Structure (MERN)
 
-3.3 Sales
-{
-  _id: ObjectId,
-  branchOwner: ObjectId, // ref User
-  cash: Number,
-  gpay: Number,
-  creditCard: Number,
-  total: Number,
-  date: Date,
-  createdAt: Date
-}
-
-3.4 Expense
-{
-  _id: ObjectId,
-  branchOwner: ObjectId, // ref User
-  category: String,
-  amount: Number,
-  description: String,
-  date: Date,
-  createdAt: Date
-}
-
-3.5 Transport
-{
-  _id: ObjectId,
-  stockRequest: ObjectId, // ref StockRequest
-  bundleSize: Number,
-  quantity: Number,
-  from: String,
-  to: String,
-  receivedQuantity: Number,
-  createdAt: Date
-}
-
-4. Functional Requirements
-
-Admin
-
-Full control, create/manage all users
-
-Edit/delete any data
-
-Generate reports
-
-Brand Owner
-
-Manage managers and branch owners
-
-Approve stock requests
-
-Add transport details
-
-Edit/delete branch owner data
-
-Manager
-
-View assigned branch/shop data
-
-Cannot add/edit/delete data
-
-Branch Owner
-
-Add stock requests, sales, expenses
-
-Confirm received transport
-
-Cannot edit/delete data
-
-5. Features & Steps for AI Agent to Build
-Step 1: Setup Backend
-
-Initialize Node.js + Express project
-
-Install dependencies: express, mongoose, bcrypt, jsonwebtoken, cors, dotenv
-
-Create models for User, StockRequest, Sales, Expense, Transport
-
-Setup JWT authentication with role-based middleware
-
-Step 2: Setup Frontend
-
-Initialize React project
-
-Install TailwindCSS
-
-Setup pages:
-
-Login/Register
-
-Dashboard (Role-specific)
-
-Stock Requests
-
-Sales
-
-Expenses
-
-Transport
-
-Reports
-
-Step 3: Implement Role-Based Access
-
-Restrict actions based on role
-
-Branch Owners: Add-only
-
-Brand Owners/Admin: Edit/Delete any data
-
-Managers: View-only
-
-Step 4: Implement CRUD APIs
-
-Users: Create/manage users
-
-StockRequests: Add, approve, view
-
-Sales: Add, view totals
-
-Expenses: Add, view
-
-Transport: Add, confirm received
-
-Step 5: Implement Reports
-
-Daily, weekly, monthly, custom reports
-
-Filters: branch, manager, date, payment type, expense category
-
-Export options: PDF, Excel, CSV
-
-Step 6: UI/UX Design Guidelines
-
-Responsive using TailwindCSS
-
-Dashboard widgets for totals (sales, expenses, stock)
-
-Color-coded priority indicators for stock (Urgent → Red, Required → Yellow, Normal → Green)
-
-6. Deliverables
-
-Fully functional MERN stack application
-
-Role-based dashboards
-
-CRUD functionality with restrictions
-
-Reporting module
-
-Responsive UI with TailwindCSS
