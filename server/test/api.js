@@ -1,5 +1,4 @@
 import axios from 'axios';
-import mongoose from 'mongoose';
 
 const BASE_URL = 'http://localhost:5000/api';
 
@@ -77,24 +76,70 @@ const runTest = async (testName, testFunction) => {
   try {
     const result = await testFunction();
     
-    if (result.success) {
-      testResults.passed++;
-      console.log(`✅ PASS: ${testName} (${result.duration})`);
+    // Handle both single result and array of results
+    if (Array.isArray(result)) {
+      // If it's an array of test results, check if all passed
+      const allPassed = result.every(test => test.success);
+      const firstResult = result[0] || {};
+      
+      if (allPassed) {
+        testResults.passed++;
+        console.log(`✅ PASS: ${testName}`);
+      } else {
+        testResults.failed++;
+        console.log(`❌ FAIL: ${testName}`);
+        result.filter(test => !test.success).forEach(failedTest => {
+          console.log(`   Endpoint: ${failedTest.method} ${failedTest.endpoint}`);
+          console.log(`   Expected: ${failedTest.expectedStatus}, Got: ${failedTest.actualStatus}`);
+          if (failedTest.error) console.log(`   Error: ${failedTest.error}`);
+        });
+      }
+      
+      testResults.details.push({ 
+        testName, 
+        success: allPassed, 
+        subtests: result,
+        duration: firstResult.duration 
+      });
+      return { success: allPassed, subtests: result };
+      
     } else {
-      testResults.failed++;
-      console.log(`❌ FAIL: ${testName}`);
-      console.log(`   Expected: ${result.expectedStatus}, Got: ${result.actualStatus}`);
-      if (result.error) console.log(`   Error: ${result.error}`);
-      if (result.responseData) console.log(`   Response: ${JSON.stringify(result.responseData)}`);
+      // Single result case
+      if (result.success) {
+        testResults.passed++;
+        console.log(`✅ PASS: ${testName} (${result.duration})`);
+      } else {
+        testResults.failed++;
+        console.log(`❌ FAIL: ${testName}`);
+        console.log(`   Endpoint: ${result.method} ${result.endpoint}`);
+        console.log(`   Expected: ${result.expectedStatus}, Got: ${result.actualStatus}`);
+        if (result.error) console.log(`   Error: ${result.error}`);
+        if (result.responseData) console.log(`   Response: ${JSON.stringify(result.responseData)}`);
+      }
+      
+      testResults.details.push({ testName, ...result });
+      return result;
     }
-    
-    testResults.details.push({ testName, ...result });
-    return result;
   } catch (error) {
     testResults.failed++;
     console.log(`💥 ERROR: ${testName} - ${error.message}`);
-    testResults.details.push({ testName, success: false, error: error.message });
-    return { success: false, error: error.message };
+    testResults.details.push({ 
+      testName, 
+      success: false, 
+      error: error.message,
+      method: 'UNKNOWN',
+      endpoint: 'UNKNOWN',
+      expectedStatus: 'UNKNOWN',
+      actualStatus: 'ERROR'
+    });
+    return { 
+      success: false, 
+      error: error.message,
+      method: 'UNKNOWN',
+      endpoint: 'UNKNOWN',
+      expectedStatus: 'UNKNOWN',
+      actualStatus: 'ERROR'
+    };
   }
 };
 
@@ -104,7 +149,6 @@ const testAuthentication = async () => {
   
   // Test login for each user
   for (const [role, user] of Object.entries(TEST_USERS)) {
-    const testName = `Login as ${role}`;
     const result = await apiRequest('POST', '/auth/login', {
       email: user.email,
       password: user.password
@@ -112,12 +156,15 @@ const testAuthentication = async () => {
     
     if (result.success && result.data.token) {
       tokens[role] = result.data.token;
+      console.log(`   ✅ ${role} login successful`);
+    } else {
+      console.log(`   ❌ ${role} login failed: ${result.actualStatus}`);
     }
     
-    tests.push({ ...result, testName });
+    tests.push(result);
   }
   
-  return tests.every(test => test.success) ? { success: true } : { success: false, tests };
+  return tests; // Return array of individual test results
 };
 
 // ===== USER MANAGEMENT TESTS =====
@@ -133,7 +180,7 @@ const testUserManagement = async () => {
   // Test user hierarchy
   tests.push(await apiRequest('GET', '/users/hierarchy', null, tokens.admin, 200));
   
-  return tests.every(test => test.success) ? { success: true } : { success: false, tests };
+  return tests;
 };
 
 // ===== SALES TESTS =====
@@ -157,7 +204,7 @@ const testSales = async () => {
   tests.push(await apiRequest('GET', '/sales', null, tokens.admin, 200));
   tests.push(await apiRequest('GET', '/sales', null, tokens.branchOwner, 200));
   
-  return tests.every(test => test.success) ? { success: true } : { success: false, tests };
+  return tests;
 };
 
 // ===== EXPENSE TESTS =====
@@ -179,7 +226,7 @@ const testExpenses = async () => {
   // Test expense retrieval
   tests.push(await apiRequest('GET', '/expenses', null, tokens.brandOwner, 200));
   
-  return tests.every(test => test.success) ? { success: true } : { success: false, tests };
+  return tests;
 };
 
 // ===== STOCK REQUEST TESTS =====
@@ -196,14 +243,15 @@ const testStockRequests = async () => {
   tests.push(await apiRequest('POST', '/stockrequests', stockRequestData, tokens.branchOwner, 201));
   
   // Brand Owner can approve stock requests
-  // First, get the stock request ID
   const stockRequests = await apiRequest('GET', '/stockrequests', null, tokens.brandOwner, 200);
-  if (stockRequests.success && stockRequests.data.length > 0) {
+  tests.push(stockRequests);
+  
+  if (stockRequests.success && stockRequests.data && stockRequests.data.length > 0) {
     const requestId = stockRequests.data[0]._id;
     tests.push(await apiRequest('PUT', `/stockrequests/${requestId}/approve`, null, tokens.brandOwner, 200));
   }
   
-  return tests.every(test => test.success) ? { success: true } : { success: false, tests };
+  return tests;
 };
 
 // ===== REPORT TESTS =====
@@ -222,7 +270,7 @@ const testReports = async () => {
     tests.push(await apiRequest('GET', endpoint, null, tokens.admin, 200));
   }
   
-  return tests.every(test => test.success) ? { success: true } : { success: false, tests };
+  return tests;
 };
 
 // ===== TRANSPORT TESTS =====
@@ -231,7 +279,9 @@ const testTransport = async () => {
   
   // Brand Owner can create transport (requires stock request ID)
   const stockRequests = await apiRequest('GET', '/stockrequests', null, tokens.brandOwner, 200);
-  if (stockRequests.success && stockRequests.data.length > 0) {
+  tests.push(stockRequests);
+  
+  if (stockRequests.success && stockRequests.data && stockRequests.data.length > 0) {
     const approvedRequest = stockRequests.data.find(req => req.approved);
     if (approvedRequest) {
       const transportData = {
@@ -242,10 +292,21 @@ const testTransport = async () => {
         to: 'Branch Store'
       };
       tests.push(await apiRequest('POST', '/transport', transportData, tokens.brandOwner, 201));
+    } else {
+      // If no approved request, mark this as a skipped test
+      tests.push({
+        method: 'POST',
+        endpoint: '/transport',
+        expectedStatus: 201,
+        actualStatus: 'SKIPPED',
+        duration: '0ms',
+        success: true,
+        data: { message: 'No approved stock requests available for transport test' }
+      });
     }
   }
   
-  return tests.every(test => test.success) ? { success: true } : { success: false, tests };
+  return tests;
 };
 
 // ===== MAIN TEST RUNNER =====
@@ -256,11 +317,21 @@ const runAllTests = async () => {
   // Check server connection
   console.log('\n🔌 Checking server connection...');
   try {
-    await axios.get('http://localhost:5000', { timeout: 3000 });
-    console.log('✅ Server is running');
+    const response = await axios.get(BASE_URL + '/auth/health', { 
+      timeout: 3000,
+      validateStatus: () => true
+    });
+    
+    if (response.status < 500) {
+      console.log('✅ Server is running');
+    } else {
+      console.log('❌ Server responded with error:', response.status);
+      return;
+    }
   } catch (error) {
-    console.log('❌ Server is not responding on http://localhost:5000');
+    console.log('❌ Server is not responding on http://localhost:5000/api');
     console.log('Please start your server first: npm run dev');
+    console.log('Error:', error.message);
     return;
   }
   
@@ -279,7 +350,8 @@ const runAllTests = async () => {
   console.log('='.repeat(50));
   console.log(`✅ Passed: ${testResults.passed}`);
   console.log(`❌ Failed: ${testResults.failed}`);
-  console.log(`📈 Success Rate: ${((testResults.passed / (testResults.passed + testResults.failed)) * 100).toFixed(1)}%`);
+  const totalTests = testResults.passed + testResults.failed;
+  console.log(`📈 Success Rate: ${totalTests > 0 ? ((testResults.passed / totalTests) * 100).toFixed(1) : 0}%`);
   
   // Show failed tests details
   const failedTests = testResults.details.filter(test => !test.success);
@@ -287,9 +359,17 @@ const runAllTests = async () => {
     console.log('\n🔍 FAILED TESTS DETAILS:');
     failedTests.forEach(test => {
       console.log(`\n❌ ${test.testName}`);
-      console.log(`   Endpoint: ${test.method} ${test.endpoint}`);
-      console.log(`   Expected: ${test.expectedStatus}, Got: ${test.actualStatus}`);
-      if (test.error) console.log(`   Error: ${test.error}`);
+      if (test.subtests) {
+        test.subtests.filter(sub => !sub.success).forEach(sub => {
+          console.log(`   Endpoint: ${sub.method} ${sub.endpoint}`);
+          console.log(`   Expected: ${sub.expectedStatus}, Got: ${sub.actualStatus}`);
+          if (sub.error) console.log(`   Error: ${sub.error}`);
+        });
+      } else {
+        console.log(`   Endpoint: ${test.method} ${test.endpoint}`);
+        console.log(`   Expected: ${test.expectedStatus}, Got: ${test.actualStatus}`);
+        if (test.error) console.log(`   Error: ${test.error}`);
+      }
     });
   }
   

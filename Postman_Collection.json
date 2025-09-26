@@ -1,0 +1,1721 @@
+{
+	"info": {
+		"_postman_id": "YOUR_POSTMAN_COLLECTION_ID",
+		"name": "Inventory Management API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"description": "A collection of API endpoints for the Inventory Management System, including authentication, user management, sales, expenses, stock requests, transport, and reports."
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Register User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"New Branch Owner\",\n    \"email\": \"newbranchowner@example.com\",\n    \"password\": \"password123\",\n    \"role\": \"BranchOwner\",\n    \"assignedManager\": \"{{MANAGER_ONE_ID}}\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/auth/register",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						},
+						"description": "Registers a new user. For BranchOwner, 'assignedManager' is optional but recommended for hierarchy."
+					},
+					"response": []
+				},
+				{
+					"name": "Login Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.environment.set(\"ADMIN_JWT_TOKEN\", jsonData.token);",
+									"pm.environment.set(\"ADMIN_ID\", jsonData._id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/auth/login",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Logs in the Admin user and sets the JWT_TOKEN and ADMIN_ID environment variables."
+					},
+					"response": []
+				},
+				{
+					"name": "Login Brand Owner 1",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.environment.set(\"BRANDOWNER1_JWT_TOKEN\", jsonData.token);",
+									"pm.environment.set(\"BRANDOWNER1_ID\", jsonData._id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"brandowner1@example.com\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/auth/login",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Logs in Brand Owner Alpha and sets the BRANDOWNER1_JWT_TOKEN and BRANDOWNER1_ID environment variables."
+					},
+					"response": []
+				},
+				{
+					"name": "Login Manager 1",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.environment.set(\"MANAGER1_JWT_TOKEN\", jsonData.token);",
+									"pm.environment.set(\"MANAGER1_ID\", jsonData._id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"manager1@example.com\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/auth/login",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Logs in Manager One and sets the MANAGER1_JWT_TOKEN and MANAGER1_ID environment variables."
+					},
+					"response": []
+				},
+				{
+					"name": "Login Branch Owner A",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.environment.set(\"BRANCHOWNERA_JWT_TOKEN\", jsonData.token);",
+									"pm.environment.set(\"BRANCHOWNERA_ID\", jsonData._id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"branchownerA@example.com\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/auth/login",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Logs in Branch Owner A and sets the BRANCHOWNERA_JWT_TOKEN and BRANCHOWNERA_ID environment variables."
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/auth/me",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"me"
+							]
+						},
+						"description": "Retrieves the profile of the authenticated user. Change token for different roles."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "User Management",
+			"item": [
+				{
+					"name": "Get All Users (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/users",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"users"
+							]
+						},
+						"description": "Retrieves a list of all users. (Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User by ID (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/users/{{BRANCHOWNERA_ID}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{BRANCHOWNERA_ID}}"
+							]
+						},
+						"description": "Retrieves a single user by their ID. (Admin only). Replace {{BRANCHOWNERA_ID}} with an actual user ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update User (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Branch Owner A Updated\",\n    \"email\": \"branchownerA_updated@example.com\",\n    \"role\": \"BranchOwner\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/users/{{BRANCHOWNERA_ID}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{BRANCHOWNERA_ID}}"
+							]
+						},
+						"description": "Updates an existing user's details. (Admin only). Replace {{BRANCHOWNERA_ID}} with an actual user ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/users/{{NEW_USER_ID}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{NEW_USER_ID}}"
+							]
+						},
+						"description": "Deletes a user. (Admin only). Replace {{NEW_USER_ID}} with an ID of a user you want to delete (e.g., a newly registered user)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Users by Role (BrandOwner - Managers)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANDOWNER1_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/users/role/Manager",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"role",
+								"Manager"
+							]
+						},
+						"description": "Retrieves managers assigned to Brand Owner 1. (Admin, BrandOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Users by Role (Manager - BranchOwners)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{MANAGER1_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/users/role/BranchOwner",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"role",
+								"BranchOwner"
+							]
+						},
+						"description": "Retrieves branch owners assigned to Manager 1. (Admin, BrandOwner, Manager)"
+					},
+					"response": []
+				},
+				{
+					"name": "Assign User (Admin - Manager to BranchOwner)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"assignedManager\": \"{{MANAGER1_ID}}\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/users/{{BRANCHOWNERC_ID}}/assign",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{BRANCHOWNERC_ID}}",
+								"assign"
+							]
+						},
+						"description": "Assigns a manager to a BranchOwner. (Admin, BrandOwner). Replace IDs with actual values."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Hierarchy (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/users/hierarchy",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"hierarchy"
+							]
+						},
+						"description": "Retrieves the entire user hierarchy. (Admin)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Hierarchy (BrandOwner)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANDOWNER1_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/users/hierarchy",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"hierarchy"
+							]
+						},
+						"description": "Retrieves the hierarchy for Brand Owner 1. (Admin, BrandOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Hierarchy (Manager)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{MANAGER1_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/users/hierarchy",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"hierarchy"
+							]
+						},
+						"description": "Retrieves the hierarchy for Manager 1. (Admin, BrandOwner, Manager)"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Expenses",
+			"item": [
+				{
+					"name": "Create Expense (BranchOwner)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.environment.set(\"EXPENSE_ID\", jsonData._id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANCHOWNERA_JWT_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"category\": \"Office Supplies\",\n    \"amount\": 150,\n    \"description\": \"Purchase of pens and paper\",\n    \"date\": \"2023-01-15T10:00:00.000Z\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/expenses",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"expenses"
+							]
+						},
+						"description": "Creates a new expense. (BranchOwner only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Expenses (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/expenses",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"expenses"
+							]
+						},
+						"description": "Retrieves all expenses. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Expenses (BrandOwner)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANDOWNER1_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/expenses",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"expenses"
+							]
+						},
+						"description": "Retrieves expenses for Brand Owner 1's hierarchy. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Expenses (Manager)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{MANAGER1_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/expenses",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"expenses"
+							]
+						},
+						"description": "Retrieves expenses for Manager 1's assigned Branch Owners. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Expenses (BranchOwner)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANCHOWNERA_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/expenses",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"expenses"
+							]
+						},
+						"description": "Retrieves expenses for Branch Owner A. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Expense (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"amount\": 160,\n    \"description\": \"Updated office supplies cost\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/expenses/{{EXPENSE_ID}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"expenses",
+								"{{EXPENSE_ID}}"
+							]
+						},
+						"description": "Updates an existing expense. (Admin, BrandOwner). Replace {{EXPENSE_ID}} with an actual expense ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Expense (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/expenses/{{EXPENSE_ID}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"expenses",
+								"{{EXPENSE_ID}}"
+							]
+						},
+						"description": "Deletes an expense. (Admin, BrandOwner). Replace {{EXPENSE_ID}} with an actual expense ID."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Sales",
+			"item": [
+				{
+					"name": "Create Sales (BranchOwner)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.environment.set(\"SALES_ID\", jsonData._id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANCHOWNERA_JWT_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"cash\": 200,\n    \"gpay\": 75,\n    \"creditCard\": 25,\n    \"total\": 300,\n    \"date\": \"2023-01-16T11:00:00.000Z\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/sales",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"sales"
+							]
+						},
+						"description": "Creates a new sales record. (BranchOwner only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Sales (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/sales",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"sales"
+							]
+						},
+						"description": "Retrieves all sales. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Sales (BrandOwner)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANDOWNER1_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/sales",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"sales"
+							]
+						},
+						"description": "Retrieves sales for Brand Owner 1's hierarchy. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Sales (Manager)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{MANAGER1_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/sales",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"sales"
+							]
+						},
+						"description": "Retrieves sales for Manager 1's assigned Branch Owners. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Sales (BranchOwner)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANCHOWNERA_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/sales",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"sales"
+							]
+						},
+						"description": "Retrieves sales for Branch Owner A. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Sales (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/sales/{{SALES_ID}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"sales",
+								"{{SALES_ID}}"
+							]
+						},
+						"description": "Deletes a sales record. (Admin, BrandOwner). Replace {{SALES_ID}} with an actual sales ID."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Stock Requests",
+			"item": [
+				{
+					"name": "Create Stock Request (BranchOwner)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.environment.set(\"STOCK_REQUEST_ID\", jsonData._id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANCHOWNERA_JWT_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"productName\": \"Laptop Model X\",\n    \"quantity\": 5,\n    \"priority\": \"High\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/stockrequests",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"stockrequests"
+							]
+						},
+						"description": "Creates a new stock request. (BranchOwner only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Stock Requests (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/stockrequests",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"stockrequests"
+							]
+						},
+						"description": "Retrieves all stock requests. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Stock Requests (BrandOwner)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANDOWNER1_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/stockrequests",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"stockrequests"
+							]
+						},
+						"description": "Retrieves stock requests for Brand Owner 1's hierarchy. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Stock Requests (Manager)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{MANAGER1_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/stockrequests",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"stockrequests"
+							]
+						},
+						"description": "Retrieves stock requests for Manager 1's assigned Branch Owners. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Stock Requests (BranchOwner)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANCHOWNERA_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/stockrequests",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"stockrequests"
+							]
+						},
+						"description": "Retrieves stock requests for Branch Owner A. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Approve Stock Request (BrandOwner)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANDOWNER1_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/stockrequests/{{STOCK_REQUEST_ID}}/approve",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"stockrequests",
+								"{{STOCK_REQUEST_ID}}",
+								"approve"
+							]
+						},
+						"description": "Approves a stock request. (Admin, BrandOwner). Replace {{STOCK_REQUEST_ID}} with an actual stock request ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Stock Request (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/stockrequests/{{STOCK_REQUEST_ID}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"stockrequests",
+								"{{STOCK_REQUEST_ID}}"
+							]
+						},
+						"description": "Deletes a stock request. (Admin, BrandOwner). Replace {{STOCK_REQUEST_ID}} with an actual stock request ID."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Transport",
+			"item": [
+				{
+					"name": "Create Transport (BrandOwner)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.environment.set(\"TRANSPORT_ID\", jsonData._id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANDOWNER1_JWT_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"stockRequest\": \"{{STOCK_REQUEST_ID}}\",\n    \"bundleSize\": 2,\n    \"quantity\": 10,\n    \"from\": \"Main Warehouse\",\n    \"to\": \"Branch A\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/transport",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"transport"
+							]
+						},
+						"description": "Creates new transport details for a stock request. (Admin, BrandOwner). Replace {{STOCK_REQUEST_ID}} with an actual stock request ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Transport (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/transport",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"transport"
+							]
+						},
+						"description": "Retrieves all transport details. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Transport (BrandOwner)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANDOWNER1_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/transport",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"transport"
+							]
+						},
+						"description": "Retrieves transport details for Brand Owner 1's hierarchy. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Transport (Manager)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{MANAGER1_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/transport",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"transport"
+							]
+						},
+						"description": "Retrieves transport details for Manager 1's assigned Branch Owners. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Transport (BranchOwner)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANCHOWNERA_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/transport",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"transport"
+							]
+						},
+						"description": "Retrieves transport details for Branch Owner A. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Confirm Received Transport (BranchOwner)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANCHOWNERA_JWT_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"receivedQuantity\": 10\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/transport/{{TRANSPORT_ID}}/receive",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"transport",
+								"{{TRANSPORT_ID}}",
+								"receive"
+							]
+						},
+						"description": "Confirms the received quantity for a transport. (BranchOwner only). Replace {{TRANSPORT_ID}} with an actual transport ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Transport (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/transport/{{TRANSPORT_ID}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"transport",
+								"{{TRANSPORT_ID}}"
+							]
+						},
+						"description": "Deletes transport details. (Admin, BrandOwner). Replace {{TRANSPORT_ID}} with an actual transport ID."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Reports",
+			"item": [
+				{
+					"name": "Get Sales Report (Daily, BranchOwner A)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANCHOWNERA_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/reports/sales?type=daily&branch={{BRANCHOWNERA_ID}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"reports",
+								"sales"
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "daily"
+								},
+								{
+									"key": "branch",
+									"value": "{{BRANCHOWNERA_ID}}"
+								}
+							]
+						},
+						"description": "Generates a daily sales report for Branch Owner A. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Expense Report (Monthly, BrandOwner 1)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANDOWNER1_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/reports/expenses?type=monthly&manager={{MANAGER1_ID}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"reports",
+								"expenses"
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "monthly"
+								},
+								{
+									"key": "manager",
+									"value": "{{MANAGER1_ID}}"
+								}
+							]
+						},
+						"description": "Generates a monthly expense report for Brand Owner 1's managers. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Stock Request Report (All, Pending)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/reports/stockrequests?status=Pending",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"reports",
+								"stockrequests"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "Pending"
+								}
+							]
+						},
+						"description": "Generates a report of all pending stock requests. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Profit/Loss Report (All, Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/reports/profit-loss?type=all",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"reports",
+								"profit-loss"
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "all"
+								}
+							]
+						},
+						"description": "Generates an overall profit/loss report. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Export",
+			"item": [
+				{
+					"name": "Export Sales to Excel (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/export/sales/excel?type=monthly",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"export",
+								"sales",
+								"excel"
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "monthly"
+								}
+							]
+						},
+						"description": "Exports sales data to an Excel file. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Export Expenses to Excel (BrandOwner)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANDOWNER1_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/export/expenses/excel?type=daily",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"export",
+								"expenses",
+								"excel"
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "daily"
+								}
+							]
+						},
+						"description": "Exports expenses data to an Excel file. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Export Sales to PDF (Manager)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{MANAGER1_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/export/sales/pdf?type=all",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"export",
+								"sales",
+								"pdf"
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "all"
+								}
+							]
+						},
+						"description": "Exports sales data to a PDF file. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Export Expenses to CSV (BranchOwner)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANCHOWNERA_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/export/expenses/csv?type=weekly",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"export",
+								"expenses",
+								"csv"
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "weekly"
+								}
+							]
+						},
+						"description": "Exports expenses data to a CSV file. (Admin, BrandOwner, Manager, BranchOwner)"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Activity Logs",
+			"item": [
+				{
+					"name": "Get Activity Logs (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ADMIN_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/activity-logs?page=1&limit=10",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"activity-logs"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Retrieves activity logs. (Admin, BrandOwner)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Activity Logs (BrandOwner - Filter by User)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{BRANDOWNER1_JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/activity-logs?userId={{MANAGER1_ID}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"activity-logs"
+							],
+							"query": [
+								{
+									"key": "userId",
+									"value": "{{MANAGER1_ID}}"
+								}
+							]
+						},
+						"description": "Retrieves activity logs filtered by a specific user ID within the Brand Owner's hierarchy. (Admin, BrandOwner)"
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "BASE_URL",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "ADMIN_JWT_TOKEN",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "BRANDOWNER1_JWT_TOKEN",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "MANAGER1_JWT_TOKEN",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "BRANCHOWNERA_JWT_TOKEN",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "ADMIN_ID",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "BRANDOWNER1_ID",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "MANAGER1_ID",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "BRANCHOWNERA_ID",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "BRANCHOWNERC_ID",
+			"value": "",
+			"type": "string",
+			"description": "Used for testing user assignment"
+		},
+		{
+			"key": "NEW_USER_ID",
+			"value": "",
+			"type": "string",
+			"description": "Used for testing user deletion"
+		},
+		{
+			"key": "EXPENSE_ID",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "SALES_ID",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "STOCK_REQUEST_ID",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "TRANSPORT_ID",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

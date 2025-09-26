@@ -1,58 +1,33 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import bcrypt from 'bcryptjs';
-import User from './models/User.js';
-import connectDB from './config/db.js';
+import generateSampleData from './sampleData.js';
 
 dotenv.config();
 connectDB();
 
-const seedUsers = async () => {
+const importData = async () => {
   try {
-    await User.deleteMany(); // Clear existing users
-
-    const salt = await bcrypt.genSalt(10);
-
-    const adminUser = await User.create({
-      name: 'Admin User',
-      email: 'admin@example.com',
-      password: await bcrypt.hash('password123', salt),
-      role: 'Admin',
-    });
-
-    const brandOwnerUser = await User.create({
-      name: 'Brand Owner User',
-      email: 'brandowner@example.com',
-      password: await bcrypt.hash('password123', salt),
-      role: 'BrandOwner',
-    });
-
-    const managerUser = await User.create({
-      name: 'Manager User',
-      email: 'manager@example.com',
-      password: await bcrypt.hash('password123', salt),
-      role: 'Manager',
-      assignedManager: brandOwnerUser._id,
-    });
-
-    const branchOwnerUser = await User.create({
-      name: 'Branch Owner User',
-      email: 'branchowner@example.com',
-      password: await bcrypt.hash('password123', salt),
-      role: 'BranchOwner',
-      assignedManager: managerUser._id,
-    });
-
-    // Assign branch owner to brand owner
-    brandOwnerUser.assignedBranchOwners.push(branchOwnerUser._id);
-    await brandOwnerUser.save();
-
-    console.log('Users seeded successfully!');
+    await generateSampleData();
+    console.log('Data Imported!');
     process.exit();
   } catch (error) {
-    console.error(`Error seeding users: ${error.message}`);
+    console.error(`${error}`);
     process.exit(1);
   }
 };
 
-seedUsers();
+const destroyData = async () => {
+  try {
+    console.log('Data Destroyed!');
+    process.exit();
+  } catch (error) {
+    console.error(`${error}`);
+    process.exit(1);
+  }
+};
+
+if (process.argv[2] === '-d') {
+  destroyData();
+} else {
+  importData();
+}

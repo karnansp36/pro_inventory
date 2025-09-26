@@ -34,6 +34,14 @@ app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
+app.get('/api/auth/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    message: 'Server is running' 
+  });
+});
+
 const PORT = process.env.PORT || 5000;
 
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/shop-management')

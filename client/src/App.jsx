@@ -1,35 +1,124 @@
-import React from 'react';
-import { Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import StockRequests from './pages/StockRequests';
-import Sales from './pages/Sales';
-import Expenses from './pages/Expenses';
-import Transport from './pages/Transport';
-import Reports from './pages/Reports';
-import UserManagement from './pages/UserManagement';
-import Navbar from './components/Navbar'; // Assuming a Navbar component will be created
+// App.jsx
+import { useEffect } from 'react'
+import { useSelector, useDispatch } from 'react-redux'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
+import { getCurrentUser } from './store/slices/authSlice'
+import Layout from './components/layout/Layout'
+import ProtectedRoute from './components/auth/ProtectedRoute'
+import Login from './components/auth/Login';
+import DashboardRouter from './pages/dashboard/DashboardRouter'
+import Users from './pages/management/Users'
+import Sales from './pages/management/Sales'
+import Expenses from './pages/management/Expenses'
+import StockRequests from './pages/management/StockRequests'
+import Transport from './pages/management/Transport'
+import Reports from './pages/management/Reports'
 
 function App() {
+  const dispatch = useDispatch()
+  const { isAuthenticated } = useSelector((state) => state.auth)
+
+  useEffect(() => {
+    // Check if user is logged in on app start
+    if (localStorage.getItem('token')) {
+      dispatch(getCurrentUser())
+    }
+  }, [dispatch])
+
   return (
-    <AuthProvider>
-      <Navbar />
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/stockrequests" element={<StockRequests />} />
-        <Route path="/sales" element={<Sales />} />
-        <Route path="/expenses" element={<Expenses />} />
-        <Route path="/transport" element={<Transport />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/users" element={<UserManagement />} />
-        <Route path="/" element={<Dashboard />} /> {/* Default route */}
-      </Routes>
-    </AuthProvider>
-  );
+    <Router>
+      <div className="App">
+        <Routes>
+          <Route 
+            path="/login" 
+            element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />} 
+          />
+          
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DashboardRouter />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'BrandOwner']}>
+                <Layout>
+                  <Users />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/sales"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Sales />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/expenses"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Expenses />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/stock-requests"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <StockRequests />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/transport"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Transport />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Reports />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </div>
+      <ToastContainer />
+    </Router>
+  )
 }
 
-export default App;
+export default App
