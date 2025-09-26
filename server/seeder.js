@@ -1,8 +1,8 @@
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
-const bcrypt = require('bcryptjs');
-const User = require('./models/User');
-const connectDB = require('./config/db');
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
+import User from './models/User.js';
+import connectDB from './config/db.js';
 
 dotenv.config();
 connectDB();

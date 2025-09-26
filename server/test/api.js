@@ -1,5 +1,5 @@
-const axios = require('axios');
-const mongoose = require('mongoose');
+import axios from 'axios';
+import mongoose from 'mongoose';
 
 const BASE_URL = 'http://localhost:5000/api';
 

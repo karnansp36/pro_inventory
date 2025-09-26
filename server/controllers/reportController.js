@@ -1,8 +1,8 @@
-const asyncHandler = require('express-async-handler');
-const Sales = require('../models/Sales');
-const Expense = require('../models/Expense');
-const StockRequest = require('../models/StockRequest');
-const User = require('../models/User');
+import asyncHandler from 'express-async-handler';
+import Sales from '../models/Sales.js';
+import Expense from '../models/Expense.js';
+import StockRequest from '../models/StockRequest.js';
+import User from '../models/User.js';
 
 // Helper function to get branch owner IDs for a given manager/brand owner
 const getAccessibleBranchOwnerIds = async (userId, userRole) => {
@@ -389,7 +389,7 @@ function getDateRange(type, startDate, endDate) {
   return { start, end };
 }
 
-module.exports = {
+export {
   getSalesReport,
   getExpenseReport,
   getStockRequestReport,

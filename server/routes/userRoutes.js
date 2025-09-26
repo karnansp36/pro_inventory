@@ -1,15 +1,15 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { 
-  getUsers, 
-  getUserById, 
-  updateUser, 
-  deleteUser, 
-  getUsersByRole, 
-  assignUser, 
-  getUserHierarchy 
-} = require('../controllers/userController');
-const { protect, authorizeRoles } = require('../middleware/authMiddleware');
+import {
+  getUsers,
+  getUserById,
+  updateUser,
+  deleteUser,
+  getUsersByRole,
+  assignUser,
+  getUserHierarchy
+} from '../controllers/userController.js';
+import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 router.route('/')
   .get(protect, authorizeRoles('Admin'), getUsers);
@@ -28,4 +28,4 @@ router.route('/:id')
   .put(protect, authorizeRoles('Admin'), updateUser)
   .delete(protect, authorizeRoles('Admin'), deleteUser);
 
-module.exports = router;
+export default router;

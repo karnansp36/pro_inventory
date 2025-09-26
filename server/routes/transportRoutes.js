@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { getTransports, createTransport, confirmReceivedTransport, deleteTransport } = require('../controllers/transportController');
-const { protect, authorizeRoles } = require('../middleware/authMiddleware');
+import { getTransports, createTransport, confirmReceivedTransport, deleteTransport } from '../controllers/transportController.js';
+import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 router.route('/')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getTransports)
@@ -13,4 +13,4 @@ router.route('/:id/receive')
 router.route('/:id')
   .delete(protect, authorizeRoles('Admin', 'BrandOwner'), deleteTransport);
 
-module.exports = router;
+export default router;

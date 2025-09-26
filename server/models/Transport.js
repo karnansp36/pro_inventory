@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const transportSchema = mongoose.Schema(
   {
@@ -35,4 +35,4 @@ const transportSchema = mongoose.Schema(
 
 const Transport = mongoose.model('Transport', transportSchema);
 
-module.exports = Transport;
+export default Transport;

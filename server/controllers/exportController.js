@@ -1,10 +1,10 @@
-const asyncHandler = require('express-async-handler');
-const Sales = require('../models/Sales');
-const Expense = require('../models/Expense');
-const StockRequest = require('../models/StockRequest');
-const User = require('../models/User');
-const ExcelJS = require('exceljs');
-const PDFDocument = require('pdfkit');
+import asyncHandler from 'express-async-handler';
+import Sales from '../models/Sales.js';
+import Expense from '../models/Expense.js';
+import StockRequest from '../models/StockRequest.js';
+import User from '../models/User.js';
+import ExcelJS from 'exceljs';
+import PDFDocument from 'pdfkit';
 
 // @desc    Export sales report to Excel
 // @route   GET /api/export/sales/excel
@@ -181,7 +181,7 @@ async function generateExpenseData(req) {
   return { expenses, summary };
 }
 
-module.exports = {
+export {
   exportSalesToExcel,
   exportExpensesToExcel,
   exportSalesToPDF,

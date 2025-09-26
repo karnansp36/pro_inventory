@@ -1,6 +1,6 @@
-const asyncHandler = require('express-async-handler');
-const ActivityLog = require('../models/ActivityLog');
-const User = require('../models/User');
+import asyncHandler from 'express-async-handler';
+import ActivityLog from '../models/ActivityLog.js';
+import User from '../models/User.js';
 
 // @desc    Get activity logs
 // @route   GET /api/activity-logs
@@ -74,7 +74,7 @@ const logActivity = async (userId, action, resource, resourceId = null, descript
   }
 };
 
-module.exports = {
+export {
   getActivityLogs,
   logActivity
 };

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const stockRequestSchema = mongoose.Schema(
   {
@@ -34,4 +34,4 @@ const stockRequestSchema = mongoose.Schema(
 
 const StockRequest = mongoose.model('StockRequest', stockRequestSchema);
 
-module.exports = StockRequest;
+export default StockRequest;

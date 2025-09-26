@@ -1,6 +1,6 @@
-const asyncHandler = require('express-async-handler');
-const Sales = require('../models/Sales');
-const User = require('../models/User');
+import asyncHandler from 'express-async-handler';
+import Sales from '../models/Sales.js';
+import User from '../models/User.js';
 
 // @desc    Get all sales
 // @route   GET /api/sales
@@ -96,7 +96,7 @@ const deleteSales = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Sales removed' });
 });
 
-module.exports = {
+export {
   getSales,
   createSales,
   deleteSales,

@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { getSales, createSales, deleteSales } = require('../controllers/salesController');
-const { protect, authorizeRoles } = require('../middleware/authMiddleware');
+import { getSales, createSales, deleteSales } from '../controllers/salesController.js';
+import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 router.route('/')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getSales)
@@ -10,4 +10,4 @@ router.route('/')
 router.route('/:id')
   .delete(protect, authorizeRoles('Admin', 'BrandOwner'), deleteSales);
 
-module.exports = router;
+export default router;

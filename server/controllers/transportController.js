@@ -1,7 +1,7 @@
-const asyncHandler = require('express-async-handler');
-const Transport = require('../models/Transport');
-const StockRequest = require('../models/StockRequest');
-const User = require('../models/User');
+import asyncHandler from 'express-async-handler';
+import Transport from '../models/Transport.js';
+import StockRequest from '../models/StockRequest.js';
+import User from '../models/User.js';
 
 // @desc    Get all transport details
 // @route   GET /api/transport
@@ -162,7 +162,7 @@ const deleteTransport = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Transport removed' });
 });
 
-module.exports = {
+export {
   getTransports,
   createTransport,
   confirmReceivedTransport,

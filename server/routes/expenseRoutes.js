@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { getExpenses, createExpense, updateExpense, deleteExpense } = require('../controllers/expenseController');
-const { protect, authorizeRoles } = require('../middleware/authMiddleware');
+import { getExpenses, createExpense, updateExpense, deleteExpense } from '../controllers/expenseController.js';
+import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 router.route('/')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getExpenses)
@@ -11,4 +11,4 @@ router.route('/:id')
   .put(protect, authorizeRoles('Admin', 'BrandOwner'), updateExpense)
   .delete(protect, authorizeRoles('Admin', 'BrandOwner'), deleteExpense);
 
-module.exports = router;
+export default router;

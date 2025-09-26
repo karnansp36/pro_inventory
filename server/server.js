@@ -1,8 +1,8 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const path = require('path');
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import path from 'path';
 
 // Load env vars
 dotenv.config();
@@ -14,15 +14,15 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/users', require('./routes/userRoutes'));
-app.use('/api/expenses', require('./routes/expenseRoutes'));
-app.use('/api/sales', require('./routes/salesRoutes'));
-app.use('/api/stockrequests', require('./routes/stockRoutes'));
-app.use('/api/transport', require('./routes/transportRoutes'));
-app.use('/api/reports', require('./routes/reportRoutes'));
-app.use('/api/export', require('./routes/exportRoutes'));
-app.use('/api/activity-logs', require('./routes/activityLogRoutes'));
+app.use('/api/auth', (await import('./routes/authRoutes.js')).default);
+app.use('/api/users', (await import('./routes/userRoutes.js')).default);
+app.use('/api/expenses', (await import('./routes/expenseRoutes.js')).default);
+app.use('/api/sales', (await import('./routes/salesRoutes.js')).default);
+app.use('/api/stockrequests', (await import('./routes/stockRoutes.js')).default);
+app.use('/api/transport', (await import('./routes/transportRoutes.js')).default);
+app.use('/api/reports', (await import('./routes/reportRoutes.js')).default);
+app.use('/api/export', (await import('./routes/exportRoutes.js')).default);
+app.use('/api/activity-logs', (await import('./routes/activityLogRoutes.js')).default);
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -36,10 +36,7 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/shop-management', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/shop-management')
 .then(() => {
   console.log('MongoDB Connected');
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

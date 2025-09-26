@@ -1,6 +1,6 @@
-const asyncHandler = require('express-async-handler');
-const StockRequest = require('../models/StockRequest');
-const User = require('../models/User');
+import asyncHandler from 'express-async-handler';
+import StockRequest from '../models/StockRequest.js';
+import User from '../models/User.js';
 
 // @desc    Get all stock requests
 // @route   GET /api/stockrequests
@@ -124,7 +124,7 @@ const deleteStockRequest = asyncHandler(async (req, res) => {
 });
 
 
-module.exports = {
+export {
   getStockRequests,
   createStockRequest,
   approveStockRequest,

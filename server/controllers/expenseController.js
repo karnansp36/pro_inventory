@@ -1,6 +1,6 @@
-const asyncHandler = require('express-async-handler');
-const Expense = require('../models/Expense');
-const User = require('../models/User');
+import asyncHandler from 'express-async-handler';
+import Expense from '../models/Expense.js';
+import User from '../models/User.js';
 
 // @desc    Get all expenses
 // @route   GET /api/expenses
@@ -131,7 +131,7 @@ const deleteExpense = asyncHandler(async (req, res) => {
 
 
 
-module.exports = {
+export {
   getExpenses,
   createExpense,
   updateExpense,
