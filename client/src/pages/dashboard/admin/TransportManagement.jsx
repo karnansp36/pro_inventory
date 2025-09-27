@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Search, Filter, Truck, Package, CheckCircle, MapPin } from 'lucide-react';
-import { getTransports } from '../../../store/slices/transportSlice';
+import { getTransport } from '../../../store/slices/transportSlice';
 
 const TransportManagement = () => {
   const dispatch = useDispatch();
@@ -10,7 +10,7 @@ const TransportManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    dispatch(getTransports());
+  dispatch(getTransport());
   }, [dispatch]);
 
   const filteredTransports = transports?.filter(transport => 

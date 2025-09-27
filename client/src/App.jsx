@@ -39,12 +39,10 @@ function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           
           <Route
-            path="/dashboard"
+            path="/dashboard/*"
             element={
               <ProtectedRoute>
-                <Layout>
-                  <DashboardRouter />
-                </Layout>
+                <DashboardRouter />
               </ProtectedRoute>
             }
           />

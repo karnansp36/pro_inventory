@@ -15,15 +15,15 @@ const AdminRoutes = () => {
   return (
     <AdminLayout>
       <Routes>
-        <Route path="/admin " element={<AdminDashboard />} />
-        <Route path="/users" element={<UserManagement />} />
-        <Route path="/sales" element={<SalesManagement />} />
-        <Route path="/expenses" element={<ExpensesManagement />} />
-        <Route path="/stock-requests" element={<StockRequestsManagement />} />
-        <Route path="/transport" element={<TransportManagement />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/exports" element={<Exports />} />
-        <Route path="/activity-logs" element={<ActivityLogs />} />
+        <Route path="admin" element={<AdminDashboard />} />
+        <Route path="users" element={<UserManagement />} />
+        <Route path="sales" element={<SalesManagement />} />
+        <Route path="expenses" element={<ExpensesManagement />} />
+        <Route path="stock-requests" element={<StockRequestsManagement />} />
+        <Route path="transport" element={<TransportManagement />} />
+        <Route path="reports" element={<Reports />} />
+        <Route path="exports" element={<Exports />} />
+        <Route path="activity-logs" element={<ActivityLogs />} />
       </Routes>
     </AdminLayout>
   );
