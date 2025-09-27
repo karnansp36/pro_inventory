@@ -2,17 +2,31 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Plus, Search, Filter, Edit, Trash2, Calendar } from 'lucide-react';
-import { getSales, deleteSale } from '../../../store/slices/salesSlice';
+import { getSales, deleteSale, createSale } from '../../../store/slices/salesSlice';
+import { getUsers } from '../../../store/slices/usersSlice';
 
 const SalesManagement = () => {
   const dispatch = useDispatch();
   const { sales, loading } = useSelector((state) => state.sales);
+  const { user } = useSelector((state) => state.auth);
+  const { users } = useSelector((state) => state.users);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({
+    cash: '',
+    gpay: '',
+    creditCard: '',
+    date: '',
+    branchOwner: '',
+  });
 
   useEffect(() => {
     dispatch(getSales());
-  }, [dispatch]);
+    if (user?.role === 'Admin' || user?.role === 'BrandOwner') {
+      dispatch(getUsers());
+    }
+  }, [dispatch, user?.role]);
 
   const filteredSales = sales?.filter(sale => 
     sale.branchOwner?.name?.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -25,6 +39,30 @@ const SalesManagement = () => {
     }
   };
 
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    const payload = {
+      cash: Number(form.cash) || 0,
+      gpay: Number(form.gpay) || 0,
+      creditCard: Number(form.creditCard) || 0,
+      date: form.date,
+    };
+    if (user?.role === 'Admin' || user?.role === 'BrandOwner') {
+      payload.branchOwner = form.branchOwner;
+    }
+    dispatch(createSale(payload)).then((res) => {
+      if (!res.error) {
+        setShowModal(false);
+        setForm({ cash: '', gpay: '', creditCard: '', date: '', branchOwner: '' });
+      }
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -32,11 +70,66 @@ const SalesManagement = () => {
           <h1 className="text-2xl font-bold text-gray-900">Sales Management</h1>
           <p className="text-gray-600">Manage all sales records across branches</p>
         </div>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2">
-          <Plus className="h-4 w-4" />
-          <span>Add Sale</span>
-        </button>
+        {(user?.role === 'BranchOwner' || user?.role === 'Admin' || user?.role === 'BrandOwner') && (
+          <button
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+            onClick={() => setShowModal(true)}
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Sale</span>
+          </button>
+        )}
       </div>
+
+      {/* Add Sale Modal */}
+  {(user?.role === 'BranchOwner' || user?.role === 'Admin' || user?.role === 'BrandOwner') && showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Add Sale</h2>
+            <form onSubmit={handleFormSubmit} className="space-y-4">
+              {(user?.role === 'Admin' || user?.role === 'BrandOwner') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Branch Owner</label>
+                  <select
+                    name="branchOwner"
+                    value={form.branchOwner}
+                    onChange={handleFormChange}
+                    className="w-full border rounded px-3 py-2"
+                    required
+                  >
+                    <option value="">Select Branch Owner</option>
+                    {users
+                      ?.filter(u => u.role === 'BranchOwner')
+                      .map(u => (
+                        <option key={u._id} value={u._id}>{u.name} ({u.email})</option>
+                      ))}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Cash</label>
+                <input type="number" name="cash" value={form.cash} onChange={handleFormChange} className="w-full border rounded px-3 py-2" min="0" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">GPay</label>
+                <input type="number" name="gpay" value={form.gpay} onChange={handleFormChange} className="w-full border rounded px-3 py-2" min="0" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Credit Card</label>
+                <input type="number" name="creditCard" value={form.creditCard} onChange={handleFormChange} className="w-full border rounded px-3 py-2" min="0" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Date</label>
+                <input type="date" name="date" value={form.date} onChange={handleFormChange} className="w-full border rounded px-3 py-2" />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 rounded bg-gray-200">Cancel</button>
+                <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white">Add</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">

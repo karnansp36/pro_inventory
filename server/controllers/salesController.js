@@ -38,7 +38,7 @@ const getSales = asyncHandler(async (req, res) => {
 // @route   POST /api/sales
 // @access  Private (BranchOwner)
 const createSales = asyncHandler(async (req, res) => {
-  const { cash, gpay, creditCard, total, date } = req.body;
+  const { cash, gpay, creditCard, total, date, branchOwner } = req.body;
 
   if (!cash && !gpay && !creditCard) {
     res.status(400);
@@ -52,13 +52,23 @@ const createSales = asyncHandler(async (req, res) => {
     throw new Error('User not found');
   }
 
-  if (user.role !== 'BranchOwner') {
+
+  let branchOwnerId;
+  if (user.role === 'BranchOwner') {
+    branchOwnerId = req.user.id;
+  } else if (user.role === 'Admin' || user.role === 'BrandOwner') {
+    if (!branchOwner) {
+      res.status(400);
+      throw new Error('branchOwner is required for Admin/BrandOwner');
+    }
+    branchOwnerId = branchOwner;
+  } else {
     res.status(403);
     throw new Error('Not authorized to create sales');
   }
 
   const sales = await Sales.create({
-    branchOwner: req.user.id,
+    branchOwner: branchOwnerId,
     cash: cash || 0,
     gpay: gpay || 0,
     creditCard: creditCard || 0,
