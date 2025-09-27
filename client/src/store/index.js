@@ -6,15 +6,17 @@ import salesSlice from './slices/salesSlice'
 import expensesSlice from './slices/expensesSlice'
 import stockRequestsSlice from './slices/stockRequestsSlice'
 import transportSlice from './slices/transportSlice'
+import activityLogsSlice from './slices/activityLogsSlice'
 
 export const store = configureStore({
   reducer: {
-    auth: authSlice,
-    users: usersSlice,
-    sales: salesSlice,
-    expenses: expensesSlice,
-    stockRequests: stockRequestsSlice,
-    transport: transportSlice,
+  auth: authSlice,
+  users: usersSlice,
+  sales: salesSlice,
+  expenses: expensesSlice,
+  stockRequests: stockRequestsSlice,
+  transport: transportSlice,
+  activityLogs: activityLogsSlice,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
