@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import AdminLayout from '../components/layout/AdminLayout';
 import AdminDashboard from '../pages/dashboard/admin/AdminDashboard';
 import UserManagement from '../pages/dashboard/admin/UserManagement';
+import UserView from '../pages/dashboard/admin/UserView';
 import SalesManagement from '../pages/dashboard/admin/SalesManagement';
 import ExpensesManagement from '../pages/dashboard/admin/ExpensesManagement';
 import StockRequestsManagement from '../pages/dashboard/admin/StockRequestsManagement';
@@ -16,7 +17,8 @@ const AdminRoutes = () => {
     <AdminLayout>
       <Routes>
         <Route path="admin" element={<AdminDashboard />} />
-        <Route path="users" element={<UserManagement />} />
+  <Route path="users" element={<UserManagement />} />
+  <Route path="user-view/:id" element={<UserView />} />
         <Route path="sales" element={<SalesManagement />} />
         <Route path="expenses" element={<ExpensesManagement />} />
         <Route path="stock-requests" element={<StockRequestsManagement />} />

@@ -6,7 +6,7 @@ import User from '../models/User.js';
 // @route   POST /api/users/register
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, password, role, assignedManager } = req.body;
+  const { name, email, password, role, assignedManager, assignedBrandOwner } = req.body;
 
   if (!name || !email || !password || !role) {
     res.status(400);
@@ -28,6 +28,7 @@ const registerUser = asyncHandler(async (req, res) => {
     password, // plain password, will be hashed automatically
     role,
     assignedManager: role === 'BranchOwner' ? assignedManager : undefined,
+    assignedBrandOwner: role === 'Manager' ? assignedBrandOwner : undefined,
   });
 
   if (user) {
@@ -105,11 +106,13 @@ const updateUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
 
   if (user) {
-    user.name = req.body.name || user.name;
-    user.email = req.body.email || user.email;
-    user.role = req.body.role || user.role;
-    user.assignedManager = req.body.assignedManager || user.assignedManager;
-    user.assignedBranchOwners = req.body.assignedBranchOwners || user.assignedBranchOwners;
+  user.name = req.body.name || user.name;
+  user.email = req.body.email || user.email;
+  user.role = req.body.role || user.role;
+  user.assignedManager = req.body.assignedManager || user.assignedManager;
+  user.assignedBrandOwner = req.body.assignedBrandOwner || user.assignedBrandOwner;
+  user.assignedManagers = req.body.assignedManagers || user.assignedManagers;
+  user.assignedBranchOwners = req.body.assignedBranchOwners || user.assignedBranchOwners;
 
     if (req.body.password) {
       const salt = await bcrypt.genSalt(10);
@@ -194,7 +197,7 @@ const getUsersByRole = asyncHandler(async (req, res) => {
 // @route   PUT /api/users/:id/assign
 // @access  Private (Admin, BrandOwner)
 const assignUser = asyncHandler(async (req, res) => {
-  const { assignedManager } = req.body;
+  const { assignedManager, assignedBrandOwner } = req.body;
   const targetUser = await User.findById(req.params.id);
   const currentUser = await User.findById(req.user.id);
 
@@ -206,13 +209,13 @@ const assignUser = asyncHandler(async (req, res) => {
   // Authorization checks
   if (currentUser.role === 'BrandOwner') {
     if (targetUser.role === 'Manager') {
-      // Brand Owner can assign themselves as manager to a Manager
-      targetUser.assignedManager = currentUser._id;
+      // Brand Owner can assign themselves as BrandOwner to a Manager
+      targetUser.assignedBrandOwner = currentUser._id;
     } else if (targetUser.role === 'BranchOwner') {
       // Brand Owner can assign a Manager to a Branch Owner
       if (assignedManager) {
         const manager = await User.findById(assignedManager);
-        if (manager && manager.role === 'Manager' && manager.assignedManager.toString() === currentUser._id.toString()) {
+        if (manager && manager.role === 'Manager' && manager.assignedBrandOwner && manager.assignedBrandOwner.toString() === currentUser._id.toString()) {
           targetUser.assignedManager = assignedManager;
         } else {
           res.status(400);
@@ -224,6 +227,9 @@ const assignUser = asyncHandler(async (req, res) => {
     // Admin can assign anyone
     if (assignedManager) {
       targetUser.assignedManager = assignedManager;
+    }
+    if (assignedBrandOwner) {
+      targetUser.assignedBrandOwner = assignedBrandOwner;
     }
   } else {
     res.status(403);
@@ -251,8 +257,10 @@ const getUserHierarchy = asyncHandler(async (req, res) => {
     // Admin sees entire hierarchy
     const brandOwners = await User.find({ role: 'BrandOwner' }).select('name email');
     hierarchy = await Promise.all(brandOwners.map(async (brandOwner) => {
-      const managers = await User.find({ role: 'Manager', assignedManager: brandOwner._id }).select('name email');
+      // Managers assigned to this BrandOwner
+      const managers = await User.find({ role: 'Manager', assignedBrandOwner: brandOwner._id }).select('name email');
       const managerHierarchy = await Promise.all(managers.map(async (manager) => {
+        // BranchOwners assigned to this Manager
         const branchOwners = await User.find({ role: 'BranchOwner', assignedManager: manager._id }).select('name email');
         return { ...manager.toObject(), branchOwners };
       }));
@@ -260,7 +268,7 @@ const getUserHierarchy = asyncHandler(async (req, res) => {
     }));
   } else if (user.role === 'BrandOwner') {
     // Brand Owner sees their Managers and their Branch Owners
-    const managers = await User.find({ role: 'Manager', assignedManager: user._id }).select('name email');
+    const managers = await User.find({ role: 'Manager', assignedBrandOwner: user._id }).select('name email');
     hierarchy = await Promise.all(managers.map(async (manager) => {
       const branchOwners = await User.find({ role: 'BranchOwner', assignedManager: manager._id }).select('name email');
       return { ...manager.toObject(), branchOwners };

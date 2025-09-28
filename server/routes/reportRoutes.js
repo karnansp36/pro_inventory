@@ -1,6 +1,6 @@
 import express from 'express';
 const router = express.Router();
-import { getSalesReport, getExpenseReport, getStockRequestReport } from '../controllers/reportController.js';
+import { getSalesReport, getExpenseReport, getStockRequestReport, getProfitLossReport } from '../controllers/reportController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 router.route('/sales')
@@ -13,3 +13,7 @@ router.route('/stockrequests')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getStockRequestReport);
 
 export default router;
+
+// Profit/Loss report route
+router.route('/profit-loss')
+  .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getProfitLossReport);

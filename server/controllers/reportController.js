@@ -292,15 +292,27 @@ const getProfitLossReport = asyncHandler(async (req, res) => {
     expensesQuery.date = { $gte: start, $lte: end };
   }
 
+
+  // Populate branchOwner with assignedManager for grouping
   const [sales, expenses] = await Promise.all([
-    Sales.find(salesQuery).populate('branchOwner', 'name email'),
-    Expense.find(expensesQuery).populate('branchOwner', 'name email')
+    Sales.find(salesQuery).populate({
+      path: 'branchOwner',
+      select: 'name email assignedManager',
+      populate: { path: 'assignedManager', select: 'name email role' }
+    }),
+    Expense.find(expensesQuery).populate({
+      path: 'branchOwner',
+      select: 'name email assignedManager',
+      populate: { path: 'assignedManager', select: 'name email role' }
+    })
   ]);
 
   // Calculate profit/loss by branch
   const branchProfitLoss = {};
   
+
   sales.forEach(sale => {
+    if (!sale.branchOwner) return;
     const branchId = sale.branchOwner._id.toString();
     if (!branchProfitLoss[branchId]) {
       branchProfitLoss[branchId] = {
@@ -313,7 +325,9 @@ const getProfitLossReport = asyncHandler(async (req, res) => {
     branchProfitLoss[branchId].totalSales += sale.total;
   });
 
+
   expenses.forEach(expense => {
+    if (!expense.branchOwner) return;
     const branchId = expense.branchOwner._id.toString();
     if (!branchProfitLoss[branchId]) {
       branchProfitLoss[branchId] = {

@@ -1,8 +1,9 @@
 // pages/admin/UserManagement.jsx
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Plus, Search, Filter, Edit, Trash2, UserPlus } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, UserPlus, Eye } from 'lucide-react';
 import { getUsers, deleteUser, createUser, updateUser } from '../../../store/slices/usersSlice';
+import UserHierarchyTable from './UserHierarchyTable';
 
 const UserManagement = () => {
   const dispatch = useDispatch();
@@ -17,6 +18,7 @@ const UserManagement = () => {
     password: '',
     role: '',
   });
+  const [viewUserId, setViewUserId] = useState(null);
 
   useEffect(() => {
     dispatch(getUsers());
@@ -176,6 +178,21 @@ const UserManagement = () => {
                       <button className="text-blue-600 hover:text-blue-900" onClick={() => handleEditUser(user)}>
                         <Edit className="h-4 w-4" />
                       </button>
+                      <button
+                        className="text-green-600 hover:text-green-900"
+                        title="View Manager/Branch List"
+                        onClick={() => setViewUserId(user._id)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+      {/* User Hierarchy Modal */}
+      {viewUserId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl">
+            <UserHierarchyTable userId={viewUserId} onClose={() => setViewUserId(null)} />
+          </div>
+        </div>
+      )}
       {/* Add/Edit User Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">

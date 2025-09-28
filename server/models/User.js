@@ -22,11 +22,26 @@ const userSchema = mongoose.Schema(
       enum: ['Admin', 'BrandOwner', 'Manager', 'BranchOwner'],
       default: 'BranchOwner',
     },
+    // For BranchOwner and Manager: who is their BrandOwner
+    assignedBrandOwner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+    },
+    // For BranchOwner: who is their Manager
     assignedManager: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: false,
     },
+    // For BrandOwner: which managers are assigned to them
+    assignedManagers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
+    // For Manager: which branch owners are assigned to them
     assignedBranchOwners: [
       {
         type: mongoose.Schema.Types.ObjectId,

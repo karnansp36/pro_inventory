@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import AdminRoutes from '../../routes/AdminRoutes';
 import BrandOwnerDashboard from './BrandOwnerDashboard';
 import ManagerDashboard from './ManagerDashboard';
-import BranchOwnerDashboard from './BranchOwnerDashboard';
+import BranchOwnerDashboard from './branch-owner/BranchOwnerDashboard';
 
 const DashboardRouter = () => {
   const { user } = useSelector((state) => state.auth);

@@ -15,6 +15,8 @@ const Reports = () => {
   const [expenseData, setExpenseData] = useState([]);
   const [profitLoss, setProfitLoss] = useState({});
   const [loading, setLoading] = useState(false);
+  const [branchReports, setBranchReports] = useState([]);
+  const [groupedManagers, setGroupedManagers] = useState({});
 
   const fetchReports = async () => {
     setLoading(true);
@@ -42,7 +44,6 @@ const Reports = () => {
         fetchProfitLossReport(profitLossParams),
       ]);
 
-      // Format for recharts
       setSalesData(
         salesRes.sales?.map((s, i) => ({
           name: s.date ? new Date(s.date).toLocaleString('default', { month: 'short' }) : `M${i+1}`,
@@ -59,6 +60,16 @@ const Reports = () => {
         }, []) || []
       );
       setProfitLoss(profitLossRes.summary || {});
+      setBranchReports(profitLossRes.report || []);
+
+      // Group by manager/brand owner if available
+      const grouped = {};
+      (profitLossRes.report || []).forEach((item) => {
+        const manager = item.branchOwner?.assignedManager || 'Unassigned';
+        if (!grouped[manager]) grouped[manager] = [];
+        grouped[manager].push(item);
+      });
+      setGroupedManagers(grouped);
     } catch (e) {
       // Optionally handle error
     }
@@ -157,8 +168,67 @@ const Reports = () => {
         </div>
       </div>
 
+      {/* Per-Branch Profit/Loss Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold mb-4">Branch-wise Profit/Loss</h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr>
+                <th className="px-4 py-2 text-left">Branch</th>
+                <th className="px-4 py-2 text-left">Manager/Brand Owner</th>
+                <th className="px-4 py-2 text-right">Sales</th>
+                <th className="px-4 py-2 text-right">Expenses</th>
+                <th className="px-4 py-2 text-right">Net Profit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {branchReports.map((item, idx) => (
+                <tr key={item.branchOwner?._id || idx} className="border-t">
+                  <td className="px-4 py-2">{item.branchOwner?.name || 'N/A'}</td>
+                  <td className="px-4 py-2">{item.branchOwner?.assignedManager || 'N/A'}</td>
+                  <td className="px-4 py-2 text-right">${item.totalSales?.toLocaleString() || 0}</td>
+                  <td className="px-4 py-2 text-right">${item.totalExpenses?.toLocaleString() || 0}</td>
+                  <td className="px-4 py-2 text-right">${item.netProfit?.toLocaleString() || 0}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Grouped by Manager/Brand Owner */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
+        <h3 className="text-lg font-semibold mb-4">Grouped by Manager/Brand Owner</h3>
+        {Object.keys(groupedManagers).map((managerId) => (
+          <div key={managerId} className="mb-4">
+            <h4 className="font-semibold text-blue-700 mb-2">Manager/Brand Owner: {managerId}</h4>
+            <table className="min-w-full text-sm mb-2">
+              <thead>
+                <tr>
+                  <th className="px-4 py-2 text-left">Branch</th>
+                  <th className="px-4 py-2 text-right">Sales</th>
+                  <th className="px-4 py-2 text-right">Expenses</th>
+                  <th className="px-4 py-2 text-right">Net Profit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {groupedManagers[managerId].map((item, idx) => (
+                  <tr key={item.branchOwner?._id || idx} className="border-t">
+                    <td className="px-4 py-2">{item.branchOwner?.name || 'N/A'}</td>
+                    <td className="px-4 py-2 text-right">${item.totalSales?.toLocaleString() || 0}</td>
+                    <td className="px-4 py-2 text-right">${item.totalExpenses?.toLocaleString() || 0}</td>
+                    <td className="px-4 py-2 text-right">${item.netProfit?.toLocaleString() || 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </div>
+
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h4 className="font-semibold text-gray-900">Total Revenue</h4>
           <p className="text-2xl font-bold text-green-600">${profitLoss.totalSales?.toLocaleString() || 0}</p>
