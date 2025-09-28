@@ -2,16 +2,37 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Search, Filter, Truck, Package, CheckCircle, MapPin } from 'lucide-react';
-import { getTransport } from '../../../store/slices/transportSlice';
+import { getTransport, createTransport } from '../../../store/slices/transportSlice';
+import { getStockRequests } from '../../../store/slices/stockRequestsSlice';
+import TransportForm from '../../../components/forms/TransportForm';
 
 const TransportManagement = () => {
+
   const dispatch = useDispatch();
-  const { transports, loading } = useSelector((state) => state.transport);
+  const { transport: transports, loading } = useSelector((state) => state.transport);
+  const { stockRequests } = useSelector((state) => state.stockRequests || {});
   const [searchTerm, setSearchTerm] = useState('');
+  const [showModal, setShowModal] = useState(false);
+
 
   useEffect(() => {
-  dispatch(getTransport());
+    dispatch(getTransport());
+    dispatch(getStockRequests());
   }, [dispatch]);
+
+  const handleAdd = () => {
+    setShowModal(true);
+  };
+
+  const handleModalClose = () => {
+    setShowModal(false);
+  };
+
+  const handleFormSubmit = (formData) => {
+    dispatch(createTransport(formData)).then((res) => {
+      if (!res.error) setShowModal(false);
+    });
+  };
 
   const filteredTransports = transports?.filter(transport => 
     transport.stockRequest?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -38,7 +59,10 @@ const TransportManagement = () => {
           <h1 className="text-2xl font-bold text-gray-900">Transport Management</h1>
           <p className="text-gray-600">Monitor and manage stock transportation</p>
         </div>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2">
+        <button
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+          onClick={handleAdd}
+        >
           <Truck className="h-4 w-4" />
           <span>Create Transport</span>
         </button>
@@ -131,6 +155,26 @@ const TransportManagement = () => {
           </table>
         </div>
       </div>
+      {/* Modal for Add Transport */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+            <h2 className="text-lg font-semibold mb-4">Create Transport</h2>
+            <TransportForm
+              onSubmit={handleFormSubmit}
+              onCancel={handleModalClose}
+              loading={loading}
+              stockRequests={stockRequests}
+            />
+            <button
+              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+              onClick={handleModalClose}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

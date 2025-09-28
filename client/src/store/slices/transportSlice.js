@@ -1,3 +1,15 @@
+// Thunk to create a new transport
+export const createTransport = createAsyncThunk(
+  'transport/create',
+  async (transportData, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/transport', transportData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../services/api';
 
@@ -25,6 +37,7 @@ export const updateTransport = createAsyncThunk(
   }
 );
 
+
 const transportSlice = createSlice({
   name: 'transport',
   initialState: {
@@ -46,6 +59,18 @@ const transportSlice = createSlice({
       .addCase(getTransport.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch transport data';
+      })
+      .addCase(createTransport.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createTransport.fulfilled, (state, action) => {
+        state.loading = false;
+        state.transport.push(action.payload);
+      })
+      .addCase(createTransport.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to create transport';
       })
       .addCase(updateTransport.pending, (state) => {
         state.loading = true;

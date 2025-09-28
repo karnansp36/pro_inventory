@@ -10,9 +10,18 @@ const ActivityLogs = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
 
+
   useEffect(() => {
     dispatch(getActivityLogs());
   }, [dispatch]);
+
+  useEffect(() => {
+    // Filter logs by date or search term
+    const filters = {};
+    if (dateFilter) filters.startDate = dateFilter;
+    if (searchTerm) filters.action = searchTerm;
+    dispatch(getActivityLogs(filters));
+  }, [dateFilter, searchTerm, dispatch]);
 
   const filteredLogs = activityLogs?.filter(log => 
     log.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||

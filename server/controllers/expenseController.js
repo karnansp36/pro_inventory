@@ -34,11 +34,11 @@ const getExpenses = asyncHandler(async (req, res) => {
   res.status(200).json(expenses);
 });
 
-// @desc    Create new expense (BranchOwner only)
+// @desc    Create new expense (Admin, BrandOwner, BranchOwner)
 // @route   POST /api/expenses
-// @access  Private (BranchOwner)
+// @access  Private (Admin, BrandOwner, BranchOwner)
 const createExpense = asyncHandler(async (req, res) => {
-  const { category, amount, description, date } = req.body;
+  const { category, amount, description, date, branchOwner } = req.body;
 
   if (!category || !amount) {
     res.status(400);
@@ -52,13 +52,28 @@ const createExpense = asyncHandler(async (req, res) => {
     throw new Error('User not found');
   }
 
-  if (user.role !== 'BranchOwner') {
+  let ownerId;
+  if (user.role === 'Admin' || user.role === 'BrandOwner') {
+    if (!branchOwner) {
+      res.status(400);
+      throw new Error('branchOwner is required');
+    }
+    // Validate branchOwner exists and is a BranchOwner
+    const branchOwnerUser = await User.findById(branchOwner);
+    if (!branchOwnerUser || branchOwnerUser.role !== 'BranchOwner') {
+      res.status(400);
+      throw new Error('Invalid branchOwner');
+    }
+    ownerId = branchOwner;
+  } else if (user.role === 'BranchOwner') {
+    ownerId = req.user.id;
+  } else {
     res.status(403);
     throw new Error('Not authorized to create expenses');
   }
 
   const expense = await Expense.create({
-    branchOwner: req.user.id,
+    branchOwner: ownerId,
     category,
     amount,
     description,

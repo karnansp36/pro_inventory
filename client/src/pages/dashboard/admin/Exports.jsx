@@ -1,5 +1,6 @@
 // pages/admin/Exports.jsx
 import { Download, FileText, Sheet, FileDown } from 'lucide-react';
+import { exportSales, exportExpenses, exportStockRequests, exportTransport } from '../../../services/exportService';
 
 const Exports = () => {
   const exportOptions = [
@@ -41,9 +42,28 @@ const Exports = () => {
     }
   ];
 
-  const handleExport = (dataType, format) => {
-    // Implement export functionality
-    console.log(`Exporting ${dataType} as ${format}`);
+  const handleExport = async (dataType, format) => {
+    let exportFn;
+    if (dataType.includes('Sales')) exportFn = exportSales;
+    else if (dataType.includes('Expenses')) exportFn = exportExpenses;
+    else if (dataType.includes('Stock')) exportFn = exportStockRequests;
+    else if (dataType.includes('Transport')) exportFn = exportTransport;
+    else return;
+
+    try {
+      const res = await exportFn(format);
+      const blob = new Blob([res.data], { type: res.headers['content-type'] });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${dataType.replace(/\s/g, '_').toLowerCase()}.${format.toLowerCase()}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Export failed.');
+    }
   };
 
   return (

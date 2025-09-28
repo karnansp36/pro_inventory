@@ -2,17 +2,28 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Plus, Search, Filter, Edit, Trash2, Calendar } from 'lucide-react';
-import { getExpenses, deleteExpense } from '../../../store/slices/expensesSlice';
+import { getExpenses, createExpense, updateExpense, deleteExpense } from '../../../store/slices/expensesSlice';
+import ExpenseForm from '../../../components/forms/ExpenseForm';
+import { getUsers } from '../../../store/slices/usersSlice';
 
 const ExpensesManagement = () => {
   const dispatch = useDispatch();
   const { expenses, loading } = useSelector((state) => state.expenses);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [editExpense, setEditExpense] = useState(null);
+
+
+  const { user } = useSelector((state) => state.auth || {});
+  const { users } = useSelector((state) => state.users || {});
 
   useEffect(() => {
     dispatch(getExpenses());
-  }, [dispatch]);
+    if (user && (user.role === 'Admin' || user.role === 'BrandOwner')) {
+      dispatch(getUsers());
+    }
+  }, [dispatch, user]);
 
   const categories = [...new Set(expenses?.map(exp => exp.category))];
 
@@ -21,9 +32,37 @@ const ExpensesManagement = () => {
     (categoryFilter === '' || expense.category === categoryFilter)
   );
 
+
   const handleDelete = (expenseId) => {
     if (window.confirm('Are you sure you want to delete this expense?')) {
       dispatch(deleteExpense(expenseId));
+    }
+  };
+
+  const handleAdd = () => {
+    setEditExpense(null);
+    setShowModal(true);
+  };
+
+  const handleEdit = (expense) => {
+    setEditExpense(expense);
+    setShowModal(true);
+  };
+
+  const handleModalClose = () => {
+    setShowModal(false);
+    setEditExpense(null);
+  };
+
+  const handleFormSubmit = (formData) => {
+    let data = { ...formData };
+    if (user && (user.role === 'Admin' || user.role === 'BrandOwner')) {
+      data.branchOwner = formData.branchOwner;
+    }
+    if (editExpense) {
+      dispatch(updateExpense({ id: editExpense._id, data })).then(() => handleModalClose());
+    } else {
+      dispatch(createExpense(data)).then(() => handleModalClose());
     }
   };
 
@@ -34,7 +73,10 @@ const ExpensesManagement = () => {
           <h1 className="text-2xl font-bold text-gray-900">Expenses Management</h1>
           <p className="text-gray-600">Manage all expense records across branches</p>
         </div>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2">
+        <button
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+          onClick={handleAdd}
+        >
           <Plus className="h-4 w-4" />
           <span>Add Expense</span>
         </button>
@@ -116,7 +158,10 @@ const ExpensesManagement = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
-                      <button className="text-blue-600 hover:text-blue-900">
+                      <button
+                        className="text-blue-600 hover:text-blue-900"
+                        onClick={() => handleEdit(expense)}
+                      >
                         <Edit className="h-4 w-4" />
                       </button>
                       <button 
@@ -133,6 +178,26 @@ const ExpensesManagement = () => {
           </table>
         </div>
       </div>
+      {/* Modal for Add/Edit Expense */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+            <h2 className="text-lg font-semibold mb-4">{editExpense ? 'Edit Expense' : 'Add Expense'}</h2>
+            <ExpenseForm
+              initialData={editExpense}
+              onSubmit={handleFormSubmit}
+              onCancel={handleModalClose}
+              loading={loading}
+            />
+            <button
+              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+              onClick={handleModalClose}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

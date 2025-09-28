@@ -1,5 +1,6 @@
 // pages/admin/Reports.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { fetchSalesReport, fetchExpenseReport, fetchProfitLossReport } from '../../../services/reportService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
 import { Calendar, Filter, Download } from 'lucide-react';
 
@@ -9,21 +10,65 @@ const Reports = () => {
     end: ''
   });
 
-  // Sample data - replace with actual API data
-  const salesData = [
-    { name: 'Jan', sales: 4000, expenses: 2400 },
-    { name: 'Feb', sales: 3000, expenses: 1398 },
-    { name: 'Mar', sales: 2000, expenses: 9800 },
-    { name: 'Apr', sales: 2780, expenses: 3908 },
-    { name: 'May', sales: 1890, expenses: 4800 },
-  ];
 
-  const expenseData = [
-    { name: 'Rent', value: 400 },
-    { name: 'Utilities', value: 300 },
-    { name: 'Supplies', value: 300 },
-    { name: 'Salary', value: 200 },
-  ];
+  const [salesData, setSalesData] = useState([]);
+  const [expenseData, setExpenseData] = useState([]);
+  const [profitLoss, setProfitLoss] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  const fetchReports = async () => {
+    setLoading(true);
+    try {
+      const salesParams = {};
+      const expenseParams = {};
+      const profitLossParams = {};
+      if (dateRange.start) {
+        salesParams.startDate = dateRange.start;
+        expenseParams.startDate = dateRange.start;
+        profitLossParams.startDate = dateRange.start;
+      }
+      if (dateRange.end) {
+        salesParams.endDate = dateRange.end;
+        expenseParams.endDate = dateRange.end;
+        profitLossParams.endDate = dateRange.end;
+      }
+      salesParams.type = 'monthly';
+      expenseParams.type = 'monthly';
+      profitLossParams.type = 'monthly';
+
+      const [salesRes, expenseRes, profitLossRes] = await Promise.all([
+        fetchSalesReport(salesParams),
+        fetchExpenseReport(expenseParams),
+        fetchProfitLossReport(profitLossParams),
+      ]);
+
+      // Format for recharts
+      setSalesData(
+        salesRes.sales?.map((s, i) => ({
+          name: s.date ? new Date(s.date).toLocaleString('default', { month: 'short' }) : `M${i+1}`,
+          sales: s.total,
+          expenses: expenseRes.expenses?.[i]?.amount || 0,
+        })) || []
+      );
+      setExpenseData(
+        expenseRes.expenses?.reduce((acc, exp) => {
+          const found = acc.find(e => e.name === exp.category);
+          if (found) found.value += exp.amount;
+          else acc.push({ name: exp.category, value: exp.amount });
+          return acc;
+        }, []) || []
+      );
+      setProfitLoss(profitLossRes.summary || {});
+    } catch (e) {
+      // Optionally handle error
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchReports();
+    // eslint-disable-next-line
+  }, []);
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
@@ -62,9 +107,13 @@ const Reports = () => {
               className="px-3 py-2 border border-gray-300 rounded-lg"
             />
           </div>
-          <button className="bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200 flex items-center space-x-2">
+          <button
+            className="bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200 flex items-center space-x-2"
+            onClick={fetchReports}
+            disabled={loading}
+          >
             <Filter className="h-4 w-4" />
-            <span>Apply Filter</span>
+            <span>{loading ? 'Loading...' : 'Apply Filter'}</span>
           </button>
         </div>
       </div>
@@ -112,18 +161,18 @@ const Reports = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h4 className="font-semibold text-gray-900">Total Revenue</h4>
-          <p className="text-2xl font-bold text-green-600">$45,231.89</p>
-          <p className="text-sm text-gray-600">+20.1% from last month</p>
+          <p className="text-2xl font-bold text-green-600">${profitLoss.totalSales?.toLocaleString() || 0}</p>
+          <p className="text-sm text-gray-600">Total Sales</p>
         </div>
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h4 className="font-semibold text-gray-900">Total Expenses</h4>
-          <p className="text-2xl font-bold text-red-600">$12,234.56</p>
-          <p className="text-sm text-gray-600">+5.2% from last month</p>
+          <p className="text-2xl font-bold text-red-600">${profitLoss.totalExpenses?.toLocaleString() || 0}</p>
+          <p className="text-sm text-gray-600">Total Expenses</p>
         </div>
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h4 className="font-semibold text-gray-900">Net Profit</h4>
-          <p className="text-2xl font-bold text-blue-600">$32,997.33</p>
-          <p className="text-sm text-gray-600">+15.3% from last month</p>
+          <p className="text-2xl font-bold text-blue-600">${profitLoss.netProfit?.toLocaleString() || 0}</p>
+          <p className="text-sm text-gray-600">Net Profit</p>
         </div>
       </div>
     </div>
