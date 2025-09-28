@@ -1,5 +1,7 @@
 // components/branch-owner/SalesTable.jsx
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
+import api from '../../../services/api';
 
 const SalesTable = () => {
   const [sales, setSales] = useState([]);
@@ -11,16 +13,11 @@ const SalesTable = () => {
 
   const fetchSales = async () => {
     try {
-      const response = await fetch('/api/sales');
-      if (response.ok) {
-        const data = await response.json();
-        setSales(data);
-      } else {
-        throw new Error('Failed to fetch sales data');
-      }
+      const response = await api.get('/sales');
+      setSales(response.data);
     } catch (error) {
       console.error('Error fetching sales:', error);
-      alert('Error loading sales data');
+      toast.error('Error loading sales data');
     } finally {
       setLoading(false);
     }

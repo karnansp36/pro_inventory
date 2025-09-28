@@ -1,34 +1,50 @@
-import React from 'react';
-// TODO: Fetch expenses data from API
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { getExpenses } from '../../../store/slices/expensesSlice';
+
 const ExpensesTable = () => {
-  // Example static data
-  const expenses = [
-    { date: '2025-09-27', category: 'Supplies', amount: 200, description: 'Paper, pens' },
-    { date: '2025-09-26', category: 'Rent', amount: 1000, description: 'Monthly rent' },
-  ];
+  const dispatch = useDispatch();
+  const { expenses, loading, error } = useSelector((state) => state.expenses);
+
+  useEffect(() => {
+    dispatch(getExpenses());
+  }, [dispatch]);
+
   return (
     <div className="bg-white rounded shadow p-4">
       <h2 className="text-lg font-semibold mb-2">Expenses</h2>
-      <table className="min-w-full text-sm">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Category</th>
-            <th>Amount</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          {expenses.map((e, i) => (
-            <tr key={i}>
-              <td>{e.date}</td>
-              <td>{e.category}</td>
-              <td>{e.amount}</td>
-              <td>{e.description}</td>
+      {loading ? (
+        <div className="text-center py-4">Loading...</div>
+      ) : error ? (
+        <div className="text-red-600 py-4">{error}</div>
+      ) : (
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Amount</th>
+              <th>Description</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {expenses && expenses.length > 0 ? (
+              expenses.map((e, i) => (
+                <tr key={e._id || i}>
+                  <td>{new Date(e.date).toLocaleDateString()}</td>
+                  <td>{e.category}</td>
+                  <td>{e.amount}</td>
+                  <td>{e.description}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="4" className="text-center text-gray-500 py-4">No expenses found</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 };

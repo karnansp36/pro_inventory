@@ -11,6 +11,7 @@ import Login from './components/auth/Login';
 import DashboardRouter from './pages/dashboard/DashboardRouter'
 import BranchOwnerRoutes from './routes/BranchOwnerRoutes'
 
+
 function App() {
   const dispatch = useDispatch()
   const { isAuthenticated, user } = useSelector((state) => state.auth)
@@ -41,24 +42,10 @@ function App() {
             element={
               <ProtectedRoute>
                 {isBranchOwner ? (
-                  <Layout>
-                    <BranchOwnerRoutes />
-                  </Layout>
+                  <BranchOwnerRoutes />
                 ) : (
                   <DashboardRouter />
                 )}
-              </ProtectedRoute>
-            }
-          />
-          
-          {/* Direct routes for backward compatibility */}
-          <Route
-            path="/users"
-            element={
-              <ProtectedRoute allowedRoles={['Admin', 'BrandOwner']}>
-                <Layout>
-                  <Users />
-                </Layout>
               </ProtectedRoute>
             }
           />

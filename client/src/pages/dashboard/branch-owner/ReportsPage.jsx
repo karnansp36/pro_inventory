@@ -1,5 +1,6 @@
 // pages/dashboard/branch-owner/ReportsPage.jsx
 import React, { useState } from 'react';
+import { toast } from 'react-toastify';
 
 const ReportsPage = () => {
   const [reportType, setReportType] = useState('sales');
@@ -19,18 +20,17 @@ const ReportsPage = () => {
     try {
       // TODO: Replace with actual API call
       const response = await fetch(`/api/reports/${reportType}?start=${dateRange.start}&end=${dateRange.end}`);
-      
       if (response.ok) {
         const data = await response.json();
         // Handle report data - could open in new tab, download, etc.
         console.log('Report data:', data);
-        alert('Report generated successfully! Check console for data.');
+        toast.success('Report generated successfully! Check console for data.');
       } else {
         throw new Error('Failed to generate report');
       }
     } catch (error) {
       console.error('Error generating report:', error);
-      alert('Error generating report. Please try again.');
+      toast.error('Error generating report. Please try again.');
     }
   };
 
@@ -38,7 +38,6 @@ const ReportsPage = () => {
     try {
       // TODO: Replace with actual API call
       const response = await fetch(`/api/exports/${reportType}/${format}?start=${dateRange.start}&end=${dateRange.end}`);
-      
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -54,7 +53,7 @@ const ReportsPage = () => {
       }
     } catch (error) {
       console.error('Error exporting report:', error);
-      alert('Error exporting report. Please try again.');
+      toast.error('Error exporting report. Please try again.');
     }
   };
 

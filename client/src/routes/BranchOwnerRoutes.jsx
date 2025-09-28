@@ -1,7 +1,7 @@
 // routes/BranchOwnerRoutes.jsx
 import { Routes, Route } from 'react-router-dom';
 import BranchOwnerLayout from '../components/layout/BranchOwnerLayout';
-import BranchOwnerDashboard from '../pages/dashboard/branch-owner/BranchOwnerDashboard';
+import BranchDashboard from '../pages/dashboard/branch-owner/BranchDashboard';
 import SalesPage from '../pages/dashboard/branch-owner/SalesPage';
 import ExpensesPage from '../pages/dashboard/branch-owner/ExpensesPage';
 import StockRequestsPage from '../pages/dashboard/branch-owner/StockRequestsPage';
@@ -12,12 +12,17 @@ const BranchOwnerRoutes = () => {
   return (
     <BranchOwnerLayout>
       <Routes>
-        <Route path="dashboard" element={<BranchOwnerDashboard />} />
+        {/* Default index route for /dashboard and /dashboard/ */}
+        <Route index element={<BranchDashboard />} />
+        {/* Explicit dashboard route for /dashboard/dashboard */}
+        <Route path="dashboard" element={<BranchDashboard />} />
         <Route path="sales" element={<SalesPage />} />
         <Route path="expenses" element={<ExpensesPage />} />
         <Route path="stock-requests" element={<StockRequestsPage />} />
         <Route path="transport" element={<TransportPage />} />
         <Route path="reports" element={<ReportsPage />} />
+        {/* Catch-all: redirect to dashboard if no match */}
+        <Route path="*" element={<BranchDashboard />} />
       </Routes>
     </BranchOwnerLayout>
   );

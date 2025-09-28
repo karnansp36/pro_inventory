@@ -1,5 +1,7 @@
 // components/branch-owner/StockRequestForm.jsx
 import React, { useState } from 'react';
+import { toast } from 'react-toastify';
+import api from '../../../services/api';
 
 const StockRequestForm = ({ onRequestAdded }) => {
   const [formData, setFormData] = useState({
@@ -31,33 +33,19 @@ const StockRequestForm = ({ onRequestAdded }) => {
     };
 
     try {
-      // TODO: Replace with actual API call
-      const response = await fetch('/api/stock-requests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData)
+  await api.post('/stockrequests', requestData);
+      // Reset form
+      setFormData({
+        productName: '',
+        quantity: '',
+        priority: 'Normal'
       });
-
-      if (response.ok) {
-        // Reset form
-        setFormData({
-          productName: '',
-          quantity: '',
-          priority: 'Normal'
-        });
-        
-        // Notify parent component
-        onRequestAdded();
-        
-        alert('Stock request submitted successfully!');
-      } else {
-        throw new Error('Failed to submit stock request');
-      }
+      // Notify parent component
+      onRequestAdded();
+      toast.success('Stock request submitted successfully!');
     } catch (error) {
       console.error('Error submitting stock request:', error);
-      alert('Error submitting stock request. Please try again.');
+      toast.error('Error submitting stock request. Please try again.');
     }
   };
 

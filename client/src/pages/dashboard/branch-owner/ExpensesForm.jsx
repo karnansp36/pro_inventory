@@ -1,5 +1,7 @@
 // components/branch-owner/ExpensesForm.jsx
 import React, { useState } from 'react';
+import { toast } from 'react-toastify';
+import api from '../../../services/api';
 
 const ExpensesForm = ({ onExpenseAdded }) => {
   const [formData, setFormData] = useState({
@@ -37,34 +39,20 @@ const ExpensesForm = ({ onExpenseAdded }) => {
     };
 
     try {
-      // TODO: Replace with actual API call
-      const response = await fetch('/api/expenses', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(expenseData)
+      await api.post('/expenses', expenseData);
+      // Reset form
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        category: '',
+        amount: '',
+        description: ''
       });
-
-      if (response.ok) {
-        // Reset form
-        setFormData({
-          date: new Date().toISOString().split('T')[0],
-          category: '',
-          amount: '',
-          description: ''
-        });
-        
-        // Notify parent component
-        onExpenseAdded();
-        
-        alert('Expense recorded successfully!');
-      } else {
-        throw new Error('Failed to record expense');
-      }
+      // Notify parent component
+      onExpenseAdded();
+      toast.success('Expense recorded successfully!');
     } catch (error) {
       console.error('Error recording expense:', error);
-      alert('Error recording expense. Please try again.');
+      toast.error('Error recording expense. Please try again.');
     }
   };
 

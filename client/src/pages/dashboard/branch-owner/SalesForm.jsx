@@ -1,5 +1,7 @@
 // components/branch-owner/SalesForm.jsx
 import React, { useState } from 'react';
+import { toast } from 'react-toastify';
+import api from '../../../services/api';
 
 const SalesForm = ({ onSaleAdded }) => {
   const [formData, setFormData] = useState({
@@ -36,34 +38,20 @@ const SalesForm = ({ onSaleAdded }) => {
     };
 
     try {
-      // TODO: Replace with actual API call
-      const response = await fetch('/api/sales', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(saleData)
+      await api.post('/sales', saleData);
+      // Reset form
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        cash: '',
+        gpay: '',
+        creditCard: ''
       });
-
-      if (response.ok) {
-        // Reset form
-        setFormData({
-          date: new Date().toISOString().split('T')[0],
-          cash: '',
-          gpay: '',
-          creditCard: ''
-        });
-        
-        // Notify parent component
-        onSaleAdded();
-        
-        alert('Sale recorded successfully!');
-      } else {
-        throw new Error('Failed to record sale');
-      }
+      // Notify parent component
+      onSaleAdded();
+      toast.success('Sale recorded successfully!');
     } catch (error) {
       console.error('Error recording sale:', error);
-      alert('Error recording sale. Please try again.');
+      toast.error('Error recording sale. Please try again.');
     }
   };
 
