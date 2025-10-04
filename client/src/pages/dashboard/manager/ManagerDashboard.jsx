@@ -2,9 +2,9 @@
 import { useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { Eye, TrendingUp, Package, CreditCard } from 'lucide-react'
-import { getSales } from '../../store/slices/salesSlice'
-import { getExpenses } from '../../store/slices/expensesSlice'
-import { getStockRequests } from '../../store/slices/stockRequestsSlice'
+import { getSales } from '../../../store/slices/salesSlice'
+import { getExpenses } from '../../../store/slices/expensesSlice'
+import { getStockRequests } from '../../../store/slices/stockRequestsSlice'
 
 const ManagerDashboard = () => {
   const dispatch = useDispatch()

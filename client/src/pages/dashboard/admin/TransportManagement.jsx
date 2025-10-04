@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Search, Filter, Truck, Package, CheckCircle, MapPin } from 'lucide-react';
-import { getTransport, createTransport } from '../../../store/slices/transportSlice';
+import { getTransports, createTransport } from '../../../store/slices/transportSlice';
 import { getStockRequests } from '../../../store/slices/stockRequestsSlice';
 import TransportForm from '../../../components/forms/TransportForm';
 
@@ -16,7 +16,7 @@ const TransportManagement = () => {
 
 
   useEffect(() => {
-    dispatch(getTransport());
+    dispatch(getTransports());
     dispatch(getStockRequests());
   }, [dispatch]);
 

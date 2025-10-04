@@ -2,8 +2,8 @@
 import { useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { TrendingUp, Clock, Building2, CheckCircle, XCircle } from 'lucide-react'
-import { getSales } from '../../store/slices/salesSlice'
-import { getStockRequests } from '../../store/slices/stockRequestsSlice'
+import { getSales } from '../../../store/slices/salesSlice'
+import { getStockRequests } from '../../../store/slices/stockRequestsSlice'
 
 const BrandOwnerDashboard = () => {
   const dispatch = useDispatch()

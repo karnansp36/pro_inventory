@@ -37,6 +37,30 @@ export const createStockRequest = createAsyncThunk(
   }
 );
 
+export const updateStockRequest = createAsyncThunk(
+  'stockRequests/update',
+  async ({ id, stockRequestData }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/stockrequests/${id}`, stockRequestData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to update stock request' });
+    }
+  }
+);
+
+export const deleteStockRequest = createAsyncThunk(
+  'stockRequests/delete',
+  async (requestId, { rejectWithValue }) => {
+    try {
+      await api.delete(`/stockrequests/${requestId}`);
+      return requestId;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to delete stock request' });
+    }
+  }
+);
+
 const stockRequestsSlice = createSlice({
   name: 'stockRequests',
   initialState: {
@@ -71,14 +95,12 @@ const stockRequestsSlice = createSlice({
         state.loading = false;
         state.error = action.payload?.message || 'Failed to create stock request';
       })
-      // Approve stock request
       .addCase(approveStockRequest.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(approveStockRequest.fulfilled, (state, action) => {
         state.loading = false;
-        // Update the approved request in the list
         const updated = action.payload;
         const idx = state.stockRequests.findIndex(r => r._id === updated._id);
         if (idx !== -1) {
@@ -88,6 +110,34 @@ const stockRequestsSlice = createSlice({
       .addCase(approveStockRequest.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to approve stock request';
+      })
+      .addCase(updateStockRequest.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateStockRequest.fulfilled, (state, action) => {
+        state.loading = false;
+        const updated = action.payload;
+        const idx = state.stockRequests.findIndex(r => r._id === updated._id);
+        if (idx !== -1) {
+          state.stockRequests[idx] = updated;
+        }
+      })
+      .addCase(updateStockRequest.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to update stock request';
+      })
+      .addCase(deleteStockRequest.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteStockRequest.fulfilled, (state, action) => {
+        state.loading = false;
+        state.stockRequests = state.stockRequests.filter(request => request._id !== action.payload);
+      })
+      .addCase(deleteStockRequest.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to delete stock request';
       });
   },
 });

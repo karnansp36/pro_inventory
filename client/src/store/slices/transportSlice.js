@@ -13,7 +13,7 @@ export const createTransport = createAsyncThunk(
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../services/api';
 
-export const getTransport = createAsyncThunk(
+export const getTransports = createAsyncThunk(
   'transport/getAll',
   async (_, { rejectWithValue }) => {
     try {
@@ -38,6 +38,18 @@ export const updateTransport = createAsyncThunk(
 );
 
 
+export const deleteTransport = createAsyncThunk(
+  'transport/delete',
+  async (transportId, { rejectWithValue }) => {
+    try {
+      await api.delete(`/transport/${transportId}`);
+      return transportId;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to delete transport' });
+    }
+  }
+);
+
 const transportSlice = createSlice({
   name: 'transport',
   initialState: {
@@ -48,15 +60,15 @@ const transportSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(getTransport.pending, (state) => {
+      .addCase(getTransports.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(getTransport.fulfilled, (state, action) => {
+      .addCase(getTransports.fulfilled, (state, action) => {
         state.loading = false;
         state.transport = action.payload;
       })
-      .addCase(getTransport.rejected, (state, action) => {
+      .addCase(getTransports.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch transport data';
       })
@@ -85,6 +97,18 @@ const transportSlice = createSlice({
       .addCase(updateTransport.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to update transport data';
+      })
+      .addCase(deleteTransport.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteTransport.fulfilled, (state, action) => {
+        state.loading = false;
+        state.transport = state.transport.filter((item) => item._id !== action.payload);
+      })
+      .addCase(deleteTransport.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to delete transport';
       });
   },
 });

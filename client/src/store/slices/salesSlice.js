@@ -37,6 +37,18 @@ export const deleteSale = createAsyncThunk(
   }
 );
 
+export const updateSale = createAsyncThunk(
+  'sales/update',
+  async ({ id, saleData }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/sales/${id}`, saleData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
 const salesSlice = createSlice({
   name: 'sales',
   initialState: {
@@ -78,6 +90,21 @@ const salesSlice = createSlice({
       .addCase(deleteSale.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to delete sale';
+      })
+      .addCase(updateSale.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateSale.fulfilled, (state, action) => {
+        state.loading = false;
+        const index = state.sales.findIndex(sale => sale._id === action.payload._id);
+        if (index !== -1) {
+          state.sales[index] = action.payload;
+        }
+      })
+      .addCase(updateSale.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to update sale';
       });
   },
 });

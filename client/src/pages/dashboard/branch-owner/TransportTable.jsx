@@ -1,13 +1,13 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getTransport } from '../../../store/slices/transportSlice';
+import { getTransports } from '../../../store/slices/transportSlice';
 
 const TransportTable = () => {
   const dispatch = useDispatch();
   const { transport, loading, error } = useSelector((state) => state.transport);
 
   useEffect(() => {
-    dispatch(getTransport());
+    dispatch(getTransports());
   }, [dispatch]);
 
   return (

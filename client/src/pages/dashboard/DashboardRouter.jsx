@@ -1,8 +1,8 @@
 // pages/dashboard/DashboardRouter.jsx
 import { useSelector } from 'react-redux';
 import AdminRoutes from '../../routes/AdminRoutes';
-import BrandOwnerDashboard from './BrandOwnerDashboard';
-import ManagerDashboard from './ManagerDashboard';
+import BrandOwnerRoutes from '../../routes/BrandOwnerRoutes';
+import ManagerRoutes from '../../routes/ManagerRoutes';
 import BranchOwnerDashboard from './branch-owner/BranchDashboard';
 
 const DashboardRouter = () => {
@@ -13,9 +13,9 @@ const DashboardRouter = () => {
       case 'Admin':
         return <AdminRoutes />;
       case 'BrandOwner':
-        return <BrandOwnerDashboard />;
+        return <BrandOwnerRoutes />;
       case 'Manager':
-        return <ManagerDashboard />;
+        return <ManagerRoutes />;
       case 'BranchOwner':
         return <BranchOwnerDashboard />;
       default:
