@@ -28,7 +28,9 @@ const registerUser = asyncHandler(async (req, res) => {
     password, // plain password, will be hashed automatically
     role,
     assignedManager: role === 'BranchOwner' ? assignedManager : undefined,
-    assignedBrandOwner: role === 'Manager' ? assignedBrandOwner : undefined,
+    assignedBrandOwner: (role === 'Manager' || role === 'BranchOwner') ? assignedBrandOwner : undefined,
+    assignedManagers: role === 'BrandOwner' ? [] : undefined, // Initialize for BrandOwner
+    assignedBranchOwners: role === 'Manager' ? [] : undefined, // Initialize for Manager
   });
 
   if (user) {
@@ -103,34 +105,107 @@ const getUserById = asyncHandler(async (req, res) => {
 // @route   PUT /api/users/:id
 // @access  Private/Admin
 const updateUser = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id);
+  const targetUser = await User.findById(req.params.id);
+  const currentUser = req.user; // User making the request
 
-  if (user) {
-  user.name = req.body.name || user.name;
-  user.email = req.body.email || user.email;
-  user.role = req.body.role || user.role;
-  user.assignedManager = req.body.assignedManager || user.assignedManager;
-  user.assignedBrandOwner = req.body.assignedBrandOwner || user.assignedBrandOwner;
-  user.assignedManagers = req.body.assignedManagers || user.assignedManagers;
-  user.assignedBranchOwners = req.body.assignedBranchOwners || user.assignedBranchOwners;
-
-    if (req.body.password) {
-      const salt = await bcrypt.genSalt(10);
-      user.password = await bcrypt.hash(req.body.password, salt);
-    }
-
-    const updatedUser = await user.save();
-
-    res.json({
-      _id: updatedUser._id,
-      name: updatedUser.name,
-      email: updatedUser.email,
-      role: updatedUser.role,
-    });
-  } else {
+  if (!targetUser) {
     res.status(404);
     throw new Error('User not found');
   }
+
+  // Admin can update any field
+  if (currentUser.role === 'Admin') {
+    targetUser.name = req.body.name || targetUser.name;
+    targetUser.email = req.body.email || targetUser.email;
+    targetUser.role = req.body.role || targetUser.role;
+    targetUser.assignedManager = req.body.assignedManager !== undefined ? req.body.assignedManager : targetUser.assignedManager;
+    targetUser.assignedBrandOwner = req.body.assignedBrandOwner !== undefined ? req.body.assignedBrandOwner : targetUser.assignedBrandOwner;
+    targetUser.assignedManagers = req.body.assignedManagers !== undefined ? req.body.assignedManagers : targetUser.assignedManagers;
+    targetUser.assignedBranchOwners = req.body.assignedBranchOwners !== undefined ? req.body.assignedBranchOwners : targetUser.assignedBranchOwners;
+  }
+  // Brand Owner can manage Managers and Branch Owners under their hierarchy
+  else if (currentUser.role === 'BrandOwner') {
+    // Brand Owner can only update users they manage
+    const isManagedUser =
+      (targetUser.role === 'Manager' && targetUser.assignedBrandOwner?.toString() === currentUser._id.toString()) ||
+      (targetUser.role === 'BranchOwner' && targetUser.assignedBrandOwner?.toString() === currentUser._id.toString());
+
+    if (!isManagedUser && targetUser._id.toString() !== currentUser._id.toString()) { // Allow BrandOwner to update their own profile
+      res.status(403);
+      throw new Error('Not authorized to update this user');
+    }
+
+    targetUser.name = req.body.name || targetUser.name;
+    targetUser.email = req.body.email || targetUser.email;
+
+    // Brand Owner can update their own role or assign Manager/BranchOwner roles
+    if (targetUser._id.toString() === currentUser._id.toString()) {
+      // Brand Owner can update their own profile, but not change their role
+      if (req.body.role && req.body.role !== targetUser.role) {
+        res.status(403);
+        throw new Error('Brand Owners cannot change their own role.');
+      }
+    } else {
+      // Brand Owner can update roles of Manager/BranchOwner
+      if (req.body.role && ['Manager', 'BranchOwner'].includes(req.body.role)) {
+        targetUser.role = req.body.role;
+      } else if (req.body.role && !['Manager', 'BranchOwner'].includes(req.body.role)) {
+        res.status(403);
+        throw new Error('Brand Owners can only manage Manager and Branch Owner roles.');
+      }
+    }
+
+    // Automatically assign BrandOwner to the current BrandOwner if creating/updating Manager/BranchOwner
+    if (targetUser.role === 'Manager' || targetUser.role === 'BranchOwner') {
+      targetUser.assignedBrandOwner = currentUser._id;
+    }
+
+    // If updating a Manager, allow assigning/unassigning Branch Owners
+    if (targetUser.role === 'Manager' && req.body.assignedBranchOwners !== undefined) {
+      const branchOwners = await User.find({ _id: { $in: req.body.assignedBranchOwners } });
+      const validBranchOwners = branchOwners.filter(bo => bo.role === 'BranchOwner' && bo.assignedBrandOwner?.toString() === currentUser._id.toString());
+
+      if (validBranchOwners.length !== req.body.assignedBranchOwners.length) {
+        res.status(400);
+        throw new Error('Invalid Branch Owner assignment for Manager');
+      }
+      targetUser.assignedBranchOwners = req.body.assignedBranchOwners;
+    }
+
+    // If updating a BranchOwner, allow assigning/unassigning a Manager
+    if (targetUser.role === 'BranchOwner' && req.body.assignedManager !== undefined) {
+      if (req.body.assignedManager === null || req.body.assignedManager === '') {
+        targetUser.assignedManager = undefined;
+      } else {
+        const manager = await User.findById(req.body.assignedManager);
+        if (manager && manager.role === 'Manager' && manager.assignedBrandOwner?.toString() === currentUser._id.toString()) {
+          targetUser.assignedManager = req.body.assignedManager;
+        } else {
+          res.status(400);
+          throw new Error('Invalid manager assignment for Branch Owner');
+        }
+      }
+    }
+  } else {
+    res.status(403);
+    throw new Error('Not authorized to update users');
+  }
+
+  if (req.body.password) {
+    const salt = await bcrypt.genSalt(10);
+    targetUser.password = await bcrypt.hash(req.body.password, salt);
+  }
+
+  const updatedUser = await targetUser.save();
+
+  res.json({
+    _id: updatedUser._id,
+    name: updatedUser.name,
+    email: updatedUser.email,
+    role: updatedUser.role,
+    assignedManager: updatedUser.assignedManager,
+    assignedBrandOwner: updatedUser.assignedBrandOwner,
+  });
 });
 
 // @desc    Delete user (Admin only)
@@ -172,17 +247,20 @@ const getUsersByRole = asyncHandler(async (req, res) => {
   
   // Filter based on user role
   if (user.role === 'BrandOwner') {
-    if (role === 'Manager' || role === 'BranchOwner') {
-      // Brand Owners can only see Managers and Branch Owners assigned to them
-      query.assignedManager = user._id;
+    if (role === 'Manager') {
+      query = { _id: { $in: user.assignedManagers } };
+    } else if (role === 'BranchOwner') {
+      // Find branch owners assigned to managers who are assigned to this brand owner
+      const managers = await User.find({ _id: { $in: user.assignedManagers } }).select('assignedBranchOwners');
+      const assignedBranchOwnerIds = managers.flatMap(manager => manager.assignedBranchOwners);
+      query = { _id: { $in: assignedBranchOwnerIds } };
     } else {
       res.status(403);
       throw new Error('Not authorized to view these users');
     }
   } else if (user.role === 'Manager') {
     if (role === 'BranchOwner') {
-      // Managers can only see their assigned Branch Owners
-      query.assignedManager = user._id;
+      query = { _id: { $in: user.assignedBranchOwners } };
     } else {
       res.status(403);
       throw new Error('Not authorized to view these users');
@@ -197,7 +275,7 @@ const getUsersByRole = asyncHandler(async (req, res) => {
 // @route   PUT /api/users/:id/assign
 // @access  Private (Admin, BrandOwner)
 const assignUser = asyncHandler(async (req, res) => {
-  const { assignedManager, assignedBrandOwner } = req.body;
+  const { assignedManagerId, assignedBranchOwnerIds } = req.body;
   const targetUser = await User.findById(req.params.id);
   const currentUser = await User.findById(req.user.id);
 
@@ -209,27 +287,59 @@ const assignUser = asyncHandler(async (req, res) => {
   // Authorization checks
   if (currentUser.role === 'BrandOwner') {
     if (targetUser.role === 'Manager') {
-      // Brand Owner can assign themselves as BrandOwner to a Manager
-      targetUser.assignedBrandOwner = currentUser._id;
+      // Brand Owner can assign/unassign managers to themselves
+      if (assignedManagerId) {
+        // Assign manager to this BrandOwner
+        if (!currentUser.assignedManagers.includes(targetUser._id)) {
+          currentUser.assignedManagers.push(targetUser._id);
+          await currentUser.save();
+        }
+        targetUser.assignedBrandOwner = currentUser._id;
+      } else {
+        // Unassign manager from this BrandOwner
+        currentUser.assignedManagers = currentUser.assignedManagers.filter(
+          (managerId) => managerId.toString() !== targetUser._id.toString()
+        );
+        await currentUser.save();
+        targetUser.assignedBrandOwner = undefined;
+      }
     } else if (targetUser.role === 'BranchOwner') {
-      // Brand Owner can assign a Manager to a Branch Owner
-      if (assignedManager) {
-        const manager = await User.findById(assignedManager);
-        if (manager && manager.role === 'Manager' && manager.assignedBrandOwner && manager.assignedBrandOwner.toString() === currentUser._id.toString()) {
-          targetUser.assignedManager = assignedManager;
+      // Brand Owner can assign/unassign a Manager to a Branch Owner
+      if (assignedManagerId) {
+        const manager = await User.findById(assignedManagerId);
+        if (manager && manager.role === 'Manager' && manager.assignedBrandOwner?.toString() === currentUser._id.toString()) {
+          targetUser.assignedManager = assignedManagerId;
+          // Add branch owner to manager's assignedBranchOwners if not already there
+          if (!manager.assignedBranchOwners.includes(targetUser._id)) {
+            manager.assignedBranchOwners.push(targetUser._id);
+            await manager.save();
+          }
         } else {
           res.status(400);
           throw new Error('Invalid manager assignment');
         }
+      } else {
+        // Unassign manager from Branch Owner
+        const oldManager = await User.findById(targetUser.assignedManager);
+        if (oldManager) {
+          oldManager.assignedBranchOwners = oldManager.assignedBranchOwners.filter(
+            (boId) => boId.toString() !== targetUser._id.toString()
+          );
+          await oldManager.save();
+        }
+        targetUser.assignedManager = undefined;
       }
+    } else {
+      res.status(403);
+      throw new Error('Brand Owners can only assign Managers and Branch Owners');
     }
   } else if (currentUser.role === 'Admin') {
     // Admin can assign anyone
-    if (assignedManager) {
-      targetUser.assignedManager = assignedManager;
+    if (assignedManagerId) {
+      targetUser.assignedManager = assignedManagerId;
     }
-    if (assignedBrandOwner) {
-      targetUser.assignedBrandOwner = assignedBrandOwner;
+    if (assignedBranchOwnerIds) {
+      targetUser.assignedBranchOwners = assignedBranchOwnerIds;
     }
   } else {
     res.status(403);
@@ -255,27 +365,23 @@ const getUserHierarchy = asyncHandler(async (req, res) => {
 
   if (user.role === 'Admin') {
     // Admin sees entire hierarchy
-    const brandOwners = await User.find({ role: 'BrandOwner' }).select('name email');
+    const brandOwners = await User.find({ role: 'BrandOwner' }).select('name email assignedManagers');
     hierarchy = await Promise.all(brandOwners.map(async (brandOwner) => {
-      // Managers assigned to this BrandOwner
-      const managers = await User.find({ role: 'Manager', assignedBrandOwner: brandOwner._id }).select('name email');
+      const managers = await User.find({ _id: { $in: brandOwner.assignedManagers } }).select('name email assignedBranchOwners');
       const managerHierarchy = await Promise.all(managers.map(async (manager) => {
-        // BranchOwners assigned to this Manager
-        const branchOwners = await User.find({ role: 'BranchOwner', assignedManager: manager._id }).select('name email');
+        const branchOwners = await User.find({ _id: { $in: manager.assignedBranchOwners } }).select('name email');
         return { ...manager.toObject(), branchOwners };
       }));
       return { ...brandOwner.toObject(), managers: managerHierarchy };
     }));
   } else if (user.role === 'BrandOwner') {
-    // Brand Owner sees their Managers and their Branch Owners
-    const managers = await User.find({ role: 'Manager', assignedBrandOwner: user._id }).select('name email');
+    const managers = await User.find({ _id: { $in: user.assignedManagers } }).select('name email assignedBranchOwners');
     hierarchy = await Promise.all(managers.map(async (manager) => {
-      const branchOwners = await User.find({ role: 'BranchOwner', assignedManager: manager._id }).select('name email');
+      const branchOwners = await User.find({ _id: { $in: manager.assignedBranchOwners } }).select('name email');
       return { ...manager.toObject(), branchOwners };
     }));
   } else if (user.role === 'Manager') {
-    // Manager sees their Branch Owners
-    hierarchy = await User.find({ role: 'BranchOwner', assignedManager: user._id }).select('name email');
+    hierarchy = await User.find({ _id: { $in: user.assignedBranchOwners } }).select('name email');
   }
 
   res.json(hierarchy);

@@ -26,6 +26,45 @@ export const updateUser = createAsyncThunk(
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../services/api';
 
+// Get users by role (Admin, BrandOwner)
+export const getUsersByRole = createAsyncThunk(
+  'users/getByRole',
+  async (role, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`/users/role/${role}`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
+// Assign user (Admin, BrandOwner)
+export const assignUser = createAsyncThunk(
+  'users/assign',
+  async ({ id, assignmentData }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/users/${id}/assign`, assignmentData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
+// Get user hierarchy (Admin, BrandOwner, Manager)
+export const getUserHierarchy = createAsyncThunk(
+  'users/getHierarchy',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/users/hierarchy');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
 export const getUsers = createAsyncThunk(
   'users/getAll',
   async (_, { rejectWithValue }) => {
@@ -54,6 +93,7 @@ const usersSlice = createSlice({
   name: 'users',
   initialState: {
     users: [],
+    userHierarchy: [], // New field for hierarchy
     loading: false,
     error: null,
   },
@@ -96,6 +136,43 @@ const usersSlice = createSlice({
       .addCase(deleteUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to delete user';
+      })
+      .addCase(getUsersByRole.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getUsersByRole.fulfilled, (state, action) => {
+        state.loading = false;
+        state.users = action.payload;
+      })
+      .addCase(getUsersByRole.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch users by role';
+      })
+      .addCase(assignUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(assignUser.fulfilled, (state, action) => {
+        state.loading = false;
+        const idx = state.users.findIndex(u => u._id === action.payload.user._id);
+        if (idx !== -1) state.users[idx] = action.payload.user;
+      })
+      .addCase(assignUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to assign user';
+      })
+      .addCase(getUserHierarchy.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getUserHierarchy.fulfilled, (state, action) => {
+        state.loading = false;
+        state.userHierarchy = action.payload; // Assuming a new state field for hierarchy
+      })
+      .addCase(getUserHierarchy.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch user hierarchy';
       });
   },
 });

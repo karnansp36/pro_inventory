@@ -25,7 +25,7 @@ router.route('/:id/assign')
 
 router.route('/:id')
   .get(protect, authorizeRoles('Admin'), getUserById)
-  .put(protect, authorizeRoles('Admin'), updateUser)
+  .put(protect, authorizeRoles('Admin', 'BrandOwner'), updateUser)
   .delete(protect, authorizeRoles('Admin'), deleteUser);
 
 export default router;

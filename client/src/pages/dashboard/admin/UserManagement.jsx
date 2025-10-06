@@ -2,8 +2,8 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Plus, Search, Filter, Edit, Trash2, UserPlus, Eye } from 'lucide-react';
-import { getUsers, deleteUser, createUser, updateUser } from '../../../store/slices/usersSlice';
-import UserHierarchyTable from './UserHierarchyTable';
+import { getUsers, deleteUser, createUser, updateUser, getUsersByRole, assignUser } from '../../../store/slices/usersSlice';
+import UserView from './UserView'; // Import UserView
 
 const UserManagement = () => {
   const dispatch = useDispatch();
@@ -17,11 +17,25 @@ const UserManagement = () => {
     email: '',
     password: '',
     role: '',
+    assignedBrandOwner: '', // For assigning Managers/Branch Owners to Brand Owners
+    assignedManager: '', // For assigning Branch Owners to Managers
   });
   const [viewUserId, setViewUserId] = useState(null);
+  const [availableBrandOwners, setAvailableBrandOwners] = useState([]);
+  const [availableManagers, setAvailableManagers] = useState([]);
 
   useEffect(() => {
     dispatch(getUsers());
+    dispatch(getUsersByRole('BrandOwner')).then((res) => {
+      if (!res.error) {
+        setAvailableBrandOwners(res.payload);
+      }
+    });
+    dispatch(getUsersByRole('Manager')).then((res) => {
+      if (!res.error) {
+        setAvailableManagers(res.payload);
+      }
+    });
   }, [dispatch]);
 
   const filteredUsers = users?.filter(user => 
@@ -42,34 +56,51 @@ const UserManagement = () => {
 
   const handleAddUser = () => {
     setEditUser(null);
-    setForm({ name: '', email: '', password: '', role: '' });
+    setForm({ name: '', email: '', password: '', role: '', assignedBrandOwner: '', assignedManager: '' });
     setShowModal(true);
   };
 
   const handleEditUser = (user) => {
     setEditUser(user);
-    setForm({ name: user.name, email: user.email, password: '', role: user.role });
+    setForm({
+      name: user.name,
+      email: user.email,
+      password: '',
+      role: user.role,
+      assignedBrandOwner: user.assignedBrandOwner?._id || '',
+      assignedManager: user.assignedManager?._id || ''
+    });
     setShowModal(true);
   };
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
+    const userData = { ...form };
+
+    // Clean up assignment fields if not relevant to the role
+    if (userData.role !== 'Manager' && userData.role !== 'BranchOwner') {
+      delete userData.assignedBrandOwner;
+    }
+    if (userData.role !== 'BranchOwner') {
+      delete userData.assignedManager;
+    }
+
     if (editUser) {
       // Edit
-      dispatch(updateUser({ id: editUser._id, userData: { ...form, password: form.password || undefined } }))
+      dispatch(updateUser({ id: editUser._id, userData: { ...userData, password: userData.password || undefined } }))
         .then((res) => {
           if (!res.error) {
             setShowModal(false);
             setEditUser(null);
-            setForm({ name: '', email: '', password: '', role: '' });
+            setForm({ name: '', email: '', password: '', role: '', assignedBrandOwner: '', assignedManager: '' });
           }
         });
     } else {
       // Add
-      dispatch(createUser(form)).then((res) => {
+      dispatch(createUser(userData)).then((res) => {
         if (!res.error) {
           setShowModal(false);
-          setForm({ name: '', email: '', password: '', role: '' });
+          setForm({ name: '', email: '', password: '', role: '', assignedBrandOwner: '', assignedManager: '' });
         }
       });
     }
@@ -180,16 +211,16 @@ const UserManagement = () => {
                       </button>
                       <button
                         className="text-green-600 hover:text-green-900"
-                        title="View Manager/Branch List"
+                        title="View User Details"
                         onClick={() => setViewUserId(user._id)}
                       >
                         <Eye className="h-4 w-4" />
                       </button>
-      {/* User Hierarchy Modal */}
+      {/* View User Details Modal */}
       {viewUserId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl">
-            <UserHierarchyTable userId={viewUserId} onClose={() => setViewUserId(null)} />
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-4xl h-5/6 overflow-y-auto">
+            <UserView userId={viewUserId} onClose={() => setViewUserId(null)} />
           </div>
         </div>
       )}

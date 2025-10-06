@@ -26,11 +26,20 @@ const BrandOwnerUserManagement = () => {
     dispatch(getUsers());
   }, [dispatch]);
 
-  const managedUsers = users?.filter(user => 
-    (user.role === 'Manager' && user.assignedBrandOwner === currentUser?._id) ||
-    (user.role === 'BranchOwner' && user.assignedBrandOwner === currentUser?._id) ||
-    (user.role === 'BranchOwner' && currentUser?.assignedManagers?.includes(user.assignedManager))
-  ) || [];
+  const managedUsers = users?.filter(user => {
+    const isDirectlyManaged =
+      (user.role === 'Manager' && user.assignedBrandOwner === currentUser?._id) ||
+      (user.role === 'BranchOwner' && user.assignedBrandOwner === currentUser?._id);
+
+    const isManagedViaManager =
+      user.role === 'BranchOwner' &&
+      user.assignedManager &&
+      availableManagers.some(manager =>
+        manager._id === user.assignedManager && manager.assignedBrandOwner === currentUser?._id
+      );
+
+    return isDirectlyManaged || isManagedViaManager;
+  }) || [];
 
   const filteredUsers = managedUsers.filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -98,7 +107,7 @@ const BrandOwnerUserManagement = () => {
   };
 
   const roles = ['Manager', 'BranchOwner']; // Brand Owner can only create/manage these roles
-  const availableManagers = users?.filter(u => u.role === 'Manager' && u.assignedBrandOwner === currentUser?._id);
+  const availableManagers = users?.filter(u => u.role === 'Manager' && u.assignedBrandOwner === currentUser?._id) || [];
 
   return (
     <div className="space-y-6">
