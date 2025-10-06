@@ -3,7 +3,8 @@ export const createUser = createAsyncThunk(
   'users/create',
   async (userData, { rejectWithValue }) => {
     try {
-      const response = await api.post('/auth/register', userData);
+      // Admin creates users via protected endpoint
+      const response = await api.post('/users', userData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response.data);
@@ -94,6 +95,7 @@ const usersSlice = createSlice({
   initialState: {
     users: [],
     userHierarchy: [], // New field for hierarchy
+    usersByRole: {},
     loading: false,
     error: null,
   },
@@ -112,10 +114,11 @@ const usersSlice = createSlice({
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch users';
       })
-      .addCase(createUser.fulfilled, (state, action) => {
-        state.loading = false;
-        state.users.push(action.payload);
-      })
+          .addCase(createUser.fulfilled, (state, action) => {
+            state.loading = false;
+            // push created user
+            state.users.push(action.payload);
+          })
       .addCase(createUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to create user';
@@ -143,7 +146,12 @@ const usersSlice = createSlice({
       })
       .addCase(getUsersByRole.fulfilled, (state, action) => {
         state.loading = false;
-        state.users = action.payload;
+        // store role-specific results without overwriting the global users list
+        const role = action.meta?.arg || 'unknown';
+        state.usersByRole = {
+          ...state.usersByRole,
+          [role]: action.payload,
+        };
       })
       .addCase(getUsersByRole.rejected, (state, action) => {
         state.loading = false;

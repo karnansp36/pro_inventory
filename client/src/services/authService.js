@@ -13,7 +13,9 @@ const register = async (userData) => {
   const data = await response.json();
 
   if (response.ok) {
-    localStorage.setItem('user', JSON.stringify(data));
+    // back-end responds with token and user info
+    localStorage.setItem('token', data.token || '');
+    localStorage.setItem('user', JSON.stringify({ _id: data._id, name: data.name, email: data.email, role: data.role }));
   }
 
   return data;
@@ -32,7 +34,8 @@ const login = async (userData) => {
   const data = await response.json();
 
   if (response.ok) {
-    localStorage.setItem('user', JSON.stringify(data));
+    localStorage.setItem('token', data.token || '');
+    localStorage.setItem('user', JSON.stringify({ _id: data._id, name: data.name, email: data.email, role: data.role }));
   }
 
   return data;
@@ -41,6 +44,7 @@ const login = async (userData) => {
 // Logout user
 const logout = () => {
   localStorage.removeItem('user');
+  localStorage.removeItem('token');
 };
 
 const authService = {

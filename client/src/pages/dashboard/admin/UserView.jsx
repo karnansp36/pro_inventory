@@ -7,6 +7,13 @@ const UserView = ({ userId, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('details'); // Default active tab
+  const [showAddManager, setShowAddManager] = useState(false);
+  const [availableManagers, setAvailableManagers] = useState([]);
+  const [selectedManagerIds, setSelectedManagerIds] = useState([]);
+  const [showAssignBranches, setShowAssignBranches] = useState(false);
+  const [assigningManager, setAssigningManager] = useState(null);
+  const [availableBranchOwners, setAvailableBranchOwners] = useState([]);
+  const [selectedBranchOwnerIds, setSelectedBranchOwnerIds] = useState([]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -20,6 +27,109 @@ const UserView = ({ userId, onClose }) => {
     };
     fetchUser();
   }, [userId]);
+
+  const refreshUser = async () => {
+    try {
+      const res = await api.get(`/users/${userId}`);
+      setUser(res.data);
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const openAssignManagers = async () => {
+    // Pre-select current assigned managers and fetch available managers
+    const currentAssigned = (user.assignedManagers || []).map(m => (typeof m === 'string' || typeof m === 'number') ? m : m._id);
+    setSelectedManagerIds(currentAssigned);
+    try {
+      const res = await api.get('/users/role/Manager');
+      setAvailableManagers(res.data || []);
+    } catch (err) {
+      console.error('Failed to fetch managers', err);
+      setAvailableManagers([]);
+    }
+    setShowAddManager(true);
+  };
+
+  const toggleManagerSelection = (id) => {
+    setSelectedManagerIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleAssignManagersSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      // Update brand owner's assignedManagers
+      await api.put(`/users/${user._id}`, { assignedManagers: selectedManagerIds });
+
+      // Update each manager's assignedBrandOwner: set to this brand owner for selected managers
+      // and unset for managers previously assigned but now removed
+      const prevAssigned = (user.assignedManagers || []).map(m => (typeof m === 'string' || typeof m === 'number') ? m : m._id);
+      const toAssign = selectedManagerIds.filter(id => !prevAssigned.includes(id));
+      const toUnassign = prevAssigned.filter(id => !selectedManagerIds.includes(id));
+
+      await Promise.all(
+        toAssign.map(id => api.put(`/users/${id}`, { assignedBrandOwner: user._id }))
+      );
+      await Promise.all(
+        toUnassign.map(id => api.put(`/users/${id}`, { assignedBrandOwner: null }))
+      );
+
+      setShowAddManager(false);
+      await refreshUser();
+    } catch (err) {
+      console.error('Failed to assign managers', err);
+      alert(err.response?.data?.message || 'Failed to assign managers');
+    }
+  };
+
+  const openAssignBranches = async (manager) => {
+    try {
+      let mgrObj = manager;
+      // manager may be an id string (if API returned populated with ids) or an object
+      if (!manager || (typeof manager === 'string') || !manager._id) {
+        const id = typeof manager === 'string' ? manager : manager?._id || manager?.id;
+        if (!id) {
+          console.error('Invalid manager provided to openAssignBranches', manager);
+          return;
+        }
+        const mgrRes = await api.get(`/users/${id}`);
+        mgrObj = mgrRes.data;
+      }
+
+      setAssigningManager(mgrObj);
+      setSelectedBranchOwnerIds(mgrObj.assignedBranchOwners ? mgrObj.assignedBranchOwners.map(b => b._id || b) : []);
+
+      const res = await api.get('/users/role/BranchOwner');
+      setAvailableBranchOwners(res.data || []);
+      setShowAssignBranches(true);
+    } catch (err) {
+      console.error('Failed to open assign branches', err);
+      setAvailableBranchOwners([]);
+    }
+  };
+
+  const toggleBranchSelection = (id) => {
+    setSelectedBranchOwnerIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleAssignBranchesSubmit = async (e) => {
+    e.preventDefault();
+    if (!assigningManager) return;
+    try {
+      const managerId = assigningManager._id || assigningManager.id || assigningManager;
+      if (!managerId) throw new Error('Manager id not found');
+      // Update manager's assignedBranchOwners via PUT /users/:id
+      await api.put(`/users/${managerId}`, {
+        assignedBranchOwners: selectedBranchOwnerIds,
+      });
+      setShowAssignBranches(false);
+      setAssigningManager(null);
+      await refreshUser();
+    } catch (err) {
+      console.error('Failed to assign branches', err);
+      alert(err.response?.data?.message || 'Failed to assign branches');
+    }
+  };
 
   if (loading) return <div className="p-8">Loading...</div>;
   if (error) return <div className="p-8 text-red-600">{error}</div>;
@@ -128,11 +238,45 @@ const UserView = ({ userId, onClose }) => {
             <div className="space-y-4">
               <h2 className="text-lg font-semibold mb-2">Assigned Branch Owners</h2>
               {user.assignedBranchOwners && user.assignedBranchOwners.length > 0 ? (
-                <ul className="list-disc ml-6">
-                  {user.assignedBranchOwners.map((bo) => (
-                    <li key={bo._id}>{bo.name} ({bo.email})</li>
-                  ))}
-                </ul>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manager</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Brand Owner</th>
+                        <th className="px-6 py-3" />
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {user.assignedBranchOwners.map((bo) => (
+                        <tr key={bo._id}>
+                          <td className="px-6 py-4 whitespace-nowrap">{bo.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{bo.email}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{bo.assignedManager?.name || '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{bo.assignedBrandOwner?.name || '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await api.put(`/users/${bo._id}`, { assignedManager: null });
+                                  await refreshUser();
+                                } catch (err) {
+                                  console.error('Failed to unassign branch', err);
+                                  alert(err.response?.data?.message || 'Failed to unassign branch');
+                                }
+                              }}
+                              className="text-sm px-2 py-1 bg-red-100 text-red-800 rounded"
+                            >
+                              Unassign
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
                 <p>No Branch Owners assigned.</p>
               )}
@@ -141,22 +285,47 @@ const UserView = ({ userId, onClose }) => {
 
           {activeTab === 'brandOwnerDetails' && user.role === 'BrandOwner' && (
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold mb-2">Assigned Managers</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold mb-2">Assigned Managers</h2>
+                <button
+                  onClick={() => openAssignManagers()}
+                  className="bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                >
+                  Assign Existing Managers
+                </button>
+              </div>
               {user.assignedManagers && user.assignedManagers.length > 0 ? (
-                <ul className="list-disc ml-6">
-                  {user.assignedManagers.map((mgr) => (
-                    <li key={mgr._id}>
-                      {mgr.name} ({mgr.email})
-                      {mgr.assignedBranchOwners && mgr.assignedBranchOwners.length > 0 && (
-                        <ul className="list-circle ml-6">
-                          {mgr.assignedBranchOwners.map((bo) => (
-                            <li key={bo._id}>{bo.name} ({bo.email})</li>
-                          ))}
-                        </ul>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manager</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branches</th>
+                        <th className="px-6 py-3" />
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {user.assignedManagers.map((mgr) => (
+                        <tr key={mgr._id || mgr}>
+                          <td className="px-6 py-4 whitespace-nowrap">{mgr.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{mgr.email}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{(mgr.assignedBranchOwners && mgr.assignedBranchOwners.length) || 0}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => openAssignBranches(mgr)}
+                                className="text-sm px-2 py-1 bg-green-100 text-green-800 rounded"
+                              >
+                                View / Edit Branches
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
                 <p>No Managers assigned.</p>
               )}
@@ -164,6 +333,67 @@ const UserView = ({ userId, onClose }) => {
           )}
         </div>
       </div>
+      {/* Add Manager Modal */}
+      {showAddManager && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4">Assign Existing Managers</h2>
+            <form onSubmit={handleAssignManagersSubmit} className="space-y-3">
+              <div className="grid grid-cols-1 gap-2">
+                {availableManagers.map((mgr) => (
+                  <label key={mgr._id} className="flex items-center space-x-2 p-2 border rounded">
+                    <input type="checkbox" checked={selectedManagerIds.includes(mgr._id)} onChange={() => toggleManagerSelection(mgr._id)} />
+                    <span>{mgr.name} ({mgr.email})</span>
+                  </label>
+                ))}
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                <button type="button" onClick={() => setShowAddManager(false)} className="px-4 py-2 rounded bg-gray-200">Cancel</button>
+                <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white">Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Branches Modal */}
+      {showAssignBranches && assigningManager && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4">Assign Branch Owners to {assigningManager.name}</h2>
+            <form onSubmit={handleAssignBranchesSubmit} className="space-y-3">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Select</th>
+                      <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
+                      <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                      <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Brand Owner</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {availableBranchOwners.map((bo) => (
+                      <tr key={bo._id}>
+                        <td className="px-4 py-2">
+                          <input type="checkbox" checked={selectedBranchOwnerIds.includes(bo._id)} onChange={() => toggleBranchSelection(bo._id)} />
+                        </td>
+                        <td className="px-6 py-2 whitespace-nowrap">{bo.name}</td>
+                        <td className="px-6 py-2 whitespace-nowrap">{bo.email}</td>
+                        <td className="px-6 py-2 whitespace-nowrap">{bo.assignedBrandOwner?.name || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                <button type="button" onClick={() => { setShowAssignBranches(false); setAssigningManager(null); }} className="px-4 py-2 rounded bg-gray-200">Cancel</button>
+                <button type="submit" className="px-4 py-2 rounded bg-green-600 text-white">Save Assignments</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

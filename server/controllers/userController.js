@@ -2,6 +2,14 @@ import asyncHandler from 'express-async-handler';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
+
+// Helper to normalize ID fields coming from the client.
+// Treat empty string or null/undefined as undefined so Mongoose doesn't try to cast them to ObjectId.
+const normalizeId = (val) => {
+  if (val === undefined || val === null) return undefined;
+  if (typeof val === 'string' && val.trim() === '') return undefined;
+  return val;
+};
 // @desc    Register a new user
 // @route   POST /api/users/register
 // @access  Public
@@ -27,8 +35,8 @@ const registerUser = asyncHandler(async (req, res) => {
     email,
     password, // plain password, will be hashed automatically
     role,
-    assignedManager: role === 'BranchOwner' ? assignedManager : undefined,
-    assignedBrandOwner: (role === 'Manager' || role === 'BranchOwner') ? assignedBrandOwner : undefined,
+    assignedManager: role === 'BranchOwner' ? normalizeId(assignedManager) : undefined,
+    assignedBrandOwner: (role === 'Manager' || role === 'BranchOwner') ? normalizeId(assignedBrandOwner) : undefined,
     assignedManagers: role === 'BrandOwner' ? [] : undefined, // Initialize for BrandOwner
     assignedBranchOwners: role === 'Manager' ? [] : undefined, // Initialize for Manager
   });
@@ -83,7 +91,12 @@ const getMe = asyncHandler(async (req, res) => {
 // @route   GET /api/users
 // @access  Private/Admin
 const getUsers = asyncHandler(async (req, res) => {
-  const users = await User.find({});
+  const users = await User.find({})
+    .select('-password')
+    .populate({ path: 'assignedManager', select: 'name email' })
+    .populate({ path: 'assignedBrandOwner', select: 'name email' })
+    .populate({ path: 'assignedManagers', select: 'name email assignedBranchOwners' })
+    .populate({ path: 'assignedBranchOwners', select: 'name email' });
   res.json(users);
 });
 
@@ -91,7 +104,12 @@ const getUsers = asyncHandler(async (req, res) => {
 // @route   GET /api/users/:id
 // @access  Private/Admin
 const getUserById = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id).select('-password');
+  const user = await User.findById(req.params.id)
+    .select('-password')
+    .populate({ path: 'assignedManager', select: 'name email' })
+    .populate({ path: 'assignedBrandOwner', select: 'name email' })
+    .populate({ path: 'assignedManagers', select: 'name email assignedBranchOwners' })
+    .populate({ path: 'assignedBranchOwners', select: 'name email' });
 
   if (user) {
     res.json(user);
@@ -118,10 +136,21 @@ const updateUser = asyncHandler(async (req, res) => {
     targetUser.name = req.body.name || targetUser.name;
     targetUser.email = req.body.email || targetUser.email;
     targetUser.role = req.body.role || targetUser.role;
-    targetUser.assignedManager = req.body.assignedManager !== undefined ? req.body.assignedManager : targetUser.assignedManager;
-    targetUser.assignedBrandOwner = req.body.assignedBrandOwner !== undefined ? req.body.assignedBrandOwner : targetUser.assignedBrandOwner;
-    targetUser.assignedManagers = req.body.assignedManagers !== undefined ? req.body.assignedManagers : targetUser.assignedManagers;
-    targetUser.assignedBranchOwners = req.body.assignedBranchOwners !== undefined ? req.body.assignedBranchOwners : targetUser.assignedBranchOwners;
+
+    // Normalize assignment fields to avoid setting empty strings
+    if (req.body.assignedManager !== undefined) {
+      targetUser.assignedManager = normalizeId(req.body.assignedManager);
+    }
+    if (req.body.assignedBrandOwner !== undefined) {
+      targetUser.assignedBrandOwner = normalizeId(req.body.assignedBrandOwner);
+    }
+    if (req.body.assignedManagers !== undefined) {
+      // ensure it's an array (or set to undefined)
+      targetUser.assignedManagers = Array.isArray(req.body.assignedManagers) ? req.body.assignedManagers : targetUser.assignedManagers;
+    }
+    if (req.body.assignedBranchOwners !== undefined) {
+      targetUser.assignedBranchOwners = Array.isArray(req.body.assignedBranchOwners) ? req.body.assignedBranchOwners : targetUser.assignedBranchOwners;
+    }
   }
   // Brand Owner can manage Managers and Branch Owners under their hierarchy
   else if (currentUser.role === 'BrandOwner') {
@@ -335,11 +364,12 @@ const assignUser = asyncHandler(async (req, res) => {
     }
   } else if (currentUser.role === 'Admin') {
     // Admin can assign anyone
-    if (assignedManagerId) {
-      targetUser.assignedManager = assignedManagerId;
+    if (assignedManagerId !== undefined) {
+      targetUser.assignedManager = normalizeId(assignedManagerId);
     }
-    if (assignedBranchOwnerIds) {
-      targetUser.assignedBranchOwners = assignedBranchOwnerIds;
+    if (assignedBranchOwnerIds !== undefined) {
+      // ensure array or undefined
+      targetUser.assignedBranchOwners = Array.isArray(assignedBranchOwnerIds) ? assignedBranchOwnerIds : targetUser.assignedBranchOwners;
     }
   } else {
     res.status(403);
@@ -387,6 +417,43 @@ const getUserHierarchy = asyncHandler(async (req, res) => {
   res.json(hierarchy);
 });
 
+// @desc    Create user by Admin (protected)
+// @route   POST /api/users/
+// @access  Private/Admin
+const createUserByAdmin = asyncHandler(async (req, res) => {
+  const { name, email, password, role, assignedManager, assignedBrandOwner } = req.body;
+
+  if (!name || !email || !role) {
+    res.status(400);
+    throw new Error('Please add all required fields');
+  }
+
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    res.status(400);
+    throw new Error('User already exists');
+  }
+
+  // Create user; password will be hashed in pre-save hook
+  const user = await User.create({
+    name,
+    email,
+    password: password || Math.random().toString(36).slice(-8),
+    role,
+    assignedManager: role === 'BranchOwner' ? normalizeId(assignedManager) : undefined,
+    assignedBrandOwner: (role === 'Manager' || role === 'BranchOwner') ? normalizeId(assignedBrandOwner) : undefined,
+    assignedManagers: role === 'BrandOwner' ? [] : undefined,
+    assignedBranchOwners: role === 'Manager' ? [] : undefined,
+  });
+
+  if (user) {
+    res.status(201).json(user);
+  } else {
+    res.status(400);
+    throw new Error('Invalid user data');
+  }
+});
+
 
 export {
   registerUser,
@@ -396,6 +463,8 @@ export {
   getUserById,
   updateUser,
   deleteUser,
+  // Admin create (no token)
+  createUserByAdmin,
   getUsersByRole,
   assignUser,
   getUserHierarchy,

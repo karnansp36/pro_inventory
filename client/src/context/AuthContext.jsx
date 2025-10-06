@@ -20,7 +20,9 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const data = await authService.login({ email, password });
-      setUser(data);
+      // authService stores token and user in localStorage
+      const storedUser = localStorage.getItem('user');
+      setUser(storedUser ? JSON.parse(storedUser) : { _id: data._id, name: data.name, email: data.email, role: data.role });
       navigate('/dashboard');
     } catch (error) {
       console.error('Login error:', error);
@@ -30,7 +32,8 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const data = await authService.register(userData);
-      setUser(data);
+      const storedUser = localStorage.getItem('user');
+      setUser(storedUser ? JSON.parse(storedUser) : { _id: data._id, name: data.name, email: data.email, role: data.role });
       navigate('/dashboard');
     } catch (error) {
       console.error('Register error:', error);

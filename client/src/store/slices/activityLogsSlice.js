@@ -8,7 +8,7 @@ export const getActivityLogs = createAsyncThunk(
   async (filters = {}, { rejectWithValue }) => {
     try {
       const { startDate, endDate, action, resource, userId } = filters;
-      let url = '/api/activity-logs';
+  let url = '/activity-logs';
       
       // Build query parameters
       const params = new URLSearchParams();
@@ -34,7 +34,7 @@ export const createActivityLog = createAsyncThunk(
   'activityLogs/createActivityLog',
   async (logData, { rejectWithValue }) => {
     try {
-      const response = await api.post('/api/activity-logs', logData);
+  const response = await api.post('/activity-logs', logData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create activity log');
@@ -46,7 +46,7 @@ export const clearActivityLogs = createAsyncThunk(
   'activityLogs/clearActivityLogs',
   async (_, { rejectWithValue }) => {
     try {
-      await api.delete('/api/activity-logs/clear');
+  await api.delete('/activity-logs/clear');
       return { message: 'Activity logs cleared successfully' };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to clear activity logs');
@@ -58,7 +58,7 @@ export const exportActivityLogs = createAsyncThunk(
   'activityLogs/exportActivityLogs',
   async (format = 'excel', { rejectWithValue }) => {
     try {
-      const response = await api.get(`/api/export/activity-logs/${format}`, {
+  const response = await api.get(`/export/activity-logs/${format}`, {
         responseType: 'blob'
       });
       

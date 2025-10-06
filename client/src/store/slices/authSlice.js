@@ -57,8 +57,15 @@ const authSlice = createSlice({
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading = false
         state.isAuthenticated = true
+        // backend returns flat payload with token and user fields
         state.token = action.payload.token
-        state.user = action.payload.user
+        state.user = {
+          _id: action.payload._id,
+          name: action.payload.name,
+          email: action.payload.email,
+          role: action.payload.role,
+        }
+        localStorage.setItem('token', action.payload.token)
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false
