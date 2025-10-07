@@ -16,10 +16,11 @@ const AdminLayout = ({ children }) => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
         
-  <main className="flex-1 overflow-auto p-1 md:p-2">
+  <main className="flex-1 overflow-auto">
           {children}
         </main>
       </div>
+
     </div>
   );
 };

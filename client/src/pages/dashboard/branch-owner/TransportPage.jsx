@@ -1,8 +1,10 @@
 // pages/dashboard/branch-owner/TransportPage.jsx
 import React from 'react';
+import { useParams } from 'react-router-dom';
 import TransportTable from './TransportTable';
 
 const TransportPage = () => {
+  const { branchOwnerId } = useParams();
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -12,7 +14,7 @@ const TransportPage = () => {
         </div>
       </div>
 
-      <TransportTable />
+      <TransportTable branchOwnerId={branchOwnerId} />
     </div>
   );
 };

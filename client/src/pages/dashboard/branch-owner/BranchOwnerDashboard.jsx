@@ -1,7 +1,8 @@
 // pages/dashboard/branch-owner/BranchDashboard.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
+import { useParams } from 'react-router-dom';
 import ShopProfile from './ShopProfile';
 import SalesTable from './SalesTable';
 import ExpensesTable from './ExpensesTable';
@@ -17,9 +18,9 @@ import { createExpense } from '../../../store/slices/expensesSlice';
 import { createStockRequest } from '../../../store/slices/stockRequestsSlice';
 import { createTransport } from '../../../store/slices/transportSlice';
 
-
 const BranchDashboard = () => {
   const dispatch = useDispatch();
+  const { branchOwnerId } = useParams();
   const [modal, setModal] = useState(null); // 'sale' | 'expense' | 'stock' | 'transport' | null
   const [loading, setLoading] = useState(false);
 
@@ -52,6 +53,14 @@ const BranchDashboard = () => {
     setLoading(false);
     closeModal();
   };
+
+  useEffect(() => {
+    // Fetch data for the specific branch owner using branchOwnerId
+    // Example:
+    // dispatch(fetchSalesData(branchOwnerId));
+    // dispatch(fetchExpensesData(branchOwnerId));
+    // ...
+  }, [dispatch, branchOwnerId]);
 
   return (
     <div className="space-y-6">
@@ -95,22 +104,22 @@ const BranchDashboard = () => {
       )}
 
       {/* Shop Profile */}
-      <ShopProfile />
+      <ShopProfile branchOwnerId={branchOwnerId} />
 
       {/* Data Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-6">
-          <SalesTable />
-          <ExpensesTable />
+          <SalesTable branchOwnerId={branchOwnerId} />
+          <ExpensesTable branchOwnerId={branchOwnerId} />
         </div>
         <div className="space-y-6">
-          <StockRequestsTable />
-          <TransportTable />
+          <StockRequestsTable branchOwnerId={branchOwnerId} />
+          <TransportTable branchOwnerId={branchOwnerId} />
         </div>
       </div>
 
       {/* Reports */}
-      <ReportsPanel />
+      <ReportsPanel branchOwnerId={branchOwnerId} />
     </div>
   );
 };

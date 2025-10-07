@@ -1,8 +1,10 @@
 // pages/dashboard/branch-owner/ReportsPage.jsx
 import React, { useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 const ReportsPage = () => {
+  const { branchOwnerId } = useParams();
   const [reportType, setReportType] = useState('sales');
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
@@ -19,7 +21,7 @@ const ReportsPage = () => {
   const handleGenerateReport = async () => {
     try {
       // TODO: Replace with actual API call
-      const response = await fetch(`/api/reports/${reportType}?start=${dateRange.start}&end=${dateRange.end}`);
+      const response = await fetch(`/api/reports/${reportType}?branchOwnerId=${branchOwnerId}&start=${dateRange.start}&end=${dateRange.end}`);
       if (response.ok) {
         const data = await response.json();
         // Handle report data - could open in new tab, download, etc.
@@ -37,7 +39,7 @@ const ReportsPage = () => {
   const handleExport = async (format) => {
     try {
       // TODO: Replace with actual API call
-      const response = await fetch(`/api/exports/${reportType}/${format}?start=${dateRange.start}&end=${dateRange.end}`);
+      const response = await fetch(`/api/exports/${reportType}/${format}?branchOwnerId=${branchOwnerId}&start=${dateRange.start}&end=${dateRange.end}`);
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);

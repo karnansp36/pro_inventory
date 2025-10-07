@@ -3,17 +3,17 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import api from '../../../services/api';
 
-const SalesTable = () => {
+const SalesTable = ({ branchOwnerId }) => {
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchSales();
-  }, []);
+  }, [branchOwnerId]);
 
   const fetchSales = async () => {
     try {
-      const response = await api.get('/sales');
+      const response = await api.get(`/sales?branchOwnerId=${branchOwnerId}`);
       setSales(response.data);
     } catch (error) {
       console.error('Error fetching sales:', error);

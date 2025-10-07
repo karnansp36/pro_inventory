@@ -1,6 +1,6 @@
 import React from 'react';
 // TODO: Implement real report generation and export
-const ReportsPanel = () => {
+const ReportsPanel = ({ branchOwnerId }) => {
   return (
     <div className="bg-white rounded shadow p-4 mt-4">
       <h2 className="text-lg font-semibold mb-2">Reports & Performance</h2>

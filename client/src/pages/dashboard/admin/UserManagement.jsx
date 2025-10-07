@@ -219,12 +219,13 @@ const UserManagement = () => {
       {/* View User Details Modal */}
       {viewUserId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-4xl h-5/6 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-6xl h-5/6 overflow-y-auto">
             <UserView userId={viewUserId} onClose={() => setViewUserId(null)} />
           </div>
         </div>
       )}
       {/* Add/Edit User Modal */}
+
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">

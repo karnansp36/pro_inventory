@@ -1,9 +1,11 @@
 // pages/dashboard/branch-owner/SalesPage.jsx
 import React, { useState } from 'react';
+import { useParams } from 'react-router-dom';
 import SalesForm from './SalesForm';
 import SalesTable from './SalesTable';
 
 const SalesPage = () => {
+  const { branchOwnerId } = useParams();
   const [refreshTable, setRefreshTable] = useState(0);
 
   const handleSaleAdded = () => {
@@ -18,10 +20,10 @@ const SalesPage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
-          <SalesForm onSaleAdded={handleSaleAdded} />
+          <SalesForm onSaleAdded={handleSaleAdded} branchOwnerId={branchOwnerId} />
         </div>
         <div className="lg:col-span-2">
-          <SalesTable key={refreshTable} />
+          <SalesTable key={refreshTable} branchOwnerId={branchOwnerId} />
         </div>
       </div>
     </div>

@@ -2,13 +2,13 @@ import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getTransports } from '../../../store/slices/transportSlice';
 
-const TransportTable = () => {
+const TransportTable = ({ branchOwnerId }) => {
   const dispatch = useDispatch();
   const { transport, loading, error } = useSelector((state) => state.transport);
 
   useEffect(() => {
-    dispatch(getTransports());
-  }, [dispatch]);
+    dispatch(getTransports({ branchOwnerId }));
+  }, [dispatch, branchOwnerId]);
 
   return (
     <div className="bg-white rounded shadow p-4">

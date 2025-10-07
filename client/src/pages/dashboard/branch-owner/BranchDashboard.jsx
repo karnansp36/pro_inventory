@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { useParams } from 'react-router-dom';
 import ShopProfile from './ShopProfile';
 import SalesTable from './SalesTable';
 import ExpensesTable from './ExpensesTable';
@@ -19,6 +20,7 @@ import { createTransport } from '../../../store/slices/transportSlice';
 
 
 const BranchDashboard = () => {
+  const { branchOwnerId } = useParams();
   const dispatch = useDispatch();
   const [modal, setModal] = useState(null); // 'sale' | 'expense' | 'stock' | 'transport' | null
   const [loading, setLoading] = useState(false);
@@ -95,22 +97,22 @@ const BranchDashboard = () => {
       )}
 
       {/* Shop Profile */}
-      <ShopProfile />
+      <ShopProfile branchOwnerId={branchOwnerId} />
 
       {/* Data Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-6">
-          <SalesTable />
-          <ExpensesTable />
+          <SalesTable branchOwnerId={branchOwnerId} />
+          <ExpensesTable branchOwnerId={branchOwnerId} />
         </div>
         <div className="space-y-6">
-          <StockRequestsTable />
-          <TransportTable />
+          <StockRequestsTable branchOwnerId={branchOwnerId} />
+          <TransportTable branchOwnerId={branchOwnerId} />
         </div>
       </div>
 
       {/* Reports */}
-      <ReportsPanel />
+      <ReportsPanel branchOwnerId={branchOwnerId} />
     </div>
   );
 };

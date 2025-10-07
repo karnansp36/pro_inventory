@@ -1,12 +1,22 @@
 // pages/admin/UserView.jsx
 import { useEffect, useState } from 'react';
 import api from '../../../services/api';
+import { useNavigate } from 'react-router-dom';
+import ShopProfile from '../branch-owner/ShopProfile';
+import SalesTable from '../branch-owner/SalesTable';
+import ExpensesTable from '../branch-owner/ExpensesTable';
+import StockRequestsTable from '../branch-owner/StockRequestsTable';
+import TransportTable from '../branch-owner/TransportTable';
+import ReportsPanel from '../branch-owner/ReportsPanel';
 
 const UserView = ({ userId, onClose }) => {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('details'); // Default active tab
+  const [activeTab, setActiveTab] = useState('details');
+  const [branchOwnerData, setBranchOwnerData] = useState(null); // State to hold fetched branch owner data
+
   const [showAddManager, setShowAddManager] = useState(false);
   const [availableManagers, setAvailableManagers] = useState([]);
   const [selectedManagerIds, setSelectedManagerIds] = useState([]);
@@ -118,6 +128,7 @@ const UserView = ({ userId, onClose }) => {
     try {
       const managerId = assigningManager._id || assigningManager.id || assigningManager;
       if (!managerId) throw new Error('Manager id not found');
+
       // Update manager's assignedBranchOwners via PUT /users/:id
       await api.put(`/users/${managerId}`, {
         assignedBranchOwners: selectedBranchOwnerIds,
@@ -129,6 +140,13 @@ const UserView = ({ userId, onClose }) => {
       console.error('Failed to assign branches', err);
       alert(err.response?.data?.message || 'Failed to assign branches');
     }
+  };
+
+  const handleViewBranchOwner = (branchOwnerId) => {
+    navigate(`/dashboard/branch-owner/${branchOwnerId}`);
+  };
+
+  const handleCloseBranchOwnerView = () => {
   };
 
   if (loading) return <div className="p-8">Loading...</div>;
@@ -149,7 +167,7 @@ const UserView = ({ userId, onClose }) => {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="mb-2"><b>Name:</b> {user.name}</div>
-        <div className="mb-2"><b>Email:</b> {user.email}</div>
+        <div className="mb-2"><b>Email:</b> {user.name}</div>
         <div className="mb-2"><b>Role:</b> {user.role}</div>
       </div>
 
@@ -159,21 +177,19 @@ const UserView = ({ userId, onClose }) => {
           <nav className="-mb-px flex space-x-8 px-6" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('details')}
-              className={`${
-                activeTab === 'details'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              className={`${activeTab === 'details'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
               General Details
             </button>
             {user.role === 'BranchOwner' && (
               <button
                 onClick={() => setActiveTab('shopDetails')}
-                className={`${
-                  activeTab === 'shopDetails'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                className={`${activeTab === 'shopDetails'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
               >
                 Shop Details
@@ -182,10 +198,9 @@ const UserView = ({ userId, onClose }) => {
             {user.role === 'Manager' && (
               <button
                 onClick={() => setActiveTab('managerDetails')}
-                className={`${
-                  activeTab === 'managerDetails'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                className={`${activeTab === 'managerDetails'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
               >
                 Manager Details
@@ -194,10 +209,9 @@ const UserView = ({ userId, onClose }) => {
             {user.role === 'BrandOwner' && (
               <button
                 onClick={() => setActiveTab('brandOwnerDetails')}
-                className={`${
-                  activeTab === 'brandOwnerDetails'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                className={`${activeTab === 'brandOwnerDetails'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
               >
                 Brand Owner Details
@@ -239,7 +253,7 @@ const UserView = ({ userId, onClose }) => {
               <h2 className="text-lg font-semibold mb-2">Assigned Branch Owners</h2>
               {user.assignedBranchOwners && user.assignedBranchOwners.length > 0 ? (
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
+                  <table className="w-full min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
@@ -296,7 +310,7 @@ const UserView = ({ userId, onClose }) => {
               </div>
               {user.assignedManagers && user.assignedManagers.length > 0 ? (
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
+                  <table className="w-full min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manager</th>
@@ -359,36 +373,60 @@ const UserView = ({ userId, onClose }) => {
       {/* Assign Branches Modal */}
       {showAssignBranches && assigningManager && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4">Assign Branch Owners to {assigningManager.name}</h2>
             <form onSubmit={handleAssignBranchesSubmit} className="space-y-3">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+                <table className="w-full min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Select</th>
                       <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
                       <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                       <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Brand Owner</th>
+                      <th className="px-6 py-2"></th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {availableBranchOwners.map((bo) => (
                       <tr key={bo._id}>
                         <td className="px-4 py-2">
-                          <input type="checkbox" checked={selectedBranchOwnerIds.includes(bo._id)} onChange={() => toggleBranchSelection(bo._id)} />
+                          <input
+                            type="checkbox"
+                            checked={selectedBranchOwnerIds.includes(bo._id)}
+                            onChange={() => toggleBranchSelection(bo._id)}
+                          />
                         </td>
                         <td className="px-6 py-2 whitespace-nowrap">{bo.name}</td>
                         <td className="px-6 py-2 whitespace-nowrap">{bo.email}</td>
                         <td className="px-6 py-2 whitespace-nowrap">{bo.assignedBrandOwner?.name || '-'}</td>
+                        <td className="px-6 py-2 whitespace-nowrap">
+                          <button
+                            onClick={() => handleViewBranchOwner(bo._id)}
+                            className="text-sm px-2 py-1 bg-blue-100 text-blue-800 rounded"
+                          >
+                            View
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
               <div className="flex justify-end gap-2 mt-4">
-                <button type="button" onClick={() => { setShowAssignBranches(false); setAssigningManager(null); }} className="px-4 py-2 rounded bg-gray-200">Cancel</button>
-                <button type="submit" className="px-4 py-2 rounded bg-green-600 text-white">Save Assignments</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAssignBranches(false);
+                    setAssigningManager(null);
+                  }}
+                  className="px-4 py-2 rounded bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 py-2 rounded bg-green-600 text-white">
+                  Save Assignments
+                </button>
               </div>
             </form>
           </div>
