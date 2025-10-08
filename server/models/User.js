@@ -48,6 +48,14 @@ const userSchema = mongoose.Schema(
         ref: 'User',
       },
     ],
+    refreshToken: {
+      type: String,
+      required: false,
+    },
+    refreshTokenExpires: {
+      type: Date,
+      required: false,
+    },
   },
   {
     timestamps: true,

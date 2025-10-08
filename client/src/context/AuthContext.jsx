@@ -26,6 +26,7 @@ export const AuthProvider = ({ children }) => {
       navigate('/dashboard');
     } catch (error) {
       console.error('Login error:', error);
+      throw error; // Re-throw to be caught by the login component
     }
   };
 
@@ -37,6 +38,7 @@ export const AuthProvider = ({ children }) => {
       navigate('/dashboard');
     } catch (error) {
       console.error('Register error:', error);
+      throw error; // Re-throw to be caught by the register component
     }
   };
 

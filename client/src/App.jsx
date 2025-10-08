@@ -1,7 +1,7 @@
 // App.jsx
 import { useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { getCurrentUser } from './store/slices/authSlice'
@@ -26,12 +26,12 @@ function App() {
   const isBranchOwner = user?.role === 'BranchOwner'
 
   return (
-    <Router>
+    <>
       <div className="App">
         <Routes>
-          <Route 
-            path="/login" 
-            element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />} 
+          <Route
+            path="/login"
+            element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />}
           />
           
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -52,7 +52,7 @@ function App() {
         </Routes>
       </div>
       <ToastContainer />
-    </Router>
+    </>
   )
 }
 

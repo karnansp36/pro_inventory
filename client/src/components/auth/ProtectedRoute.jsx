@@ -1,19 +1,11 @@
 // components/auth/ProtectedRoute.jsx
 import { useEffect } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
 import { Navigate, useLocation } from 'react-router-dom'
-import { getCurrentUser } from '../../store/slices/authSlice'
+import { useAuth } from '../../context/AuthContext'
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
-  const { isAuthenticated, user, loading } = useSelector((state) => state.auth)
-  const dispatch = useDispatch()
+  const { user, loading } = useAuth()
   const location = useLocation()
-
-  useEffect(() => {
-    if (!user && localStorage.getItem('token')) {
-      dispatch(getCurrentUser())
-    }
-  }, [dispatch, user])
 
   if (loading) {
     return (
@@ -23,11 +15,11 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     )
   }
 
-  if (!isAuthenticated) {
+  if (!user && !loading) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
+  if (user && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     return <Navigate to="/unauthorized" replace />
   }
 

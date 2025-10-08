@@ -2,6 +2,9 @@ import asyncHandler from 'express-async-handler';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Helper to normalize ID fields coming from the client.
 // Treat empty string or null/undefined as undefined so Mongoose doesn't try to cast them to ObjectId.
@@ -49,6 +52,7 @@ const registerUser = asyncHandler(async (req, res) => {
       role: user.role,
       token: generateToken(user._id),
     });
+    // No refresh token on registration for now, as it's usually handled on login
   } else {
     res.status(400);
     throw new Error('Invalid user data');
@@ -65,12 +69,27 @@ const loginUser = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email });
 
   if (user && (await user.matchPassword(password))) {
+    const accessToken = generateToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+
+    // Save refresh token to user and set expiration
+    user.refreshToken = refreshToken;
+    user.refreshTokenExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    await user.save();
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+      sameSite: 'strict', // Prevent CSRF attacks
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
     res.json({
       _id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
-      token: generateToken(user._id),
+      token: accessToken,
     });
   } else {
     res.status(400);
@@ -253,10 +272,17 @@ const deleteUser = asyncHandler(async (req, res) => {
 });
 
 
-// Generate JWT
+// Generate Access Token
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: '1h',
+  });
+};
+
+// Generate Refresh Token
+const generateRefreshToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, {
+    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
   });
 };
 
@@ -468,4 +494,68 @@ export {
   getUsersByRole,
   assignUser,
   getUserHierarchy,
+  refreshAccessToken,
+  logoutUser,
+  generateRefreshToken, // Export for testing if needed, but not for direct route use
 };
+
+// @desc    Refresh Access Token
+// @route   POST /api/users/refresh-token
+// @access  Public
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const refreshToken = req.cookies.refreshToken;
+
+  if (!refreshToken) {
+    res.status(401);
+    throw new Error('No refresh token found');
+  }
+
+  const user = await User.findOne({ refreshToken });
+
+  if (!user) {
+    res.status(403);
+    throw new Error('Invalid refresh token');
+  }
+
+  // Check if refresh token has expired
+  if (user.refreshTokenExpires < Date.now()) {
+    user.refreshToken = undefined;
+    user.refreshTokenExpires = undefined;
+    await user.save();
+    res.status(403);
+    throw new Error('Refresh token expired');
+  }
+
+  jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, async (err, decoded) => {
+    if (err) {
+      res.status(403);
+      throw new Error('Invalid refresh token');
+    }
+
+    const newAccessToken = generateToken(user._id);
+
+    res.json({
+      token: newAccessToken,
+    });
+  });
+});
+
+// @desc    Logout user / clear cookie
+// @route   POST /api/users/logout
+// @access  Private
+const logoutUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  if (user) {
+    user.refreshToken = undefined;
+    user.refreshTokenExpires = undefined;
+    await user.save();
+  }
+
+  res.cookie('refreshToken', '', {
+    httpOnly: true,
+    expires: new Date(0),
+  });
+
+  res.status(200).json({ message: 'Logged out successfully' });
+});

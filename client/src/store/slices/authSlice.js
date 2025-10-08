@@ -6,7 +6,7 @@ export const loginUser = createAsyncThunk(
   'auth/login',
   async ({ email, password }, { rejectWithValue }) => {
     try {
-      const response = await api.post('/auth/login', { email, password })
+      const response = await api.post('/users/login', { email, password }, { withCredentials: true })
       localStorage.setItem('token', response.data.token)
       return response.data
     } catch (error) {

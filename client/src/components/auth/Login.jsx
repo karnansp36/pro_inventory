@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { loginUser } from '../../store/slices/authSlice'; // Assuming this action exists
-import { toast } from 'react-toastify'; // Assuming toast notifications are used
+import { loginUser } from '../../store/slices/authSlice';
+import { toast } from 'react-toastify';
+import { useAuth } from '../../context/AuthContext';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -12,23 +13,19 @@ const Login = () => {
 
   const { email, password } = formData;
 
-  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const { user, isLoading, isError, isSuccess, message } = useSelector(
-    (state) => state.auth
-  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (isError) {
-      toast.error(message);
+    if (error) {
+      toast.error(error);
+      setError(null); // Clear error after showing toast
     }
+  }, [error]);
 
-    if (isSuccess || user) {
-      navigate('/dashboard'); // Redirect to dashboard on successful login
-    }
-
-  }, [user, isError, isSuccess, message, navigate, dispatch]);
 
   const onChange = (e) => {
     setFormData((prevState) => ({
@@ -37,7 +34,7 @@ const Login = () => {
     }));
   };
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
 
     const userData = {
@@ -45,7 +42,16 @@ const Login = () => {
       password,
     };
 
-    dispatch(loginUser(userData));
+    setIsLoading(true);
+    setError(null);
+    try {
+      await login(email, password);
+      // Navigation is handled by AuthContext
+    } catch (err) {
+      setError(err.message || 'Login failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

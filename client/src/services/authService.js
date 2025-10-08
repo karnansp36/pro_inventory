@@ -1,19 +1,13 @@
-const API_URL = '/api/auth/';
+import api from './api'; // Import the configured axios instance
+
+const API_URL = '/auth/'; // Changed to /auth/ as per backend routes, removing duplicate /api
 
 // Register user
 const register = async (userData) => {
-  const response = await fetch(API_URL + 'register', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(userData),
-  });
+  const response = await api.post(API_URL + 'register', userData);
+  const data = response.data;
 
-  const data = await response.json();
-
-  if (response.ok) {
-    // back-end responds with token and user info
+  if (response.status === 201) {
     localStorage.setItem('token', data.token || '');
     localStorage.setItem('user', JSON.stringify({ _id: data._id, name: data.name, email: data.email, role: data.role }));
   }
@@ -23,17 +17,10 @@ const register = async (userData) => {
 
 // Login user
 const login = async (userData) => {
-  const response = await fetch(API_URL + 'login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(userData),
-  });
+  const response = await api.post(API_URL + 'login', userData, { withCredentials: true });
+  const data = response.data;
 
-  const data = await response.json();
-
-  if (response.ok) {
+  if (response.status === 200) {
     localStorage.setItem('token', data.token || '');
     localStorage.setItem('user', JSON.stringify({ _id: data._id, name: data.name, email: data.email, role: data.role }));
   }
@@ -42,7 +29,8 @@ const login = async (userData) => {
 };
 
 // Logout user
-const logout = () => {
+const logout = async () => {
+  await api.post(API_URL + 'logout'); // Call backend logout endpoint
   localStorage.removeItem('user');
   localStorage.removeItem('token');
 };
