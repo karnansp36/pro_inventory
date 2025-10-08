@@ -1,29 +1,21 @@
 // pages/dashboard/DashboardRouter.jsx
-import { useSelector } from 'react-redux';
-import AdminRoutes from '../../routes/AdminRoutes';
-import BrandOwnerRoutes from '../../routes/BrandOwnerRoutes';
-import ManagerRoutes from '../../routes/ManagerRoutes';
-import BranchOwnerDashboard from './branch-owner/BranchDashboard';
+import { Routes, Route } from 'react-router-dom';
+import AdminDashboard from './admin/AdminDashboard';
+import BrandOwnerDashboard from './brand-owner/BrandOwnerDashboard';
+import ManagerDashboard from './manager/ManagerDashboard';
+import BranchOwnerRoutes from '../../routes/BranchOwnerRoutes'; // Import the BranchOwnerRoutes component
 
 const DashboardRouter = () => {
-  const { user } = useSelector((state) => state.auth);
-
-  const renderDashboard = () => {
-    switch (user?.role) {
-      case 'Admin':
-        return <AdminRoutes />;
-      case 'BrandOwner':
-        return <BrandOwnerRoutes />;
-      case 'Manager':
-        return <ManagerRoutes />;
-      case 'BranchOwner':
-        return <BranchOwnerDashboard />;
-      default:
-        return <div>Loading...</div>;
-    }
-  };
-
-  return renderDashboard();
+  return (
+    <Routes>
+      <Route path="admin/*" element={<AdminDashboard />} />
+      <Route path="brand-owner/*" element={<BrandOwnerDashboard />} />
+      <Route path="manager/*" element={<ManagerDashboard />} />
+      <Route path="branch-owner/*" element={<BranchOwnerRoutes />} />
+      {/* Default or fallback route if no specific role path matches */}
+      <Route path="*" element={<div>Select a dashboard</div>} />
+    </Routes>
+  );
 };
 
 export default DashboardRouter;

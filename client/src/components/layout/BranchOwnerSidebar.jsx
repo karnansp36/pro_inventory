@@ -1,14 +1,14 @@
 // components/layout/BranchOwnerSidebar.jsx
 import { NavLink } from 'react-router-dom';
 
-const BranchOwnerSidebar = ({ isOpen, onClose }) => {
+const BranchOwnerSidebar = ({ isOpen, onClose, branchOwnerId }) => {
   const menuItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: '📊' },
-    { path: '/dashboard/sales', label: 'Sales', icon: '💰' },
-    { path: '/dashboard/expenses', label: 'Expenses', icon: '📝' },
-    { path: '/dashboard/stock-requests', label: 'Stock Requests', icon: '📦' },
-    { path: '/dashboard/transport', label: 'Transport', icon: '🚚' },
-    { path: '/dashboard/reports', label: 'Reports', icon: '📈' },
+    { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/dashboard` : '/dashboard/branch-owner', label: 'Dashboard', icon: '📊' },
+    { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/sales` : '/dashboard/branch-owner/sales', label: 'Sales', icon: '💰' },
+    { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/expenses` : '/dashboard/branch-owner/expenses', label: 'Expenses', icon: '📝' },
+    { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/stock-requests` : '/dashboard/branch-owner/stock-requests', label: 'Stock Requests', icon: '📦' },
+    { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/transport` : '/dashboard/branch-owner/transport', label: 'Transport', icon: '🚚' },
+    { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/reports` : '/dashboard/branch-owner/reports', label: 'Reports', icon: '📈' },
   ];
 
   return (

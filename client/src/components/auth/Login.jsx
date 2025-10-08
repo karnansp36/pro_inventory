@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { loginUser } from '../../store/slices/authSlice';
+import { loginUser, clearError } from '../../store/slices/authSlice';
 import { toast } from 'react-toastify';
-import { useAuth } from '../../context/AuthContext';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -14,18 +13,39 @@ const Login = () => {
   const { email, password } = formData;
 
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const dispatch = useDispatch();
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const { loading, error, isAuthenticated, user } = useSelector((state) => state.auth);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      // Redirect based on role after successful login
+      switch (user.role) {
+        case 'Admin':
+          navigate('/dashboard/admin', { replace: true });
+          break;
+        case 'BranchOwner':
+          navigate('/dashboard/branch-owner', { replace: true });
+          break;
+        case 'BrandOwner':
+          navigate('/dashboard/brand-owner', { replace: true });
+          break;
+        case 'Manager':
+          navigate('/dashboard/manager', { replace: true });
+          break;
+        default:
+          navigate('/dashboard', { replace: true });
+          break;
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
 
   useEffect(() => {
     if (error) {
       toast.error(error);
-      setError(null); // Clear error after showing toast
+      dispatch(clearError()); // Clear error after showing toast
     }
-  }, [error]);
-
+  }, [error, dispatch]);
 
   const onChange = (e) => {
     setFormData((prevState) => ({
@@ -42,15 +62,10 @@ const Login = () => {
       password,
     };
 
-    setIsLoading(true);
-    setError(null);
     try {
-      await login(email, password);
-      // Navigation is handled by AuthContext
+      await dispatch(loginUser(userData)).unwrap();
     } catch (err) {
-      setError(err.message || 'Login failed');
-    } finally {
-      setIsLoading(false);
+      // Error handled by Redux slice and useEffect
     }
   };
 
@@ -90,9 +105,9 @@ const Login = () => {
               <button
                 type="submit"
                 className="px-6 py-2 mt-4 text-white bg-blue-600 rounded-lg hover:bg-blue-900"
-                disabled={isLoading}
+                disabled={loading}
               >
-                {isLoading ? 'Logging in...' : 'Login'}
+                {loading ? 'Logging in...' : 'Login'}
               </button>
               <a href="#" className="text-sm text-blue-600 hover:underline">Forgot password?</a>
             </div>

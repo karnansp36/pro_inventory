@@ -3,14 +3,15 @@ import { useState } from 'react';
 import BranchOwnerSidebar from './BranchOwnerSidebar';
 import Navbar from './Navbar';
 
-const BranchOwnerLayout = ({ children }) => {
+const BranchOwnerLayout = ({ children, branchOwnerId }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <BranchOwnerSidebar 
-        isOpen={sidebarOpen} 
-        onClose={() => setSidebarOpen(false)} 
+      <BranchOwnerSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        branchOwnerId={branchOwnerId}
       />
       
       <div className="flex-1 flex flex-col overflow-hidden">

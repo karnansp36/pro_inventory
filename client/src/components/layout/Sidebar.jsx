@@ -15,14 +15,14 @@ import { NavLink } from 'react-router-dom';
 const Sidebar = ({ isOpen, onClose }) => {
   const menuItems = [
     { path: '/dashboard/admin', icon: Users, label: 'Dashboard' },
-    { path: '/dashboard/users', icon: Users, label: 'User Management' },
-    { path: '/dashboard/sales', icon: TrendingUp, label: 'Sales' },
-    { path: '/dashboard/expenses', icon: FileText, label: 'Expenses' },
-    { path: '/dashboard/stock-requests', icon: Package, label: 'Stock Requests' },
-    { path: '/dashboard/transport', icon: Truck, label: 'Transport' },
-    { path: '/dashboard/reports', icon: Activity, label: 'Reports' },
-    { path: '/dashboard/exports', icon: Download, label: 'Exports' },
-    { path: '/dashboard/activity-logs', icon: Activity, label: 'Activity Logs' },
+    { path: '/dashboard/admin/users', icon: Users, label: 'User Management' },
+    { path: '/dashboard/admin/sales', icon: TrendingUp, label: 'Sales' },
+    { path: '/dashboard/admin/expenses', icon: FileText, label: 'Expenses' },
+    { path: '/dashboard/admin/stock-requests', icon: Package, label: 'Stock Requests' },
+    { path: '/dashboard/admin/transport', icon: Truck, label: 'Transport' },
+    { path: '/dashboard/admin/reports', icon: Activity, label: 'Reports' },
+    { path: '/dashboard/admin/exports', icon: Download, label: 'Exports' },
+    { path: '/dashboard/admin/activity-logs', icon: Activity, label: 'Activity Logs' },
   ];
 
   return (

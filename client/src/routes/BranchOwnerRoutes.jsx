@@ -1,5 +1,5 @@
 // routes/BranchOwnerRoutes.jsx
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useParams } from 'react-router-dom';
 import BranchOwnerLayout from '../components/layout/BranchOwnerLayout';
 import BranchDashboard from '../pages/dashboard/branch-owner/BranchOwnerDashboard';
 import SalesPage from '../pages/dashboard/branch-owner/SalesPage';
@@ -9,8 +9,10 @@ import TransportPage from '../pages/dashboard/branch-owner/TransportPage';
 import ReportsPage from '../pages/dashboard/branch-owner/ReportsPage';
 
 const BranchOwnerRoutes = () => {
+  const { branchOwnerId } = useParams(); // Get branchOwnerId from URL
+
   return (
-    <BranchOwnerLayout>
+    <BranchOwnerLayout branchOwnerId={branchOwnerId}>
       <Routes>
         {/* Default index route for /dashboard and /dashboard/ */}
         <Route index element={<BranchDashboard />} />

@@ -1,10 +1,10 @@
 // components/auth/ProtectedRoute.jsx
 import { useEffect } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext'
+import { useSelector } from 'react-redux'
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
-  const { user, loading } = useAuth()
+  const { user, loading, isAuthenticated } = useSelector((state) => state.auth)
   const location = useLocation()
 
   if (loading) {
@@ -15,11 +15,11 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     )
   }
 
-  if (!user && !loading) {
+  if (!isAuthenticated && !loading) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  if (user && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+  if (isAuthenticated && user && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     return <Navigate to="/unauthorized" replace />
   }
 
