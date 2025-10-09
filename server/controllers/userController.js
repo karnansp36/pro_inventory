@@ -469,9 +469,26 @@ const getUserHierarchy = asyncHandler(async (req, res) => {
 // @route   POST /api/users/
 // @access  Private/Admin
 const createUserByAdmin = asyncHandler(async (req, res, next) => {
-  try {
-    const { name, email, password, role, assignedManager, assignedBrandOwner } = req.body;
-    const profileImage = req.files && req.files['profileImage'] && req.files['profileImage'][0] ? `/uploads/profileImages/${req.files['profileImage'][0].filename}` : undefined;
+  upload(req, res, async (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ message: 'File too large. Maximum size is 5MB.' });
+      } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        return res.status(400).json({ message: 'Unexpected field in form data.' });
+      } else {
+        return res.status(400).json({ message: `Multer Error: ${err.message}` });
+      }
+    } else if (err) {
+      if (err.message && err.message.includes('Unexpected end of form')) {
+        return next(new Error('Upload Error: Malformed form data or missing file.'));
+      } else {
+        return next(new Error(`Upload Error: ${err.message}`));
+      }
+    }
+
+    try {
+      const { name, email, password, role, assignedManager, assignedBrandOwner } = req.body;
+      const profileImage = req.files && req.files['profileImage'] && req.files['profileImage'][0] ? `/uploads/profileImages/${req.files['profileImage'][0].filename}` : undefined;
 
     if (!name || !email || !role) {
       res.status(400);
@@ -506,6 +523,7 @@ const createUserByAdmin = asyncHandler(async (req, res, next) => {
     next(error);
   }
 });
+  }); // Close the upload middleware
 
 
 export {
