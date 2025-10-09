@@ -5,9 +5,9 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-      "dev": "nodemon server.js",
-      "start": "node server.js",
-      "test": "node test/api.js"
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "test": "node test/api.js"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +23,7 @@
     "express-async-handler": "^1.2.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.2",
+    "multer": "^2.0.2",
     "pdfkit": "^0.13.0"
   }
 }

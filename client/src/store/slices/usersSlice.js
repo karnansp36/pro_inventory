@@ -1,10 +1,14 @@
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import api from '../../services/api';
+
 // Create user (Admin only)
 export const createUser = createAsyncThunk(
   'users/create',
   async (userData, { rejectWithValue }) => {
     try {
       // Admin creates users via protected endpoint
-      const response = await api.post('/users', userData);
+      const config = userData instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {};
+      const response = await api.post('/users', userData, config);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response.data);
@@ -17,15 +21,14 @@ export const updateUser = createAsyncThunk(
   'users/update',
   async ({ id, userData }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`/users/${id}`, userData);
+      const config = userData instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {};
+      const response = await api.put(`/users/${id}`, userData, config);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response.data);
     }
   }
 );
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../../services/api';
 
 // Get users by role (Admin, BrandOwner)
 export const getUsersByRole = createAsyncThunk(

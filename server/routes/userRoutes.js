@@ -11,6 +11,7 @@ import {
   createUserByAdmin,
 } from '../controllers/userController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
+import upload from '../middleware/uploadMiddleware.js';
 
 router.route('/')
   .get(protect, authorizeRoles('Admin'), getUsers)
@@ -23,7 +24,7 @@ router.route('/hierarchy')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getUserHierarchy);
 
 router.route('/:id/assign')
-  .put(protect, authorizeRoles('Admin', 'BrandOwner'), assignUser);
+  .put(express.json(), protect, authorizeRoles('Admin', 'BrandOwner'), assignUser);
 
 router.route('/:id')
   .get(protect, authorizeRoles('Admin'), getUserById)

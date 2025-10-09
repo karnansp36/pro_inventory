@@ -48,6 +48,10 @@ const userSchema = mongoose.Schema(
         ref: 'User',
       },
     ],
+    profileImage: {
+      type: String,
+      required: false,
+    },
     refreshToken: {
       type: String,
       required: false,

@@ -4,9 +4,9 @@ import { registerUser, loginUser, getMe, refreshAccessToken, logoutUser } from '
 import { protect } from '../middleware/authMiddleware.js';
 
 router.post('/register', registerUser);
-router.post('/login', loginUser);
+router.post('/login', express.json(), loginUser);
 router.get('/me', protect, getMe);
-router.post('/refresh-token', refreshAccessToken);
+router.post('/refresh-token', express.json(), refreshAccessToken);
 router.post('/logout', protect, logoutUser);
 
 export default router;

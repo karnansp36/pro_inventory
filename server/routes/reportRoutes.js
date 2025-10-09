@@ -5,6 +5,8 @@ import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 router.route('/sales')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getSalesReport);
+router.route('/profit-loss')
+  .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getProfitLossReport);
 
 router.route('/expenses')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getExpenseReport);

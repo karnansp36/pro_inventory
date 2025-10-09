@@ -17,12 +17,14 @@ const UserManagement = () => {
     email: '',
     password: '',
     role: '',
+    profileImage: null, // Add profileImage to form state
     assignedBrandOwner: '', // For assigning Managers/Branch Owners to Brand Owners
     assignedManager: '', // For assigning Branch Owners to Managers
   });
   const [viewUserId, setViewUserId] = useState(null);
   const [availableBrandOwners, setAvailableBrandOwners] = useState([]);
   const [availableManagers, setAvailableManagers] = useState([]);
+  const [imagePreview, setImagePreview] = useState(null); // For image preview
 
   useEffect(() => {
     dispatch(getUsers());
@@ -50,13 +52,19 @@ const UserManagement = () => {
   };
 
   const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, files } = e.target;
+    if (name === 'profileImage' && files && files[0]) {
+      setForm((prev) => ({ ...prev, [name]: files[0] }));
+      setImagePreview(URL.createObjectURL(files[0]));
+    } else {
+      setForm((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleAddUser = () => {
     setEditUser(null);
-    setForm({ name: '', email: '', password: '', role: '', assignedBrandOwner: '', assignedManager: '' });
+    setForm({ name: '', email: '', password: '', role: '', profileImage: null, assignedBrandOwner: '', assignedManager: '' });
+    setImagePreview(null);
     setShowModal(true);
   };
 
@@ -67,40 +75,49 @@ const UserManagement = () => {
       email: user.email,
       password: '',
       role: user.role,
+      profileImage: null, // Don't pre-fill file input
       assignedBrandOwner: user.assignedBrandOwner?._id || '',
       assignedManager: user.assignedManager?._id || ''
     });
+    setImagePreview(user.profileImage ? `http://localhost:5000${user.profileImage}` : null);
     setShowModal(true);
   };
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
-    const userData = { ...form };
+    const formData = new FormData();
+    for (const key in form) {
+      if (form[key] !== null && form[key] !== undefined && form[key] !== '') {
+        formData.append(key, form[key]);
+      }
+    }
+    // If editing and no new image is selected, but there was an existing image,
+    // and the user explicitly cleared it (e.g., by setting profileImage to empty string)
+    if (editUser && !form.profileImage && imagePreview === null && editUser.profileImage) {
+      formData.append('profileImage', ''); // Indicate to backend to clear the image
+    }
 
-    // Clean up assignment fields if not relevant to the role
-    if (userData.role !== 'Manager' && userData.role !== 'BranchOwner') {
-      delete userData.assignedBrandOwner;
-    }
-    if (userData.role !== 'BranchOwner') {
-      delete userData.assignedManager;
-    }
+    // Define userData here to ensure it's in scope if the error is truly about a missing variable
+    const userData = formData;
 
     if (editUser) {
       // Edit
-      dispatch(updateUser({ id: editUser._id, userData: { ...userData, password: userData.password || undefined } }))
+      dispatch(updateUser({ id: editUser._id, userData: userData })) // Use the defined userData
         .then((res) => {
           if (!res.error) {
             setShowModal(false);
             setEditUser(null);
-            setForm({ name: '', email: '', password: '', role: '', assignedBrandOwner: '', assignedManager: '' });
+            setForm({ name: '', email: '', password: '', role: '', profileImage: null, assignedBrandOwner: '', assignedManager: '' });
+            setImagePreview(null);
           }
         });
     } else {
       // Add
-      dispatch(createUser(userData)).then((res) => {
+      dispatch(createUser(userData)).then((res) => { // Use the defined userData
         if (!res.error) {
           setShowModal(false);
-          setForm({ name: '', email: '', password: '', role: '', assignedBrandOwner: '', assignedManager: '' });
+          setForm({ name: '', email: '', password: '', role: '', profileImage: null, assignedBrandOwner: '', assignedManager: '' });
+          setImagePreview(null);
         }
       });
     }
@@ -182,8 +199,12 @@ const UserManagement = () => {
                     <tr key={user._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                            {user.name.charAt(0)}
+                          <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-gray-200">
+                            {user.profileImage ? (
+                              <img src={`http://localhost:5000${user.profileImage}`} alt="Profile" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-sm font-medium text-gray-600">{user.name.charAt(0)}</span>
+                            )}
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">{user.name}</div>
@@ -256,6 +277,16 @@ const UserManagement = () => {
                 <input type="password" name="password" value={form.password} onChange={handleFormChange} className="w-full border rounded px-3 py-2" placeholder={editUser ? '••••••••' : ''} required={!editUser} />
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700">Profile Image</label>
+                <input type="file" name="profileImage" accept="image/*" onChange={handleFormChange} className="w-full border rounded px-3 py-2" />
+                {imagePreview && (
+                  <div className="mt-2 flex items-center space-x-2">
+                    <img src={imagePreview} alt="Profile Preview" className="w-16 h-16 object-cover rounded-full" />
+                    <button type="button" onClick={() => { setForm(prev => ({ ...prev, profileImage: '' })); setImagePreview(null); }} className="text-red-600 text-sm">Remove Image</button>
+                  </div>
+                )}
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700">Role</label>
                 <select name="role" value={form.role} onChange={handleFormChange} className="w-full border rounded px-3 py-2" required>
                   <option value="">Select Role</option>
@@ -264,8 +295,41 @@ const UserManagement = () => {
                   ))}
                 </select>
               </div>
+              {/* Conditional rendering for assignedBrandOwner and assignedManager */}
+              {(form.role === 'Manager' || form.role === 'BranchOwner') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Assigned Brand Owner</label>
+                  <select
+                    name="assignedBrandOwner"
+                    value={form.assignedBrandOwner}
+                    onChange={handleFormChange}
+                    className="w-full border rounded px-3 py-2"
+                  >
+                    <option value="">Select Brand Owner</option>
+                    {availableBrandOwners.map(bo => (
+                      <option key={bo._id} value={bo._id}>{bo.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {form.role === 'BranchOwner' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Assigned Manager</label>
+                  <select
+                    name="assignedManager"
+                    value={form.assignedManager}
+                    onChange={handleFormChange}
+                    className="w-full border rounded px-3 py-2"
+                  >
+                    <option value="">Select Manager</option>
+                    {availableManagers.map(manager => (
+                      <option key={manager._id} value={manager._id}>{manager.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => { setShowModal(false); setEditUser(null); }} className="px-4 py-2 rounded bg-gray-200">Cancel</button>
+                <button type="button" onClick={() => { setShowModal(false); setEditUser(null); setImagePreview(null); }} className="px-4 py-2 rounded bg-gray-200">Cancel</button>
                 <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white">{editUser ? 'Update' : 'Add'}</button>
               </div>
             </form>

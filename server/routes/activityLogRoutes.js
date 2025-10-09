@@ -3,6 +3,6 @@ const router = express.Router();
 import { getActivityLogs } from '../controllers/activityLogController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
-router.get('/', protect, authorizeRoles('Admin', 'BrandOwner'), getActivityLogs);
+router.get('/', express.json(), protect, authorizeRoles('Admin', 'BrandOwner'), getActivityLogs);
 
 export default router;

@@ -77,6 +77,7 @@ const authSlice = createSlice({
           name: action.payload.name,
           email: action.payload.email,
           role: action.payload.role,
+          profileImage: action.payload.profileImage,
         }
         localStorage.setItem('token', action.payload.token)
       })

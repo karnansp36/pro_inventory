@@ -5,7 +5,7 @@ import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 router.route('/')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getSales)
-  .post(protect, authorizeRoles('Admin', 'BrandOwner', 'BranchOwner'), createSales);
+  .post(express.json(), protect, authorizeRoles('Admin', 'BrandOwner', 'BranchOwner'), createSales);
 
 router.route('/:id')
   .delete(protect, authorizeRoles('Admin', 'BrandOwner'), deleteSales);
