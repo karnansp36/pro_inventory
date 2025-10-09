@@ -11,7 +11,7 @@ import {
   createUserByAdmin,
 } from '../controllers/userController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
-import upload from '../middleware/uploadMiddleware.js';
+import { upload } from '../middleware/uploadMiddleware.js';
 
 router.route('/')
   .get(protect, authorizeRoles('Admin'), getUsers)

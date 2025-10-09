@@ -9,6 +9,7 @@ import ManagerTransportPage from '../pages/dashboard/manager/ManagerTransportPag
 import ManagerReportsPage from '../pages/dashboard/manager/ManagerReportsPage';
 import ManagerBranchOwnersPage from '../pages/dashboard/manager/ManagerBranchOwnersPage';
 import ManagerBranchOwnerViewPage from '../pages/dashboard/manager/ManagerBranchOwnerViewPage';
+import DailyStoreImageManagerPage from '../pages/dashboard/manager/DailyStoreImageManagerPage';
 
 const ManagerRoutes = () => {
   return (
@@ -22,6 +23,7 @@ const ManagerRoutes = () => {
         <Route path="reports" element={<ManagerReportsPage />} />
         <Route path="branch-owners" element={<ManagerBranchOwnersPage />} />
         <Route path="branch-owners/:id" element={<ManagerBranchOwnerViewPage />} />
+        <Route path="daily-store-images" element={<DailyStoreImageManagerPage />} />
         <Route path="*" element={<ManagerDashboard />} />
       </Routes>
     </ManagerLayout>

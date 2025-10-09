@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
 import dotenv from 'dotenv';
 import multer from 'multer'; // Import multer
-import upload from '../middleware/uploadMiddleware.js'; // Import the upload middleware
+import { upload } from '../middleware/uploadMiddleware.js'; // Import the upload middleware
 
 dotenv.config();
 

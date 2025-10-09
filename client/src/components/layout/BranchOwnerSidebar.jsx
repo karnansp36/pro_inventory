@@ -9,6 +9,7 @@ const BranchOwnerSidebar = ({ isOpen, onClose, branchOwnerId }) => {
     { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/stock-requests` : '/dashboard/branch-owner/stock-requests', label: 'Stock Requests', icon: '📦' },
     { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/transport` : '/dashboard/branch-owner/transport', label: 'Transport', icon: '🚚' },
     { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/reports` : '/dashboard/branch-owner/reports', label: 'Reports', icon: '📈' },
+    { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/daily-store-images` : '/dashboard/branch-owner/daily-store-images', label: 'Daily Store Images', icon: '📸' },
   ];
 
   return (

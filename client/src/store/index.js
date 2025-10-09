@@ -9,6 +9,7 @@ import transportSlice from './slices/transportSlice'
 import activityLogsSlice from './slices/activityLogsSlice'
 import exportsSlice from './slices/exportSlice'
 import reportsSlice from './slices/reportsSlice'
+import dailyStoreImageSlice from './slices/dailyStoreImageSlice'
 
 export const store = configureStore({
   reducer: {
@@ -21,6 +22,7 @@ export const store = configureStore({
   activityLogs: activityLogsSlice,
   exports: exportsSlice,
   reports: reportsSlice,
+  dailyStoreImages: dailyStoreImageSlice,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

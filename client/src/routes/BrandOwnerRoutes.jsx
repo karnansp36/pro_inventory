@@ -9,6 +9,7 @@ import BrandOwnerStockRequestsManagement from '../pages/dashboard/brand-owner/Br
 import BrandOwnerTransportManagement from '../pages/dashboard/brand-owner/BrandOwnerTransportManagement';
 import BrandOwnerReportsPage from '../pages/dashboard/brand-owner/BrandOwnerReportsPage';
 import BrandOwnerExportsPage from '../pages/dashboard/brand-owner/BrandOwnerExportsPage';
+import DailyStoreImageBrandOwnerPage from '../pages/dashboard/brand-owner/DailyStoreImageBrandOwnerPage';
 
 const BrandOwnerRoutes = () => {
   return (
@@ -23,6 +24,7 @@ const BrandOwnerRoutes = () => {
         <Route path="transport" element={<BrandOwnerTransportManagement />} />
         <Route path="reports" element={<BrandOwnerReportsPage />} />
         <Route path="exports" element={<BrandOwnerExportsPage />} />
+        <Route path="daily-store-images" element={<DailyStoreImageBrandOwnerPage />} />
         <Route path="*" element={<BrandOwnerDashboard />} />
       </Routes>
     </BrandOwnerLayout>

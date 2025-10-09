@@ -10,6 +10,7 @@ import {
   Download,
   Settings
 } from 'lucide-react';
+import { Camera } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -23,6 +24,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { path: '/dashboard/admin/reports', icon: Activity, label: 'Reports' },
     { path: '/dashboard/admin/exports', icon: Download, label: 'Exports' },
     { path: '/dashboard/admin/activity-logs', icon: Activity, label: 'Activity Logs' },
+    { path: '/dashboard/admin/daily-store-images', icon: Camera, label: 'Daily Store Images' },
   ];
 
   return (

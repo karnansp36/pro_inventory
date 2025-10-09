@@ -3,7 +3,15 @@ import path from 'path';
 
 // Set storage engine
 const storage = multer.diskStorage({
-  destination: './uploads/profileImages/',
+  destination: (req, file, cb) => {
+    let uploadPath = './uploads/';
+    if (file.fieldname === 'image') {
+      uploadPath += 'dailyStoreImages/';
+    } else if (file.fieldname === 'profileImage') {
+      uploadPath += 'profileImages/';
+    }
+    cb(null, uploadPath);
+  },
   filename: function (req, file, cb) {
     cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
   },
@@ -32,6 +40,9 @@ const upload = multer({
   fileFilter: function (req, file, cb) {
     checkFileType(file, cb);
   },
-}).fields([{ name: 'profileImage', maxCount: 1 }]); // 'profileImage' is the field name for the image, allowing other fields
+}).fields([
+  { name: 'profileImage', maxCount: 1 },
+  { name: 'image', maxCount: 1 }
+]); // 'profileImage' is the field name for the image, allowing other fields
 
-export default upload;
+export { upload };

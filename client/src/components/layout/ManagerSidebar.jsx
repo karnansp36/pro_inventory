@@ -6,7 +6,8 @@ import {
   FileText, 
   Package, 
   Truck,
-  Activity
+  Activity,
+  Camera
 } from 'lucide-react';
 
 const ManagerSidebar = ({ isOpen, onClose }) => {
@@ -18,6 +19,7 @@ const ManagerSidebar = ({ isOpen, onClose }) => {
     { path: '/dashboard/transport', icon: Truck, label: 'Transport' },
     { path: '/dashboard/reports', icon: Activity, label: 'Reports' },
     { path: '/dashboard/branch-owners', icon: Eye, label: 'Branch Owners' },
+    { path: '/dashboard/daily-store-images', icon: Camera, label: 'Daily Store Images' },
   ];
 
   return (

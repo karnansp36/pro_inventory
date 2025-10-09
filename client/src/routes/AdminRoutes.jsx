@@ -11,6 +11,7 @@ import TransportManagement from '../pages/dashboard/admin/TransportManagement';
 import Reports from '../pages/dashboard/admin/Reports';
 import Exports from '../pages/dashboard/admin/Exports';
 import ActivityLogs from '../pages/dashboard/admin/ActivityLogs';
+import DailyStoreImageAdminPage from '../pages/dashboard/admin/DailyStoreImageAdminPage';
 
 const AdminRoutes = () => {
   return (
@@ -26,6 +27,7 @@ const AdminRoutes = () => {
         <Route path="reports" element={<Reports />} />
         <Route path="exports" element={<Exports />} />
         <Route path="activity-logs" element={<ActivityLogs />} />
+        <Route path="daily-store-images" element={<DailyStoreImageAdminPage />} />
       </Routes>
     </AdminLayout>
   );

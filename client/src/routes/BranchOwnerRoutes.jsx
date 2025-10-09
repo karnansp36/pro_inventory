@@ -7,6 +7,7 @@ import ExpensesPage from '../pages/dashboard/branch-owner/ExpensesPage';
 import StockRequestsPage from '../pages/dashboard/branch-owner/StockRequestsPage';
 import TransportPage from '../pages/dashboard/branch-owner/TransportPage';
 import ReportsPage from '../pages/dashboard/branch-owner/ReportsPage';
+import DailyStoreImagePage from '../pages/dashboard/branch-owner/DailyStoreImagePage';
 
 const BranchOwnerRoutes = () => {
   const { branchOwnerId } = useParams(); // Get branchOwnerId from URL
@@ -29,6 +30,8 @@ const BranchOwnerRoutes = () => {
         <Route path=":branchOwnerId/transport" element={<TransportPage />} />
         <Route path="reports" element={<ReportsPage />} />
          <Route path=":branchOwnerId/reports" element={<ReportsPage />} />
+         <Route path="daily-store-images" element={<DailyStoreImagePage />} />
+         <Route path=":branchOwnerId/daily-store-images" element={<DailyStoreImagePage />} />
         {/* Catch-all: redirect to dashboard if no match */}
         <Route path="*" element={<BranchDashboard />} />
       </Routes>
