@@ -6,8 +6,6 @@ import Spinner from '../../../../src/components/Spinner';
 
 const DailyStoreImagePage = () => {
   const [image, setImage] = useState(null);
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
 
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
@@ -16,18 +14,19 @@ const DailyStoreImagePage = () => {
   );
 
   useEffect(() => {
-    if (isError) {
-      toast.error(message);
-    }
-
-    if (user && user.role === 'branch-owner') {
+    if (user && user.role === 'BranchOwner') {
       dispatch(getDailyStoreImagesByBranch(user._id));
     }
-
     return () => {
       dispatch(reset());
     };
-  }, [user, isError, message, dispatch]);
+  }, [user?._id, dispatch]);
+
+  useEffect(() => {
+    if (isError) {
+      toast.error(message);
+    }
+  }, [isError, message]);
 
   const handleImageChange = (e) => {
     setImage(e.target.files[0]);
@@ -36,23 +35,19 @@ const DailyStoreImagePage = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!image || !date || !time) {
-      toast.error('Please select an image, date, and time');
+    if (!image) {
+      toast.error('Please select an image');
       return;
     }
 
     const formData = new FormData();
     formData.append('image', image);
-    formData.append('date', date);
-    formData.append('time', time);
 
     dispatch(uploadDailyStoreImage(formData))
       .unwrap()
       .then(() => {
         toast.success('Image uploaded successfully');
         setImage(null);
-        setDate('');
-        setTime('');
         dispatch(getDailyStoreImagesByBranch(user._id)); // Refresh images
       })
       .catch((error) => {
@@ -81,30 +76,6 @@ const DailyStoreImagePage = () => {
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
               onChange={handleImageChange}
               accept="image/*"
-            />
-          </div>
-          <div className="mb-4">
-            <label htmlFor="date" className="block text-gray-700 text-sm font-bold mb-2">
-              Date
-            </label>
-            <input
-              type="date"
-              id="date"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </div>
-          <div className="mb-4">
-            <label htmlFor="time" className="block text-gray-700 text-sm font-bold mb-2">
-              Time
-            </label>
-            <input
-              type="time"
-              id="time"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
             />
           </div>
           <button

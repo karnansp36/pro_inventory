@@ -1,25 +1,25 @@
 import mongoose from 'mongoose';
 
-const DailyStoreImageSchema = new mongoose.Schema({
-  img: {
-    type: String,
-    required: true,
+const dailyStoreImageSchema = new mongoose.Schema(
+  {
+    branchOwner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    img: {
+      type: String,
+      required: true,
+    },
+    dateTime: {
+      type: Date,
+      default: Date.now,
+    },
   },
-  date: {
-    type: Date,
-    required: true,
-    default: Date.now,
-  },
-  time: {
-    type: String,
-    required: true,
-    default: () => new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-  },
-  branch: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
-  },
-}, { timestamps: true });
+  {
+    timestamps: true,
+  }
+);
 
-export default mongoose.model('DailyStoreImage', DailyStoreImageSchema);
+const DailyStoreImage = mongoose.model('DailyStoreImage', dailyStoreImageSchema);
+export default DailyStoreImage;

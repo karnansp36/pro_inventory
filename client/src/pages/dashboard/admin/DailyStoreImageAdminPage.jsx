@@ -11,16 +11,18 @@ const DailyStoreImageAdminPage = () => {
   );
 
   useEffect(() => {
-    if (isError) {
-      toast.error(message);
-    }
-
     dispatch(getAllDailyStoreImages());
 
     return () => {
       dispatch(reset());
     };
-  }, [isError, message, dispatch]);
+  }, []); // Empty dependency array to run once on mount and cleanup on unmount
+
+  useEffect(() => {
+    if (isError) {
+      toast.error(message);
+    }
+  }, [isError, message]);
 
   if (isLoading) {
     return <Spinner />;

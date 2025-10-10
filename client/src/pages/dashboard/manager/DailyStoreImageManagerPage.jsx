@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getAllDailyStoreImages, reset } from '../../../../src/store/slices/dailyStoreImageSlice';
+import { getAllDailyStoreImages, reset } from '../../../store/slices/dailyStoreImageSlice';
 import { toast } from 'react-toastify';
-import Spinner from '../../components/Spinner';
+import Spinner from '../../../components/Spinner';
 
 const DailyStoreImageManagerPage = () => {
   const dispatch = useDispatch();
@@ -11,16 +11,18 @@ const DailyStoreImageManagerPage = () => {
   );
 
   useEffect(() => {
-    if (isError) {
-      toast.error(message);
-    }
-
     dispatch(getAllDailyStoreImages());
 
     return () => {
       dispatch(reset());
     };
-  }, [isError, message, dispatch]);
+  }, []); // Empty dependency array to run once on mount and cleanup on unmount
+
+  useEffect(() => {
+    if (isError) {
+      toast.error(message);
+    }
+  }, [isError, message]);
 
   if (isLoading) {
     return <Spinner />;

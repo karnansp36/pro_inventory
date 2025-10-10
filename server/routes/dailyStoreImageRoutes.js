@@ -1,18 +1,38 @@
 import express from 'express';
-const router = express.Router();
 import {
   uploadDailyStoreImage,
   getDailyStoreImagesByBranch,
   getAllDailyStoreImages,
 } from '../controllers/dailyStoreImageController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
-import { upload } from '../middleware/uploadMiddleware.js'; // Assuming a generic upload middleware
+import { upload, compressImage } from '../middleware/uploadMiddleware.js';
 
-router.route('/')
-  .post(protect, authorizeRoles(['branch-owner']), upload, uploadDailyStoreImage)
-  .get(protect, authorizeRoles(['admin', 'brand-owner']), getAllDailyStoreImages);
+const router = express.Router();
 
-router.route('/branch/:branchId')
-  .get(protect, authorizeRoles(['branch-owner', 'manager', 'brand-owner', 'admin']), getDailyStoreImagesByBranch);
+// POST (Branch Owner) - Upload image
+// GET (Admin/Manager/BrandOwner) - View all
+router
+  .route('/')
+  .post(
+    protect,
+    authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'),
+    upload,
+    compressImage,
+    uploadDailyStoreImage
+  )
+  .get(
+    protect,
+    authorizeRoles('Admin', 'BrandOwner', 'Manager'),
+    getAllDailyStoreImages
+  );
+
+// GET by branch
+router
+  .route('/branch/:branchId')
+  .get(
+    protect,
+    authorizeRoles('BranchOwner', 'Manager', 'BrandOwner', 'Admin'),
+    getDailyStoreImagesByBranch
+  );
 
 export default router;

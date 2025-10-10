@@ -297,7 +297,7 @@ const deleteUser = asyncHandler(async (req, res) => {
 // Generate Access Token
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: '1h',
+    expiresIn: '1d', // Increased expiration to 1 day
   });
 };
 

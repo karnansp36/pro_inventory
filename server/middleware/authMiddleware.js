@@ -23,6 +23,9 @@ const protect = asyncHandler(async (req, res, next) => {
     } catch (error) {
       console.error(error);
       res.status(401);
+      if (error.name === 'TokenExpiredError') {
+        throw new Error('Not authorized, token expired');
+      }
       throw new Error('Not authorized, token failed');
     }
   }
@@ -35,6 +38,8 @@ const protect = asyncHandler(async (req, res, next) => {
 
 const authorizeRoles = (...roles) => {
   return (req, res, next) => {
+    console.log('User role:', req.user.role);
+    console.log('Allowed roles:', roles);
     if (!roles.includes(req.user.role)) {
       res.status(403);
       throw new Error(`User role ${req.user.role} is not authorized to access this route`);

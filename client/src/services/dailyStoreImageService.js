@@ -1,6 +1,6 @@
 import api from './api';
 
-const DAILY_STORE_IMAGE_URL = '/api/daily-store-images';
+const DAILY_STORE_IMAGE_URL = '/daily-store-images';
 
 // Upload daily store image
 const uploadDailyStoreImage = async (imageData) => {

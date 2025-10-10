@@ -1,42 +1,58 @@
 import DailyStoreImage from '../models/DailyStoreImage.js';
 import asyncHandler from 'express-async-handler';
 
-// @desc    Upload daily store image
-// @route   POST /api/daily-store-images
-// @access  Private (Branch Owner)
+// @desc Upload daily store image
+// @route POST /api/daily-store-images
+// @access Private (Branch Owner)
 const uploadDailyStoreImage = asyncHandler(async (req, res) => {
-  const { date, time } = req.body;
-  const { path } = req.file;
-
-  if (!date || !time || !path) {
+  if (!req.file) {
     res.status(400);
-    throw new Error('Please include all fields: date, time, and image');
+    throw new Error('Please include an image');
   }
 
-  const dailyStoreImage = await DailyStoreImage.create({
-    img: path,
-    date,
-    time,
-    branch: req.user._id,
+  const imageFile = req.file;
+  const imagePath = imageFile.path.replace(/\\/g, '/'); // Normalize path
+
+  const newImage = await DailyStoreImage.create({
+    branchOwner: req.user._id,
+    img: imagePath,
   });
 
-  res.status(201).json(dailyStoreImage);
+  res.status(201).json({
+    success: true,
+    message: 'Image uploaded successfully',
+    data: newImage,
+  });
 });
 
-// @desc    Get daily store images for a branch
-// @route   GET /api/daily-store-images/branch/:branchId
-// @access  Private (Branch Owner, Manager, Brand Owner, Admin)
+// @desc Get daily store images for a branch
+// @route GET /api/daily-store-images/branch/:branchId
+// @access Private
 const getDailyStoreImagesByBranch = asyncHandler(async (req, res) => {
-  const dailyStoreImages = await DailyStoreImage.find({ branch: req.params.branchId }).sort({ date: -1, time: -1 });
-  res.status(200).json(dailyStoreImages);
+  const dailyStoreImages = await DailyStoreImage.find({
+    branchOwner: req.params.branchId,
+  }).sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    count: dailyStoreImages.length,
+    data: dailyStoreImages,
+  });
 });
 
-// @desc    Get all daily store images (for admin/brand owner)
-// @route   GET /api/daily-store-images
-// @access  Private (Admin, Brand Owner)
+// @desc Get all daily store images (for Admin, Brand Owner, etc.)
+// @route GET /api/daily-store-images
+// @access Private
 const getAllDailyStoreImages = asyncHandler(async (req, res) => {
-  const dailyStoreImages = await DailyStoreImage.find().populate('branch', 'name').sort({ date: -1, time: -1 });
-  res.status(200).json(dailyStoreImages);
+  const dailyStoreImages = await DailyStoreImage.find()
+    .populate('branchOwner', 'name email role')
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    count: dailyStoreImages.length,
+    data: dailyStoreImages,
+  });
 });
 
 export {
