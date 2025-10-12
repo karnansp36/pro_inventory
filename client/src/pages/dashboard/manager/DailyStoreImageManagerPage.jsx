@@ -39,9 +39,13 @@ const DailyStoreImageManagerPage = () => {
             {dailyStoreImages.map((img) => (
               <div key={img._id} className="border rounded-lg overflow-hidden shadow-sm">
                 <img
-                  src={`http://localhost:5000/${img.img}`} // Adjust path as needed
+                  src={`http://localhost:5000${img.img.startsWith('/') ? img.img : '/' + img.img}`}
                   alt="Daily Store"
                   className="w-full h-48 object-cover"
+                  onError={(e) => {
+                    console.error('Failed to load image:', img.img);
+                    e.target.src = '/placeholder-image.jpg'; // Fallback image
+                  }}
                 />
                 <div className="p-4">
                   <p className="text-sm text-gray-600">Branch: {img.branch ? img.branch.name : 'N/A'}</p>

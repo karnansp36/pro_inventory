@@ -57,6 +57,22 @@ export const getAllDailyStoreImages = createAsyncThunk(
   }
 );
 
+// Get daily store images for the logged-in branch owner
+export const getDailyStoreImagesForBranchOwner = createAsyncThunk(
+  'dailyStoreImages/getForBranchOwner',
+  async (_, thunkAPI) => {
+    try {
+      return await dailyStoreImageService.getDailyStoreImagesForBranchOwner();
+    } catch (error) {
+      const message =
+        (error.response && error.response.data && error.response.data.message) ||
+        error.message ||
+        error.toString();
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
 export const dailyStoreImageSlice = createSlice({
   name: 'dailyStoreImages',
   initialState,
@@ -71,7 +87,7 @@ export const dailyStoreImageSlice = createSlice({
       .addCase(uploadDailyStoreImage.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.dailyStoreImages.push(action.payload);
+        state.dailyStoreImages.push(action.payload.data);
       })
       .addCase(uploadDailyStoreImage.rejected, (state, action) => {
         state.isLoading = false;
@@ -84,7 +100,7 @@ export const dailyStoreImageSlice = createSlice({
       .addCase(getDailyStoreImagesByBranch.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.dailyStoreImages = action.payload;
+        state.dailyStoreImages = action.payload.data;
       })
       .addCase(getDailyStoreImagesByBranch.rejected, (state, action) => {
         state.isLoading = false;
@@ -97,9 +113,22 @@ export const dailyStoreImageSlice = createSlice({
       .addCase(getAllDailyStoreImages.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.dailyStoreImages = action.payload;
+        state.dailyStoreImages = action.payload.data;
       })
       .addCase(getAllDailyStoreImages.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+      .addCase(getDailyStoreImagesForBranchOwner.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(getDailyStoreImagesForBranchOwner.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.dailyStoreImages = action.payload.data;
+      })
+      .addCase(getDailyStoreImagesForBranchOwner.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { uploadDailyStoreImage, getDailyStoreImagesByBranch, reset } from '../../../../src/store/slices/dailyStoreImageSlice';
+import { uploadDailyStoreImage, getDailyStoreImagesForBranchOwner, reset } from '../../../../src/store/slices/dailyStoreImageSlice';
 import { toast } from 'react-toastify';
 import Spinner from '../../../../src/components/Spinner';
 
@@ -15,18 +15,23 @@ const DailyStoreImagePage = () => {
 
   useEffect(() => {
     if (user && user.role === 'BranchOwner') {
-      dispatch(getDailyStoreImagesByBranch(user._id));
+      dispatch(getDailyStoreImagesForBranchOwner());
     }
     return () => {
       dispatch(reset());
     };
-  }, [user?._id, dispatch]);
+  }, [dispatch, user]);
 
   useEffect(() => {
     if (isError) {
       toast.error(message);
     }
   }, [isError, message]);
+
+  // Debugging log for dailyStoreImages
+  useEffect(() => {
+    console.log('Daily Store Images from Redux:', dailyStoreImages);
+  }, [dailyStoreImages]);
 
   const handleImageChange = (e) => {
     setImage(e.target.files[0]);
@@ -48,10 +53,10 @@ const DailyStoreImagePage = () => {
       .then(() => {
         toast.success('Image uploaded successfully');
         setImage(null);
-        dispatch(getDailyStoreImagesByBranch(user._id)); // Refresh images
+        dispatch(getDailyStoreImagesForBranchOwner()); // Refresh images
       })
       .catch((error) => {
-        toast.error(error);
+        toast.error(error.message);
       });
   };
 
@@ -94,13 +99,18 @@ const DailyStoreImagePage = () => {
             {dailyStoreImages.map((img) => (
               <div key={img._id} className="border rounded-lg overflow-hidden shadow-sm">
                 <img
-                  src={`http://localhost:5000/${img.img}`} // Adjust path as needed
+                  src={`http://localhost:5000${img.img.startsWith('/') ? img.img : '/' + img.img}`}
                   alt="Daily Store"
                   className="w-full h-48 object-cover"
+                  onError={(e) => {
+                    console.error('Failed to load image:', img.img);
+                    e.target.src = '/placeholder-image.jpg'; // Fallback image
+                  }}
                 />
                 <div className="p-4">
-                  <p className="text-sm text-gray-600">Date: {new Date(img.date).toLocaleDateString()}</p>
-                  <p className="text-sm text-gray-600">Time: {img.time}</p>
+                  <p className="text-sm text-gray-600">
+                    Uploaded At: {new Date(img.createdAt).toLocaleString()}
+                  </p>
                 </div>
               </div>
             ))}

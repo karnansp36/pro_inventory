@@ -27,7 +27,7 @@ router.route('/:id/assign')
   .put(express.json(), protect, authorizeRoles('Admin', 'BrandOwner'), assignUser);
 
 router.route('/:id')
-  .get(protect, authorizeRoles('Admin'), getUserById)
+  .get(protect, authorizeRoles('Admin', 'BranchOwner'), getUserById)
   .put(protect, authorizeRoles('Admin', 'BrandOwner'), updateUser)
   .delete(protect, authorizeRoles('Admin'), deleteUser);
 

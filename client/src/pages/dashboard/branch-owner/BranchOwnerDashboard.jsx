@@ -1,8 +1,9 @@
 // pages/dashboard/branch-owner/BranchDashboard.jsx
 
 import React, { useState, useEffect } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
+import { getDailyStoreImagesForBranchOwner, reset } from '../../../../src/store/slices/dailyStoreImageSlice';
 import ShopProfile from './ShopProfile';
 import SalesTable from './SalesTable';
 import ExpensesTable from './ExpensesTable';
@@ -23,6 +24,10 @@ const BranchDashboard = () => {
   const { branchOwnerId } = useParams();
   const [modal, setModal] = useState(null); // 'sale' | 'expense' | 'stock' | 'transport' | null
   const [loading, setLoading] = useState(false);
+
+  const { dailyStoreImages, isLoading, isError, message } = useSelector(
+    (state) => state.dailyStoreImages
+  );
 
   // Handlers for opening modals
   const openModal = (type) => setModal(type);
@@ -61,6 +66,13 @@ const BranchDashboard = () => {
     // dispatch(fetchExpensesData(branchOwnerId));
     // ...
   }, [dispatch, branchOwnerId]);
+
+  useEffect(() => {
+    dispatch(getDailyStoreImagesForBranchOwner());
+    return () => {
+      dispatch(reset());
+    };
+  }, [dispatch]);
 
   return (
     <div className="space-y-6">
@@ -104,7 +116,7 @@ const BranchDashboard = () => {
       )}
 
       {/* Shop Profile */}
-      <ShopProfile branchOwnerId={branchOwnerId} />
+      <ShopProfile />
 
       {/* Data Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -120,6 +132,35 @@ const BranchDashboard = () => {
 
       {/* Reports */}
       <ReportsPanel branchOwnerId={branchOwnerId} />
+
+      {/* Daily Store Images */}
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-xl font-semibold mb-4">Daily Store Images</h2>
+        {isLoading ? (
+          <p>Loading images...</p>
+        ) : isError ? (
+          <p className="text-red-500">Error: {message}</p>
+        ) : dailyStoreImages.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {dailyStoreImages.map((img) => (
+              <div key={img._id} className="border rounded-lg overflow-hidden shadow-sm">
+                <img
+                  src={`http://localhost:5000/${img.img}`} // Adjust path as needed
+                  alt="Daily Store"
+                  className="w-full h-48 object-cover"
+                />
+                <div className="p-4">
+                  <p className="text-sm text-gray-600">
+                    Uploaded At: {new Date(img.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p>No images uploaded yet.</p>
+        )}
+      </div>
     </div>
   );
 };

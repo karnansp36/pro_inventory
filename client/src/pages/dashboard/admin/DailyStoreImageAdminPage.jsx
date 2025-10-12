@@ -39,14 +39,17 @@ const DailyStoreImageAdminPage = () => {
             {dailyStoreImages.map((img) => (
               <div key={img._id} className="border rounded-lg overflow-hidden shadow-sm">
                 <img
-                  src={`http://localhost:5000/${img.img}`} // Adjust path as needed
+                  src={`http://localhost:5000${img.img.startsWith('/') ? img.img : '/' + img.img}`}
                   alt="Daily Store"
                   className="w-full h-48 object-cover"
+                  onError={(e) => {
+                    console.error('Failed to load image:', img.img);
+                    e.target.src = '/placeholder-image.jpg'; // Fallback image
+                  }}
                 />
                 <div className="p-4">
-                  <p className="text-sm text-gray-600">Branch: {img.branch ? img.branch.name : 'N/A'}</p>
-                  <p className="text-sm text-gray-600">Date: {new Date(img.date).toLocaleDateString()}</p>
-                  <p className="text-sm text-gray-600">Time: {img.time}</p>
+                  <p className="text-sm text-gray-600">Branch Owner: {img.branchOwner ? img.branchOwner.name : 'N/A'}</p>
+                  <p className="text-sm text-gray-600">Uploaded At: {new Date(img.createdAt).toLocaleString()}</p>
                 </div>
               </div>
             ))}

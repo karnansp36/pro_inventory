@@ -24,10 +24,17 @@ const getAllDailyStoreImages = async () => {
   return response.data;
 };
 
+// Get daily store images for the logged-in branch owner
+const getDailyStoreImagesForBranchOwner = async () => {
+  const response = await api.get(`${DAILY_STORE_IMAGE_URL}/my-images`);
+  return response.data;
+};
+
 const dailyStoreImageService = {
   uploadDailyStoreImage,
   getDailyStoreImagesByBranch,
   getAllDailyStoreImages,
+  getDailyStoreImagesForBranchOwner,
 };
 
 export default dailyStoreImageService;

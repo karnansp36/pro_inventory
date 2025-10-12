@@ -1,15 +1,22 @@
 import React, { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import api from '../../../services/api';
 
-const ShopProfile = ({ branchOwnerId }) => {
+const ShopProfile = () => {
+  const { user } = useSelector((state) => state.auth);
   const [shop, setShop] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchShopProfile = async () => {
+      if (!user?._id) {
+        setError('User ID not available');
+        setLoading(false);
+        return;
+      }
       try {
-        const res = await api.get(`/users/${branchOwnerId}`);
+        const res = await api.get(`/users/${user._id}`);
         setShop(res.data);
       } catch (e) {
         setError('Failed to load shop profile');
@@ -18,7 +25,7 @@ const ShopProfile = ({ branchOwnerId }) => {
     };
 
     fetchShopProfile();
-  }, [branchOwnerId]);
+  }, [user?._id]);
 
   if (loading) return <div className="p-4">Loading shop profile...</div>;
   if (error) return <div className="p-4 text-red-600">{error}</div>;
