@@ -12,20 +12,6 @@ import {
   ChevronRight,
   LogOut
 } from 'lucide-react';
-import {
-  Users,
-  Building2,
-  TrendingUp,
-  FileText,
-  Package,
-  Truck,
-  Activity,
-  Download,
-  Settings,
-  Camera,
-  ChevronRight,
-  LogOut
-} from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';

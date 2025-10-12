@@ -11,11 +11,11 @@ import {
   createUserByAdmin,
 } from '../controllers/userController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
-import { upload } from '../middleware/uploadMiddleware.js';
+import { profileImageUpload } from '../middleware/profileImageUploadMiddleware.js';
 
 router.route('/')
   .get(protect, authorizeRoles('Admin'), getUsers)
-  .post(protect, authorizeRoles('Admin'), createUserByAdmin);
+  .post(protect, authorizeRoles('Admin'), profileImageUpload.single('profileImage'), createUserByAdmin);
 
 router.route('/role/:role')
   .get(protect, authorizeRoles('Admin', 'BrandOwner'), getUsersByRole);
