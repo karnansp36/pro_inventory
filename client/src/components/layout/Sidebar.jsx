@@ -12,11 +12,20 @@ import {
   ChevronRight,
   LogOut
 } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const { theme } = useTheme();
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+    onClose();
+  };
   
   const menuItems = [
     { path: '/dashboard/admin', icon: Activity, label: 'Dashboard', category: 'main' },
@@ -46,10 +55,10 @@ const Sidebar = ({ isOpen, onClose }) => {
     <>
       {/* Overlay with blur effect */}
       {isOpen && (
-        <div 
+        <div
           className={`fixed inset-0 z-40 lg:hidden transition-opacity duration-300 ${
-            theme === 'dark' 
-              ? 'bg-black/60 backdrop-blur-sm' 
+            theme === 'dark'
+              ? 'bg-black/60 backdrop-blur-sm'
               : 'bg-black/30 backdrop-blur-sm'
           }`}
           onClick={onClose}
@@ -62,8 +71,8 @@ const Sidebar = ({ isOpen, onClose }) => {
         w-64 transform transition-all duration-300 ease-in-out
         shadow-2xl lg:shadow-none border-r
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        ${theme === 'dark' 
-          ? 'bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-white border-slate-800/50' 
+        ${theme === 'dark'
+          ? 'bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-white border-slate-800/50'
           : 'bg-gradient-to-b from-white via-gray-50 to-gray-100 text-gray-900 border-gray-200'
         }
       `}>
@@ -89,7 +98,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                 </p>
               </div>
             </div>
-            <button 
+            <button
               onClick={onClose}
               className={`lg:hidden p-2 rounded-lg transition-colors ${
                 theme === 'dark' ? 'hover:bg-slate-800/50' : 'hover:bg-gray-200'
@@ -116,9 +125,9 @@ const Sidebar = ({ isOpen, onClose }) => {
                   key={item.path}
                   to={item.path}
                   className={({ isActive }) => `
-                    group flex items-center justify-between px-3 py-2.5 rounded-xl 
+                    group flex items-center justify-between px-3 py-2.5 rounded-xl
                     transition-all duration-200 relative overflow-hidden
-                    ${isActive 
+                    ${isActive
                       ? theme === 'dark'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/25'
                         : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md shadow-blue-500/30'
@@ -141,8 +150,8 @@ const Sidebar = ({ isOpen, onClose }) => {
                       <div className="flex items-center space-x-3 relative z-10">
                         <div className={`
                           p-1.5 rounded-lg transition-all duration-200
-                          ${isActive 
-                            ? 'bg-white/10' 
+                          ${isActive
+                            ? 'bg-white/10'
                             : theme === 'dark'
                               ? 'bg-slate-800/50 group-hover:bg-slate-700/50'
                               : 'bg-gray-100 group-hover:bg-gray-300'
@@ -183,7 +192,9 @@ const Sidebar = ({ isOpen, onClose }) => {
             </div>
             <span className="text-sm font-medium">Settings</span>
           </button>
-          <button className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
+          <button
+            onClick={handleLogout}
+            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
             theme === 'dark'
               ? 'text-slate-300 hover:bg-red-600/10 hover:text-red-400'
               : 'text-gray-600 hover:bg-red-50 hover:text-red-600'
