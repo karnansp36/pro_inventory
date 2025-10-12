@@ -5,7 +5,7 @@ import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 router.route('/')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getStockRequests)
-  .post(express.json(), protect, authorizeRoles('BranchOwner'), createStockRequest);
+  .post(express.json(), protect, authorizeRoles('Admin', 'BranchOwner'), createStockRequest);
 
 router.route('/:id/approve')
   .put(express.json(), protect, authorizeRoles('Admin', 'BrandOwner'), approveStockRequest);

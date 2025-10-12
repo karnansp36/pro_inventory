@@ -34,7 +34,7 @@ router
   .route('/')
   .post(
     protect,
-    authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'),
+    authorizeRoles('Admin', 'BranchOwner'), // Only Admin and BranchOwner can upload
     upload,
     compressImage,
     uploadDailyStoreImage

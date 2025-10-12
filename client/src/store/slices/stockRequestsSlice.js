@@ -1,12 +1,12 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../../services/api';
+import stockRequestService from '../../services/stockRequestService';
+
 // Thunk to approve a stock request
 export const approveStockRequest = createAsyncThunk(
   'stockRequests/approve',
   async (requestId, { rejectWithValue }) => {
     try {
-      const response = await api.patch(`/stockrequests/${requestId}/approve`);
-      return response.data;
+      return await stockRequestService.approveStockRequest(requestId);
     } catch (error) {
       return rejectWithValue(error.response?.data || { message: 'Failed to approve stock request' });
     }
@@ -17,8 +17,7 @@ export const getStockRequests = createAsyncThunk(
   'stockRequests/getAll',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/stockrequests');
-      return response.data;
+      return await stockRequestService.getStockRequests();
     } catch (error) {
       return rejectWithValue(error.response.data);
     }
@@ -29,8 +28,7 @@ export const createStockRequest = createAsyncThunk(
   'stockRequests/create',
   async (requestData, { rejectWithValue }) => {
     try {
-      const response = await api.post('/stockrequests', requestData);
-      return response.data;
+      return await stockRequestService.createStockRequest(requestData);
     } catch (error) {
       return rejectWithValue(error.response.data);
     }
@@ -41,8 +39,7 @@ export const updateStockRequest = createAsyncThunk(
   'stockRequests/update',
   async ({ id, stockRequestData }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`/stockrequests/${id}`, stockRequestData);
-      return response.data;
+      return await stockRequestService.updateStockRequest(id, stockRequestData);
     } catch (error) {
       return rejectWithValue(error.response?.data || { message: 'Failed to update stock request' });
     }
@@ -53,7 +50,7 @@ export const deleteStockRequest = createAsyncThunk(
   'stockRequests/delete',
   async (requestId, { rejectWithValue }) => {
     try {
-      await api.delete(`/stockrequests/${requestId}`);
+      await stockRequestService.deleteStockRequest(requestId);
       return requestId;
     } catch (error) {
       return rejectWithValue(error.response?.data || { message: 'Failed to delete stock request' });

@@ -38,7 +38,7 @@ const getStockRequests = asyncHandler(async (req, res) => {
 // @route   POST /api/stockrequests
 // @access  Private (BranchOwner)
 const createStockRequest = asyncHandler(async (req, res) => {
-  const { productName, quantity, priority } = req.body;
+  const { productName, quantity, priority, branchOwner } = req.body;
 
   if (!productName || !quantity || !priority) {
     res.status(400);
@@ -52,13 +52,27 @@ const createStockRequest = asyncHandler(async (req, res) => {
     throw new Error('User not found');
   }
 
-  if (user.role !== 'BranchOwner') {
+  let ownerId;
+  if (user.role === 'BranchOwner') {
+    ownerId = req.user.id;
+  } else if (user.role === 'Admin') {
+    if (!branchOwner) {
+      res.status(400);
+      throw new Error('branchOwner is required for Admin');
+    }
+    const branchOwnerUser = await User.findById(branchOwner);
+    if (!branchOwnerUser || branchOwnerUser.role !== 'BranchOwner') {
+      res.status(400);
+      throw new Error('Invalid branchOwner');
+    }
+    ownerId = branchOwner;
+  } else {
     res.status(403);
     throw new Error('Not authorized to create stock requests');
   }
 
   const stockRequest = await StockRequest.create({
-    branchOwner: req.user.id,
+    branchOwner: ownerId,
     productName,
     quantity,
     priority,

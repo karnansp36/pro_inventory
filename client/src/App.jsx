@@ -12,6 +12,7 @@ import AdminRoutes from './routes/AdminRoutes'
 import BranchOwnerRoutes from './routes/BranchOwnerRoutes'
 import BrandOwnerRoutes from './routes/BrandOwnerRoutes'
 import ManagerRoutes from './routes/ManagerRoutes'
+import { ThemeProvider } from './context/ThemeContext'; // Import ThemeProvider
 
 
 function App() {
@@ -52,7 +53,7 @@ function App() {
   };
 
   return (
-    <>
+    <ThemeProvider>
       <div className="App">
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -74,7 +75,7 @@ function App() {
         </Routes>
       </div>
       <ToastContainer />
-    </>
+    </ThemeProvider>
   )
 }
 

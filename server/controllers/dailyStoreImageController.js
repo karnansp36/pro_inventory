@@ -10,14 +10,33 @@ const uploadDailyStoreImage = asyncHandler(async (req, res) => {
     throw new Error('Please include an image');
   }
 
+  const { branchOwner } = req.body; // Get branchOwner from body if provided
+
   const imageFile = req.file;
   const imagePath = imageFile.path.replace(/\\/g, '/'); // Normalize path
   console.log('Final image path:', imagePath); // Debugging log
   const webPath = `/uploads/dailyStoreImages/${imageFile.filename}`; // Store web-accessible path
   console.log('Web-accessible path:', webPath); // Debugging log
 
+  let ownerId = req.user._id;
+  if (req.user.role === 'Admin') {
+    if (!branchOwner) {
+      res.status(400);
+      throw new Error('branchOwner is required for Admin to upload images');
+    }
+    const branchOwnerUser = await User.findById(branchOwner);
+    if (!branchOwnerUser || branchOwnerUser.role !== 'BranchOwner') {
+      res.status(400);
+      throw new Error('Invalid branchOwner ID provided');
+    }
+    ownerId = branchOwner;
+  } else if (req.user.role !== 'BranchOwner') {
+    res.status(403);
+    throw new Error('Not authorized to upload daily store images');
+  }
+
   const newImage = await DailyStoreImage.create({
-    branchOwner: req.user._id,
+    branchOwner: ownerId,
     img: webPath, // Store web-accessible path
   });
 

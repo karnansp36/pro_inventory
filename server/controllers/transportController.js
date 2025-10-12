@@ -119,12 +119,14 @@ const confirmReceivedTransport = asyncHandler(async (req, res) => {
     throw new Error('User not found');
   }
 
-  if (user.role !== 'BranchOwner') {
+  if (user.role !== 'BranchOwner' && user.role !== 'Admin') {
     res.status(403);
     throw new Error('Not authorized to confirm received quantity');
   }
 
-  if (transport.stockRequest.branchOwner.toString() !== req.user.id.toString()) {
+  // If the user is an Admin, they can confirm any transport.
+  // If the user is a BranchOwner, they can only confirm transports for their own branch.
+  if (user.role === 'BranchOwner' && transport.stockRequest.branchOwner.toString() !== req.user.id.toString()) {
     res.status(403);
     throw new Error('Not authorized to confirm this transport');
   }
