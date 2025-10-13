@@ -7,25 +7,15 @@ const salesSchema = mongoose.Schema(
       ref: 'User',
       required: true,
     },
-    cash: {
+    amount: {
       type: Number,
       required: true,
       default: 0,
     },
-    gpay: {
-      type: Number,
+    paymentMethod: {
+      type: String,
       required: true,
-      default: 0,
-    },
-    creditCard: {
-      type: Number,
-      required: true,
-      default: 0,
-    },
-    total: {
-      type: Number,
-      required: true,
-      default: 0,
+      enum: ['gpay', 'cash', 'card'],
     },
     date: {
       type: Date,

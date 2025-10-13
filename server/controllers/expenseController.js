@@ -38,11 +38,11 @@ const getExpenses = asyncHandler(async (req, res) => {
 // @route   POST /api/expenses
 // @access  Private (Admin, BrandOwner, BranchOwner)
 const createExpense = asyncHandler(async (req, res) => {
-  const { category, amount, description, date, branchOwner } = req.body;
+  const { category, amount, description, branchOwner, paymentMethod } = req.body;
 
-  if (!category || !amount) {
+  if (!category || !amount || !paymentMethod) {
     res.status(400);
-    throw new Error('Please add category and amount');
+    throw new Error('Please add category, amount, and payment method');
   }
 
   const user = await User.findById(req.user.id);
@@ -77,7 +77,7 @@ const createExpense = asyncHandler(async (req, res) => {
     category,
     amount,
     description,
-    date: date || Date.now(),
+    paymentMethod,
   });
 
   res.status(201).json(expense);

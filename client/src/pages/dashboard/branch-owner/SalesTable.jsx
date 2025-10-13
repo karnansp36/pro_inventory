@@ -3,17 +3,24 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import api from '../../../services/api';
 
-const SalesTable = ({ branchOwnerId }) => {
+const SalesTable = ({ branchOwnerId, isManagerView }) => {
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchSales();
-  }, [branchOwnerId]);
+  }, [branchOwnerId, isManagerView]);
 
   const fetchSales = async () => {
     try {
-      const response = await api.get(`/sales?branchOwnerId=${branchOwnerId}`);
+      let url = '/sales';
+      if (branchOwnerId) {
+        url = `/sales?branchOwnerId=${branchOwnerId}`;
+      } else if (isManagerView) {
+        // Managers can see all sales under their assigned branch owners
+        url = '/sales';
+      }
+      const response = await api.get(url);
       setSales(response.data);
     } catch (error) {
       console.error('Error fetching sales:', error);
@@ -40,9 +47,8 @@ const SalesTable = ({ branchOwnerId }) => {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-2 text-left font-medium text-gray-700">Date</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-700">Cash</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-700">GPay</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-700">Credit Card</th>
+              <th className="px-4 py-2 text-left font-medium text-gray-700">Amount</th>
+              <th className="px-4 py-2 text-left font-medium text-gray-700">Payment Method</th>
               <th className="px-4 py-2 text-left font-medium text-gray-700">Total</th>
             </tr>
           </thead>
@@ -50,17 +56,16 @@ const SalesTable = ({ branchOwnerId }) => {
             {sales.map((sale, i) => (
               <tr key={i} className="hover:bg-gray-50">
                 <td className="px-4 py-2">{new Date(sale.date).toLocaleDateString()}</td>
-                <td className="px-4 py-2">${sale.cash?.toFixed(2)}</td>
-                <td className="px-4 py-2">${sale.gpay?.toFixed(2)}</td>
-                <td className="px-4 py-2">${sale.creditCard?.toFixed(2)}</td>
+                <td className="px-4 py-2">${sale.amount?.toFixed(2)}</td>
+                <td className="px-4 py-2">{sale.paymentMethod}</td>
                 <td className="px-4 py-2 font-semibold text-green-600">
-                  ${sale.total?.toFixed(2)}
+                  ${sale.amount?.toFixed(2)}
                 </td>
               </tr>
             ))}
             {sales.length === 0 && (
               <tr>
-                <td colSpan="5" className="px-4 py-4 text-center text-gray-500">
+                <td colSpan="4" className="px-4 py-4 text-center text-gray-500">
                   No sales records found
                 </td>
               </tr>

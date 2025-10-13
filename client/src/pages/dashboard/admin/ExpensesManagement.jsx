@@ -62,7 +62,10 @@ const ExpensesManagement = () => {
     if (editExpense) {
       dispatch(updateExpense({ id: editExpense._id, data })).then(() => handleModalClose());
     } else {
-      dispatch(createExpense(data)).then(() => handleModalClose());
+      dispatch(createExpense(data)).then(() => {
+        handleModalClose();
+        dispatch(getExpenses()); // Refetch expenses after successful creation
+      });
     }
   };
 
@@ -154,7 +157,7 @@ const ExpensesManagement = () => {
                     {expense.description}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(expense.date).toLocaleDateString()}
+                    {new Date(expense.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">

@@ -1,6 +1,6 @@
 import express from 'express';
 const router = express.Router();
-import { getSales, createSales, deleteSales } from '../controllers/salesController.js';
+import { getSales, createSales, deleteSales, updateSales } from '../controllers/salesController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 router.route('/')
@@ -8,6 +8,7 @@ router.route('/')
   .post(express.json(), protect, authorizeRoles('Admin', 'BrandOwner', 'BranchOwner'), createSales);
 
 router.route('/:id')
-  .delete(protect, authorizeRoles('Admin', 'BrandOwner'), deleteSales);
+  .delete(protect, authorizeRoles('Admin', 'BrandOwner'), deleteSales)
+  .put(express.json(), protect, authorizeRoles('Admin', 'BrandOwner'), updateSales);
 
 export default router;

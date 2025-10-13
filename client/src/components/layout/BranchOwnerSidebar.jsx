@@ -34,7 +34,7 @@ const BranchOwnerSidebar = ({ isOpen, onClose, branchOwnerId }) => {
     { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/stock-requests` : '/dashboard/branch-owner/stock-requests', icon: Package, label: 'Stock Requests', category: 'operations' },
     { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/transport` : '/dashboard/branch-owner/transport', icon: Truck, label: 'Transport', category: 'operations' },
     { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/daily-store-images` : '/dashboard/branch-owner/daily-store-images', icon: Camera, label: 'Store Images', category: 'monitoring' },
-    { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/reports` : '/dashboard/branch-owner/reports', label: 'Reports', category: 'monitoring' },
+    { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/reports` : '/dashboard/branch-owner/reports', icon: FileText, label: 'Reports', category: 'monitoring' },
   ];
 
   const categories = {

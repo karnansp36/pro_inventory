@@ -38,11 +38,11 @@ const getSales = asyncHandler(async (req, res) => {
 // @route   POST /api/sales
 // @access  Private (BranchOwner)
 const createSales = asyncHandler(async (req, res) => {
-  const { cash, gpay, creditCard, total, date, branchOwner } = req.body;
+  const { amount, paymentMethod, branchOwner } = req.body;
 
-  if (!cash && !gpay && !creditCard) {
+  if (!amount || !paymentMethod) {
     res.status(400);
-    throw new Error('Please add at least one payment method');
+    throw new Error('Please add amount and payment method');
   }
 
   const user = await User.findById(req.user.id);
@@ -69,11 +69,9 @@ const createSales = asyncHandler(async (req, res) => {
 
   const sales = await Sales.create({
     branchOwner: branchOwnerId,
-    cash: cash || 0,
-    gpay: gpay || 0,
-    creditCard: creditCard || 0,
-    total: total || (cash || 0) + (gpay || 0) + (creditCard || 0),
-    date: date || Date.now(),
+    amount,
+    paymentMethod,
+    date: Date.now(),
   });
 
   res.status(201).json(sales);
@@ -102,12 +100,46 @@ const deleteSales = asyncHandler(async (req, res) => {
     throw new Error('Not authorized to delete sales');
   }
 
-  await sales.remove();
+  await Sales.findByIdAndDelete(req.params.id);
   res.status(200).json({ message: 'Sales removed' });
+});
+
+// @desc    Update sales (Admin, BrandOwner only)
+// @route   PUT /api/sales/:id
+// @access  Private (Admin, BrandOwner)
+const updateSales = asyncHandler(async (req, res) => {
+  const { amount, paymentMethod, branchOwner } = req.body;
+
+  const sales = await Sales.findById(req.params.id);
+
+  if (!sales) {
+    res.status(404);
+    throw new Error('Sales not found');
+  }
+
+  const user = await User.findById(req.user.id);
+
+  if (!user) {
+    res.status(401);
+    throw new Error('User not found');
+  }
+
+  if (user.role !== 'Admin' && user.role !== 'BrandOwner') {
+    res.status(403);
+    throw new Error('Not authorized to update sales');
+  }
+
+  sales.amount = amount || sales.amount;
+  sales.paymentMethod = paymentMethod || sales.paymentMethod;
+  sales.branchOwner = branchOwner || sales.branchOwner;
+
+  const updatedSales = await sales.save();
+  res.status(200).json(updatedSales);
 });
 
 export {
   getSales,
   createSales,
   deleteSales,
+  updateSales,
 };

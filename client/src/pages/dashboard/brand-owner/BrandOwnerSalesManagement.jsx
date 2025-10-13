@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getSales, deleteSale, createSale, updateSale } from '../../../store/slices/salesSlice';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
-import SalesForm from '../branch-owner/SalesForm'; // Reusing for now
+import SalesForm from '../../../components/forms/SalesForm'; // Import the new SalesForm component
 // import SalesTable from '../../branch-owner/SalesTable'; // Reusing for now
 
 const BrandOwnerSalesManagement = () => {
@@ -89,10 +89,8 @@ const BrandOwnerSalesManagement = () => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch Owner</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cash</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GPay</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credit Card</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -102,10 +100,8 @@ const BrandOwnerSalesManagement = () => {
                   <tr key={sale._id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(sale.date).toLocaleDateString()}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{sale.branchOwner?.name || 'N/A'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${sale.cash.toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${sale.gpay.toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${sale.creditCard.toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${sale.total.toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${sale.amount.toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{sale.paymentMethod}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex space-x-2">
                         <button onClick={() => handleEdit(sale)} className="text-blue-600 hover:text-blue-900">
@@ -120,7 +116,7 @@ const BrandOwnerSalesManagement = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
                     No sales records found for your assigned branches.
                   </td>
                 </tr>
@@ -136,10 +132,9 @@ const BrandOwnerSalesManagement = () => {
           <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">{editSale ? 'Edit Sale' : 'Add New Sale'}</h2>
             <SalesForm 
-              onSaleAdded={handleSaleAdded} 
-              initialData={editSale} 
-              onCancel={() => setShowModal(false)} 
-              isBrandOwner={true}
+              onClose={handleSaleAdded}
+              initialData={editSale}
+              branchOwnerId={editSale?.branchOwner?._id || ''}
             />
           </div>
         </div>
