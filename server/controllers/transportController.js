@@ -173,4 +173,54 @@ export {
   createTransport,
   confirmReceivedTransport,
   deleteTransport,
+  getTransportsByBranchOwnerId,
 };
+
+// @desc    Get transport details by branch owner ID
+// @route   GET /api/transport/branch/:branchOwnerId
+// @access  Private (Admin, BrandOwner, Manager)
+const getTransportsByBranchOwnerId = asyncHandler(async (req, res) => {
+  const { branchOwnerId } = req.params;
+
+  const user = await User.findById(req.user.id);
+
+  if (!user) {
+    res.status(401);
+    throw new Error('User not found');
+  }
+
+  // Only Admin, BrandOwner, and Manager roles can access this route
+  if (!['Admin', 'BrandOwner', 'Manager'].includes(user.role)) {
+    res.status(403);
+    throw new Error('Not authorized to view transport details for other branches');
+  }
+
+  // For BrandOwner and Manager, ensure they are authorized to view this specific branch
+  if (user.role === 'BrandOwner') {
+    const branchOwner = await User.findById(branchOwnerId);
+    if (!branchOwner || branchOwner.assignedBrandOwner.toString() !== user._id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to view this branch owner\'s transport details');
+    }
+  } else if (user.role === 'Manager') {
+    const branchOwner = await User.findById(branchOwnerId);
+    if (!branchOwner || !branchOwner.assignedBranchOwners.includes(branchOwnerId)) {
+      res.status(403);
+      throw new Error('Not authorized to view this branch owner\'s transport details');
+    }
+  }
+
+  const stockRequests = await StockRequest.find({ branchOwner: branchOwnerId });
+  const stockRequestIds = stockRequests.map(request => request._id);
+
+  const transports = await Transport.find({ stockRequest: { $in: stockRequestIds } }).populate({
+    path: 'stockRequest',
+    select: 'productName quantity branchOwner',
+    populate: {
+      path: 'branchOwner',
+      select: 'name email',
+    },
+  });
+
+  res.status(200).json(transports);
+});

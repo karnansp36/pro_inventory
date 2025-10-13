@@ -8,6 +8,7 @@ import ExpensesTable from '../branch-owner/ExpensesTable';
 import StockRequestsTable from '../branch-owner/StockRequestsTable';
 import TransportTable from '../branch-owner/TransportTable';
 import ReportsPanel from '../branch-owner/ReportsPanel';
+import BranchOwnerDetailsView from './BranchOwnerDetailsView';
 
 const UserView = ({ userId, onClose }) => {
   const navigate = useNavigate();
@@ -15,8 +16,8 @@ const UserView = ({ userId, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('details');
-  const [branchOwnerData, setBranchOwnerData] = useState(null); // State to hold fetched branch owner data
   const [viewBranchOwnerId, setViewBranchOwnerId] = useState(null); // New state for in-dashboard branch owner view
+  const [branchOwnerDetails, setBranchOwnerDetails] = useState(null); // State to hold all fetched branch owner details
 
   const [showAddManager, setShowAddManager] = useState(false);
   const [availableManagers, setAvailableManagers] = useState([]);
@@ -153,18 +154,10 @@ const UserView = ({ userId, onClose }) => {
 
   if (viewBranchOwnerId) {
     return (
-      <div className="p-8 space-y-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Branch Owner Details</h1>
-          <button
-            onClick={() => setViewBranchOwnerId(null)}
-            className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300"
-          >
-            Back to User Details
-          </button>
-        </div>
-        <UserView userId={viewBranchOwnerId} />
-      </div>
+      <BranchOwnerDetailsView
+        branchOwnerId={viewBranchOwnerId}
+        onClose={() => setViewBranchOwnerId(null)}
+      />
     );
   }
 

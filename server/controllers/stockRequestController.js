@@ -143,4 +143,44 @@ export {
   createStockRequest,
   approveStockRequest,
   deleteStockRequest,
+  getStockRequestsByBranchOwnerId,
 };
+
+// @desc    Get stock requests by branch owner ID
+// @route   GET /api/stock-requests/branch/:branchOwnerId
+// @access  Private (Admin, BrandOwner, Manager)
+const getStockRequestsByBranchOwnerId = asyncHandler(async (req, res) => {
+  const { branchOwnerId } = req.params;
+
+  const user = await User.findById(req.user.id);
+
+  if (!user) {
+    res.status(401);
+    throw new Error('User not found');
+  }
+
+  // Only Admin, BrandOwner, and Manager roles can access this route
+  if (!['Admin', 'BrandOwner', 'Manager'].includes(user.role)) {
+    res.status(403);
+    throw new Error('Not authorized to view stock requests for other branches');
+  }
+
+  // For BrandOwner and Manager, ensure they are authorized to view this specific branch
+  if (user.role === 'BrandOwner') {
+    const branchOwner = await User.findById(branchOwnerId);
+    if (!branchOwner || branchOwner.assignedBrandOwner.toString() !== user._id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to view this branch owner\'s stock requests');
+    }
+  } else if (user.role === 'Manager') {
+    const branchOwner = await User.findById(branchOwnerId);
+    if (!branchOwner || !branchOwner.assignedBranchOwners.includes(branchOwnerId)) {
+      res.status(403);
+      throw new Error('Not authorized to view this branch owner\'s stock requests');
+    }
+  }
+
+  const stockRequests = await StockRequest.find({ branchOwner: branchOwnerId }).populate('branchOwner', 'name email');
+
+  res.status(200).json(stockRequests);
+});

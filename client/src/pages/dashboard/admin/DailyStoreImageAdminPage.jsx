@@ -6,7 +6,7 @@ import { Image, Calendar, User, ImageOff } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import Spinner from '../../../../src/components/Spinner';
 
-const DailyStoreImageAdminPage = () => {
+const DailyStoreImageAdminPage = ({ branchOwnerId }) => {
   const dispatch = useDispatch();
   const { theme } = useTheme();
   const { dailyStoreImages, isLoading, isError, message } = useSelector(
@@ -19,7 +19,7 @@ const DailyStoreImageAdminPage = () => {
     return () => {
       dispatch(reset());
     };
-  }, []); // Empty dependency array to run once on mount and cleanup on unmount
+  }, [dispatch]); // Added dispatch to dependency array for correctness
 
   useEffect(() => {
     if (isError) {
@@ -96,92 +96,94 @@ const DailyStoreImageAdminPage = () => {
         
         {dailyStoreImages.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {dailyStoreImages.map((img) => (
-              <div
-                key={img._id}
-                className={`group rounded-2xl border overflow-hidden shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${
-                  theme === 'dark'
-                    ? 'bg-slate-800 border-slate-700/50'
-                    : 'bg-white border-gray-200'
-                }`}
-              >
-                {/* Image Container */}
-                <div className="relative h-56 overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800">
-                  <img
-                    src={`http://localhost:5000${img.img.startsWith('/') ? img.img : '/' + img.img}`}
-                    alt="Daily Store"
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                    onError={(e) => {
-                      console.error('Failed to load image:', img.img);
-                      e.target.src = '/placeholder-image.jpg'; // Fallback image
-                    }}
-                  />
-                  {/* Overlay on Hover */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </div>
-
-                {/* Info Section */}
-                <div className="p-5 space-y-3">
-                  {/* Branch Owner */}
-                  <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg flex-shrink-0 ${
-                      theme === 'dark' ? 'bg-slate-700/50' : 'bg-gray-100'
-                    }`}>
-                      <User className={`h-4 w-4 ${
-                        theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
-                      }`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs font-medium ${
-                        theme === 'dark' ? 'text-slate-500' : 'text-gray-500'
-                      }`}>
-                        Branch Owner
-                      </p>
-                      <p className={`text-sm font-semibold truncate ${
-                        theme === 'dark' ? 'text-slate-200' : 'text-gray-900'
-                      }`}>
-                        {img.branchOwner ? img.branchOwner.name : 'N/A'}
-                      </p>
-                    </div>
+            {dailyStoreImages
+              .filter(img => !branchOwnerId || (img.branchOwner && img.branchOwner._id === branchOwnerId))
+              .map((img) => (
+                <div
+                  key={img._id}
+                  className={`group rounded-2xl border overflow-hidden shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${
+                    theme === 'dark'
+                      ? 'bg-slate-800 border-slate-700/50'
+                      : 'bg-white border-gray-200'
+                  }`}
+                >
+                  {/* Image Container */}
+                  <div className="relative h-56 overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800">
+                    <img
+                      src={`http://localhost:5000${img.img.startsWith('/') ? img.img : '/' + img.img}`}
+                      alt="Daily Store"
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                      onError={(e) => {
+                        console.error('Failed to load image:', img.img);
+                        e.target.src = '/placeholder-image.jpg'; // Fallback image
+                      }}
+                    />
+                    {/* Overlay on Hover */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   </div>
 
-                  {/* Upload Date */}
-                  <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg flex-shrink-0 ${
-                      theme === 'dark' ? 'bg-slate-700/50' : 'bg-gray-100'
-                    }`}>
-                      <Calendar className={`h-4 w-4 ${
-                        theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
-                      }`} />
+                  {/* Info Section */}
+                  <div className="p-5 space-y-3">
+                    {/* Branch Owner */}
+                    <div className="flex items-start gap-3">
+                      <div className={`p-2 rounded-lg flex-shrink-0 ${
+                        theme === 'dark' ? 'bg-slate-700/50' : 'bg-gray-100'
+                      }`}>
+                        <User className={`h-4 w-4 ${
+                          theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                        }`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-medium ${
+                          theme === 'dark' ? 'text-slate-500' : 'text-gray-500'
+                        }`}>
+                          Branch Owner
+                        </p>
+                        <p className={`text-sm font-semibold truncate ${
+                          theme === 'dark' ? 'text-slate-200' : 'text-gray-900'
+                        }`}>
+                          {img.branchOwner ? img.branchOwner.name : 'N/A'}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs font-medium ${
-                        theme === 'dark' ? 'text-slate-500' : 'text-gray-500'
+
+                    {/* Upload Date */}
+                    <div className="flex items-start gap-3">
+                      <div className={`p-2 rounded-lg flex-shrink-0 ${
+                        theme === 'dark' ? 'bg-slate-700/50' : 'bg-gray-100'
                       }`}>
-                        Uploaded At
-                      </p>
-                      <p className={`text-sm font-semibold ${
-                        theme === 'dark' ? 'text-slate-200' : 'text-gray-900'
-                      }`}>
-                        {new Date(img.createdAt).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
-                      </p>
-                      <p className={`text-xs ${
-                        theme === 'dark' ? 'text-slate-500' : 'text-gray-500'
-                      }`}>
-                        {new Date(img.createdAt).toLocaleTimeString('en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
+                        <Calendar className={`h-4 w-4 ${
+                          theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                        }`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-medium ${
+                          theme === 'dark' ? 'text-slate-500' : 'text-gray-500'
+                        }`}>
+                          Uploaded At
+                        </p>
+                        <p className={`text-sm font-semibold ${
+                          theme === 'dark' ? 'text-slate-200' : 'text-gray-900'
+                        }`}>
+                          {new Date(img.createdAt).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </p>
+                        <p className={`text-xs ${
+                          theme === 'dark' ? 'text-slate-500' : 'text-gray-500'
+                        }`}>
+                          {new Date(img.createdAt).toLocaleTimeString('en-US', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-16 px-4">

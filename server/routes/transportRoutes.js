@@ -1,6 +1,6 @@
 import express from 'express';
 const router = express.Router();
-import { getTransports, createTransport, confirmReceivedTransport, deleteTransport } from '../controllers/transportController.js';
+import { getTransports, createTransport, confirmReceivedTransport, deleteTransport, getTransportsByBranchOwnerId } from '../controllers/transportController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 router.route('/')
@@ -12,5 +12,8 @@ router.route('/:id/receive')
 
 router.route('/:id')
   .delete(protect, authorizeRoles('Admin', 'BrandOwner'), deleteTransport);
+
+router.route('/branch/:branchOwnerId')
+  .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getTransportsByBranchOwnerId);
 
 export default router;

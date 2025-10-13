@@ -1,6 +1,6 @@
 import express from 'express';
 const router = express.Router();
-import { getSales, createSales, deleteSales, updateSales } from '../controllers/salesController.js';
+import { getSales, createSales, deleteSales, updateSales, getSalesByBranchOwnerId } from '../controllers/salesController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 router.route('/')
@@ -10,5 +10,8 @@ router.route('/')
 router.route('/:id')
   .delete(protect, authorizeRoles('Admin', 'BrandOwner'), deleteSales)
   .put(express.json(), protect, authorizeRoles('Admin', 'BrandOwner'), updateSales);
+
+router.route('/branch/:branchOwnerId')
+  .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getSalesByBranchOwnerId);
 
 export default router;
