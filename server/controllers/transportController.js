@@ -18,6 +18,7 @@ const getTransports = asyncHandler(async (req, res) => {
   if (user.role === 'Admin') {
     transports = await Transport.find({}).populate({
       path: 'stockRequest',
+      select: 'productName quantity branchOwner',
       populate: {
         path: 'branchOwner',
         select: 'name email',
@@ -30,6 +31,7 @@ const getTransports = asyncHandler(async (req, res) => {
     const stockRequestIds = stockRequests.map(request => request._id);
     transports = await Transport.find({ stockRequest: { $in: stockRequestIds } }).populate({
       path: 'stockRequest',
+      select: 'productName quantity branchOwner',
       populate: {
         path: 'branchOwner',
         select: 'name email',
@@ -42,6 +44,7 @@ const getTransports = asyncHandler(async (req, res) => {
     const stockRequestIds = stockRequests.map(request => request._id);
     transports = await Transport.find({ stockRequest: { $in: stockRequestIds } }).populate({
       path: 'stockRequest',
+      select: 'productName quantity branchOwner',
       populate: {
         path: 'branchOwner',
         select: 'name email',
@@ -52,6 +55,7 @@ const getTransports = asyncHandler(async (req, res) => {
     const stockRequestIds = stockRequests.map(request => request._id);
     transports = await Transport.find({ stockRequest: { $in: stockRequestIds } }).populate({
       path: 'stockRequest',
+      select: 'productName quantity branchOwner',
       populate: {
         path: 'branchOwner',
         select: 'name email',
