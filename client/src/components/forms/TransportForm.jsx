@@ -1,27 +1,31 @@
 import React, { useState, useEffect } from 'react';
 
-const TransportForm = ({ initialData = {}, onSubmit, onCancel, loading, stockRequests = [] }) => {
+const TransportForm = ({ initialData = {}, onSubmit, onCancel, loading, stockRequests = [], initialStockRequest = null }) => {
   const [form, setForm] = useState({
-    stockRequest: '',
+    stockRequest: initialStockRequest ? initialStockRequest._id : '',
     bundleSize: '',
-    quantity: '',
-    from: '',
-    to: '',
+    quantity: initialStockRequest ? initialStockRequest.quantity : '',
+    from: initialStockRequest ? initialStockRequest.branchOwner?.address || '' : '',
+    to: '', // 'to' field is usually the destination, which might not be in stock request
     ...initialData,
-    stockRequest: initialData.stockRequest?._id || initialData.stockRequest || '',
+    stockRequest: initialData.stockRequest?._id || initialData.stockRequest || (initialStockRequest ? initialStockRequest._id : ''),
+    quantity: initialData.quantity || (initialStockRequest ? initialStockRequest.quantity : ''),
+    from: initialData.from || (initialStockRequest ? initialStockRequest.branchOwner?.address || '' : ''),
   });
 
   useEffect(() => {
     setForm({
-      stockRequest: '',
+      stockRequest: initialStockRequest ? initialStockRequest._id : '',
       bundleSize: '',
-      quantity: '',
-      from: '',
+      quantity: initialStockRequest ? initialStockRequest.quantity : '',
+      from: initialStockRequest ? initialStockRequest.branchOwner?.address || '' : '',
       to: '',
       ...initialData,
-      stockRequest: initialData.stockRequest?._id || initialData.stockRequest || '',
+      stockRequest: initialData.stockRequest?._id || initialData.stockRequest || (initialStockRequest ? initialStockRequest._id : ''),
+      quantity: initialData.quantity || (initialStockRequest ? initialStockRequest.quantity : ''),
+      from: initialData.from || (initialStockRequest ? initialStockRequest.branchOwner?.address || '' : ''),
     });
-  }, [JSON.stringify(initialData)]);
+  }, [JSON.stringify(initialData), JSON.stringify(initialStockRequest)]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

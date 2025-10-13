@@ -1,6 +1,7 @@
 // pages/admin/TransportManagement.jsx
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useLocation } from 'react-router-dom';
 import { Search, Truck, Package, MapPin, TrendingUp, Activity, X } from 'lucide-react';
 import { getTransports, createTransport } from '../../../store/slices/transportSlice';
 import { getStockRequests } from '../../../store/slices/stockRequestsSlice';
@@ -9,18 +10,26 @@ import TransportForm from '../../../components/forms/TransportForm';
 
 const TransportManagement = () => {
   const dispatch = useDispatch();
+  const location = useLocation();
   const { theme } = useTheme();
   const { transport: transports, loading } = useSelector((state) => state.transport);
   const { stockRequests } = useSelector((state) => state.stockRequests || {});
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [initialStockRequest, setInitialStockRequest] = useState(null);
 
   useEffect(() => {
     dispatch(getTransports());
     dispatch(getStockRequests());
-  }, [dispatch]);
 
+    if (location.state && location.state.stockRequest) {
+      setInitialStockRequest(location.state.stockRequest);
+      setShowModal(true);
+    }
+  }, [dispatch, location.state]);
+ 
   const handleAdd = () => {
+    setInitialStockRequest(null); // Clear any previous initial stock request
     setShowModal(true);
   };
 
@@ -406,6 +415,7 @@ const TransportManagement = () => {
                 onCancel={handleModalClose}
                 loading={loading}
                 stockRequests={stockRequests}
+                initialStockRequest={initialStockRequest}
               />
             </div>
           </div>

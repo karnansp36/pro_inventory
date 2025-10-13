@@ -1,12 +1,14 @@
 // pages/admin/StockRequestsManagement.jsx
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { Search, Filter, CheckCircle, XCircle, Clock, Truck, Package, TrendingUp } from 'lucide-react';
 import { getStockRequests, approveStockRequest } from '../../../store/slices/stockRequestsSlice';
 import { useTheme } from '../../../context/ThemeContext';
 
 const StockRequestsManagement = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { theme } = useTheme();
   const { stockRequests, loading } = useSelector((state) => state.stockRequests);
   const [searchTerm, setSearchTerm] = useState('');
@@ -377,7 +379,8 @@ const StockRequestsManagement = () => {
                         </>
                       )}
                       {request.approved && (
-                        <button 
+                        <button
+                          onClick={() => navigate('/dashboard/admin/transport', { state: { stockRequest: request } })}
                           className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg font-semibold transition-all duration-200 hover:scale-105 ${
                             theme === 'dark'
                               ? 'text-blue-400 hover:bg-blue-600/20'
