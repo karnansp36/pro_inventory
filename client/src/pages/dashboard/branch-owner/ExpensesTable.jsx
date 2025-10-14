@@ -349,11 +349,6 @@ const ExpensesTable = ({ branchOwnerId }) => {
                       Description
                     </div>
                   </th>
-                  <th className={`px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider ${
-                    isDark ? 'text-slate-300' : 'text-gray-700'
-                  }`}>
-                    Actions
-                  </th>
                 </tr>
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-slate-700' : 'divide-gray-200'}`}>
@@ -412,24 +407,6 @@ const ExpensesTable = ({ branchOwnerId }) => {
                             {expense.description}
                           </p>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <button
-                          onClick={() => {
-                            setSelectedExpense(expense);
-                            setShowDeleteConfirm(true);
-                          }}
-                          className={`p-2 rounded-lg transition-all ${
-                            isDark 
-                              ? 'text-red-400 hover:bg-red-500/20 hover:text-red-300' 
-                              : 'text-red-600 hover:bg-red-50 hover:text-red-700'
-                          }`}
-                          title="Delete expense"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
                       </td>
                     </tr>
                   );
@@ -585,144 +562,9 @@ const ExpensesTable = ({ branchOwnerId }) => {
         )}
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && selectedExpense && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
-          onClick={() => !deleteLoading && setShowDeleteConfirm(false)}
-        >
-          <div 
-            className={`relative max-w-md w-full rounded-2xl shadow-2xl ${
-              isDark 
-                ? 'bg-slate-800 border border-slate-700' 
-                : 'bg-white'
-            } animate-scaleIn`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className={`px-6 py-4 border-b ${
-              isDark ? 'border-slate-700' : 'border-gray-200'
-            }`}>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-100 dark:bg-red-500/20 rounded-lg">
-                  <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className={`text-lg font-bold ${
-                    isDark ? 'text-slate-200' : 'text-gray-900'
-                  }`}>
-                    Delete Expense
-                  </h3>
-                  <p className={`text-sm ${
-                    isDark ? 'text-slate-400' : 'text-gray-600'
-                  }`}>
-                    This action cannot be undone
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="px-6 py-6">
-              <div className={`p-4 rounded-xl mb-4 ${
-                isDark ? 'bg-slate-700/50 border border-slate-600' : 'bg-gray-50 border border-gray-200'
-              }`}>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>
-                      Date:
-                    </span>
-                    <span className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-gray-900'}`}>
-                      {new Date(selectedExpense.date).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>
-                      Category:
-                    </span>
-                    <span className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-gray-900'}`}>
-                      {getCategoryIcon(selectedExpense.category)} {selectedExpense.category}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>
-                      Amount:
-                    </span>
-                    <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
-                      ₹{selectedExpense.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  <div className="pt-2 border-t border-slate-600/30 dark:border-slate-500/30">
-                    <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>
-                      Description:
-                    </span>
-                    <p className={`text-sm mt-1 ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
-                      {selectedExpense.description}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>
-                Are you sure you want to delete this expense? This will permanently remove it from your records.
-              </p>
-            </div>
-
-            {/* Actions */}
-            <div className={`px-6 py-4 border-t ${
-              isDark ? 'border-slate-700 bg-slate-800/50' : 'border-gray-200 bg-gray-50'
-            }`}>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowDeleteConfirm(false);
-                    setSelectedExpense(null);
-                  }}
-                  disabled={deleteLoading}
-                  className={`flex-1 px-4 py-2.5 rounded-xl font-semibold transition-all ${
-                    isDark 
-                      ? 'bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50' 
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50'
-                  }`}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={deleteLoading}
-                  className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2.5 rounded-xl font-semibold hover:from-red-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-red-500/30"
-                >
-                  {deleteLoading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Deleting...
-                    </span>
-                  ) : (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Delete Expense
-                    </span>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Custom CSS for animations */}
-      <style jsx>{`
+      <style>{`
         @keyframes fadeIn {
           from {
             opacity: 0;

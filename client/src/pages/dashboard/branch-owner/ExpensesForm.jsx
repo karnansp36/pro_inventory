@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../services/api';
+import { Wallet, Smartphone, CreditCard, CheckCircle2 } from 'lucide-react';
 
 const ExpensesForm = ({ onExpenseAdded, branchOwnerId, onCancel }) => {
   const { theme } = useTheme();
@@ -14,21 +15,16 @@ const ExpensesForm = ({ onExpenseAdded, branchOwnerId, onCancel }) => {
   const [submitting, setSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
     category: '',
     amount: '',
-    description: ''
+    description: '',
+    paymentMethod: 'cash',
   });
 
-  const categories = [
-    { value: 'Rent', icon: '🏠', color: 'blue' },
-    { value: 'Utilities', icon: '💡', color: 'yellow' },
-    { value: 'Supplies', icon: '📦', color: 'purple' },
-    { value: 'Salaries', icon: '💰', color: 'green' },
-    { value: 'Maintenance', icon: '🔧', color: 'orange' },
-    { value: 'Marketing', icon: '📢', color: 'pink' },
-    { value: 'Transportation', icon: '🚗', color: 'indigo' },
-    { value: 'Other', icon: '📋', color: 'gray' }
+  const paymentMethods = [
+    { value: 'cash', label: 'Cash', icon: Wallet },
+    { value: 'gpay', label: 'GPay', icon: Smartphone },
+    { value: 'card', label: 'Card', icon: CreditCard }
   ];
 
   const handleChange = (e) => {
@@ -39,6 +35,10 @@ const ExpensesForm = ({ onExpenseAdded, branchOwnerId, onCancel }) => {
     }));
   };
 
+  const handlePaymentMethodChange = (method) => {
+    setFormData((prev) => ({ ...prev, paymentMethod: method }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -46,16 +46,16 @@ const ExpensesForm = ({ onExpenseAdded, branchOwnerId, onCancel }) => {
     const expenseData = {
       ...formData,
       amount: parseFloat(formData.amount),
-      branchOwnerId
+      branchOwner: branchOwnerId,
     };
 
     try {
       await api.post('/expenses', expenseData);
       setFormData({
-        date: new Date().toISOString().split('T')[0],
         category: '',
         amount: '',
-        description: ''
+        description: '',
+        paymentMethod: 'cash',
       });
       onExpenseAdded();
       toast.success('💸 Expense recorded successfully!');
@@ -67,10 +67,20 @@ const ExpensesForm = ({ onExpenseAdded, branchOwnerId, onCancel }) => {
     }
   };
 
+  const inputClass = `w-full px-4 py-3 rounded-xl border transition-all duration-200 ${
+    isDark
+      ? 'bg-slate-700 border-slate-600 text-slate-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20'
+      : 'bg-white border-gray-300 text-gray-900 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20'
+  }`;
+
+  const labelClass = `block text-sm font-semibold mb-2 ${
+    isDark ? 'text-slate-300' : 'text-gray-700'
+  }`;
+
   return (
     <div className={`rounded-2xl overflow-hidden ${
-      isDark 
-        ? 'bg-slate-800/50 border border-slate-700' 
+      isDark
+        ? 'bg-slate-800/50 border border-slate-700'
         : 'bg-white border border-gray-200'
     } shadow-xl`}>
       {/* Header */}
@@ -87,59 +97,24 @@ const ExpensesForm = ({ onExpenseAdded, branchOwnerId, onCancel }) => {
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
-        {/* Date */}
+        {/* Category */}
         <div>
-          <label className={`block text-sm font-semibold mb-2 ${
-            isDark ? 'text-slate-300' : 'text-gray-700'
-          }`}>
-            Date
+          <label className={labelClass}>
+            Category
           </label>
           <input
-            type="date"
-            name="date"
-            value={formData.date}
+            type="text"
+            name="category"
+            value={formData.category}
             onChange={handleChange}
-            className={`w-full px-4 py-3 rounded-xl border transition-all duration-200 ${
-              isDark 
-                ? 'bg-slate-700 border-slate-600 text-slate-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20' 
-                : 'bg-white border-gray-300 text-gray-900 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20'
-            }`}
+            className={inputClass}
             required
           />
         </div>
 
-        {/* Category */}
-        <div>
-          <label className={`block text-sm font-semibold mb-2 ${
-            isDark ? 'text-slate-300' : 'text-gray-700'
-          }`}>
-            Category
-          </label>
-          <select
-            name="category"
-            value={formData.category}
-            onChange={handleChange}
-            className={`w-full px-4 py-3 rounded-xl border transition-all duration-200 ${
-              isDark 
-                ? 'bg-slate-700 border-slate-600 text-slate-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20' 
-                : 'bg-white border-gray-300 text-gray-900 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20'
-            }`}
-            required
-          >
-            <option value="">Select Category</option>
-            {categories.map(category => (
-              <option key={category.value} value={category.value}>
-                {category.icon} {category.value}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* Amount */}
         <div>
-          <label className={`block text-sm font-semibold mb-2 ${
-            isDark ? 'text-slate-300' : 'text-gray-700'
-          }`}>
+          <label className={labelClass}>
             Amount
           </label>
           <div className="relative">
@@ -155,11 +130,7 @@ const ExpensesForm = ({ onExpenseAdded, branchOwnerId, onCancel }) => {
               onChange={handleChange}
               step="0.01"
               min="0"
-              className={`w-full pl-10 pr-4 py-3 rounded-xl border transition-all duration-200 ${
-                isDark 
-                  ? 'bg-slate-700 border-slate-600 text-slate-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20' 
-                  : 'bg-white border-gray-300 text-gray-900 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20'
-              }`}
+              className={inputClass}
               placeholder="0.00"
               required
             />
@@ -168,9 +139,7 @@ const ExpensesForm = ({ onExpenseAdded, branchOwnerId, onCancel }) => {
 
         {/* Description */}
         <div>
-          <label className={`block text-sm font-semibold mb-2 ${
-            isDark ? 'text-slate-300' : 'text-gray-700'
-          }`}>
+          <label className={labelClass}>
             Description
           </label>
           <textarea
@@ -178,14 +147,68 @@ const ExpensesForm = ({ onExpenseAdded, branchOwnerId, onCancel }) => {
             value={formData.description}
             onChange={handleChange}
             rows="4"
-            className={`w-full px-4 py-3 rounded-xl border transition-all duration-200 resize-none ${
-              isDark 
-                ? 'bg-slate-700 border-slate-600 text-slate-200 placeholder-slate-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20' 
-                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20'
-            }`}
+            className={`${inputClass} resize-none`}
             placeholder="Enter expense details..."
-            required
           />
+        </div>
+
+        {/* Payment Method Selection */}
+        <div className="space-y-3">
+          <label className={`text-sm font-semibold ${labelClass}`}>
+            Payment Method
+          </label>
+          <div className="grid grid-cols-3 gap-3">
+            {paymentMethods.map((method) => {
+              const Icon = method.icon;
+              const isSelected = formData.paymentMethod === method.value;
+              return (
+                <button
+                  key={method.value}
+                  type="button"
+                  onClick={() => handlePaymentMethodChange(method.value)}
+                  className={`relative p-4 rounded-xl border-2 transition-all duration-200 hover:scale-105 ${
+                    isSelected
+                      ? isDark
+                        ? 'bg-blue-600/20 border-blue-500 shadow-lg shadow-blue-500/20'
+                        : 'bg-blue-50 border-blue-500 shadow-lg shadow-blue-500/10'
+                      : isDark
+                        ? 'bg-slate-800/30 border-slate-700 hover:border-slate-600'
+                        : 'bg-white border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  {isSelected && (
+                    <div className="absolute -top-2 -right-2">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    </div>
+                  )}
+                  <div className="flex flex-col items-center space-y-2">
+                    <Icon
+                      className={`h-6 w-6 transition-colors duration-300 ${
+                        isSelected
+                          ? 'text-blue-600 dark:text-blue-400'
+                          : isDark
+                            ? 'text-slate-500'
+                            : 'text-gray-400'
+                      }`}
+                    />
+                    <span
+                      className={`text-sm font-semibold transition-colors duration-300 ${
+                        isSelected
+                          ? isDark
+                            ? 'text-slate-100'
+                            : 'text-gray-900'
+                          : isDark
+                            ? 'text-slate-400'
+                            : 'text-gray-600'
+                      }`}
+                    >
+                      {method.label}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Buttons */}

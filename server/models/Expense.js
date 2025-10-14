@@ -9,11 +9,11 @@ const expenseSchema = mongoose.Schema(
     },
     category: {
       type: String,
-      required: false,
+      required: true,
     },
     amount: {
       type: Number,
-      required: false,
+      required: true,
     },
     description: {
       type: String,
@@ -21,7 +21,7 @@ const expenseSchema = mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      required: false,
+      required: true,
       enum: ['cash', 'gpay', 'card'], // Enforce allowed payment methods
       default: 'cash',
     },

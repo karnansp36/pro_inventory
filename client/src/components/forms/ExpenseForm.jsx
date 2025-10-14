@@ -11,34 +11,22 @@ const ExpenseForm = ({ initialData = {}, onSubmit, onCancel, loading }) => {
 
   // Defensive: ensure initialData is not null
   const safeInitialData = initialData || {};
-  const [form, setForm] = useState({
-    category: '',
-    amount: '',
-    description: '',
-    paymentMethod: 'cash',
-    branchOwner: '',
-    ...safeInitialData,
-    branchOwner: safeInitialData.branchOwner && typeof safeInitialData.branchOwner === 'object'
+  const [form, setForm] = useState(() => {
+    const defaultBranchOwner = user?.role === 'BranchOwner' ? user._id : '';
+    const initialBranchOwner = safeInitialData.branchOwner && typeof safeInitialData.branchOwner === 'object'
       ? safeInitialData.branchOwner._id
-      : safeInitialData.branchOwner || '',
-    paymentMethod: safeInitialData.paymentMethod || 'cash',
-  });
+      : safeInitialData.branchOwner;
 
-  useEffect(() => {
-    const safeInitialData = initialData || {};
-    setForm({
+    return {
       category: '',
       amount: '',
       description: '',
       paymentMethod: 'cash',
-      branchOwner: '',
       ...safeInitialData,
-      branchOwner: safeInitialData.branchOwner && typeof safeInitialData.branchOwner === 'object'
-        ? safeInitialData.branchOwner._id
-        : safeInitialData.branchOwner || '',
+      branchOwner: initialBranchOwner || defaultBranchOwner,
       paymentMethod: safeInitialData.paymentMethod || 'cash',
-    });
-  }, [initialData]);
+    };
+  });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -84,7 +72,7 @@ const ExpenseForm = ({ initialData = {}, onSubmit, onCancel, loading }) => {
             name="branchOwner"
             value={form.branchOwner}
             onChange={handleChange}
-            required
+            required={isAdminOrBrandOwner}
             className={inputClass}
           >
             <option value="">Select Branch Owner</option>

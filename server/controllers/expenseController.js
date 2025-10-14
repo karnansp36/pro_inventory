@@ -40,10 +40,6 @@ const getExpenses = asyncHandler(async (req, res) => {
 const createExpense = asyncHandler(async (req, res) => {
   const { category, amount, description, branchOwner, paymentMethod } = req.body;
 
-  if (!category || !amount || !paymentMethod) {
-    res.status(400);
-    throw new Error('Please add category, amount, and payment method');
-  }
 
   const user = await User.findById(req.user.id);
 
