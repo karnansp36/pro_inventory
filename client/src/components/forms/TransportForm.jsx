@@ -28,7 +28,7 @@ const TransportForm = ({ initialData = {}, onSubmit, onCancel, loading, stockReq
       quantity: initialData.quantity || (initialStockRequest ? initialStockRequest.quantity : ''),
       from: initialData.from || (initialStockRequest ? initialStockRequest.branchOwner?.address || '' : ''),
     });
-  }, [JSON.stringify(initialData), JSON.stringify(initialStockRequest)]);
+  }, [initialData, initialStockRequest]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
