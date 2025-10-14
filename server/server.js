@@ -14,7 +14,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
-  origin: 'http://localhost:5173', // Your frontend URL
+  origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173', // Your frontend URL
   credentials: true
 }));
 
