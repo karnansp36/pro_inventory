@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useTheme } from '../../context/ThemeContext';
 
 const TransportForm = ({ initialData = {}, onSubmit, onCancel, loading, stockRequests = [], initialStockRequest = null }) => {
+  const { theme } = useTheme();
+  
   const [form, setForm] = useState({
     stockRequest: initialStockRequest ? initialStockRequest._id : '',
     bundleSize: '',
     quantity: initialStockRequest ? initialStockRequest.quantity : '',
     from: initialStockRequest ? initialStockRequest.branchOwner?.address || '' : '',
-    to: '', // 'to' field is usually the destination, which might not be in stock request
+    to: '',
     ...initialData,
     stockRequest: initialData.stockRequest?._id || initialData.stockRequest || (initialStockRequest ? initialStockRequest._id : ''),
     quantity: initialData.quantity || (initialStockRequest ? initialStockRequest.quantity : ''),
@@ -37,16 +40,30 @@ const TransportForm = ({ initialData = {}, onSubmit, onCancel, loading, stockReq
     onSubmit(form);
   };
 
+  const isDark = theme === 'dark';
+
+  const inputClass = `mt-1 block w-full rounded-md shadow-sm px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-300 border ${
+    isDark
+      ? 'bg-slate-900/50 border-slate-700 text-slate-100 focus:bg-slate-900/80'
+      : 'bg-white border-gray-300 text-gray-900 focus:bg-gray-50'
+  }`;
+
+  const labelClass = `block text-sm font-medium transition-colors duration-300 ${
+    isDark ? 'text-slate-300' : 'text-gray-700'
+  }`;
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className={`space-y-4 transition-colors duration-300 p-6 rounded-lg ${
+      isDark ? 'bg-slate-800/50' : 'bg-white'
+    }`}>
       <div>
-        <label className="block text-sm font-medium text-gray-700">Stock Request</label>
+        <label className={labelClass}>Stock Request</label>
         <select
           name="stockRequest"
           value={form.stockRequest}
           onChange={handleChange}
           required
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
         >
           <option value="">Select Stock Request</option>
           {stockRequests.map((req) => (
@@ -56,8 +73,9 @@ const TransportForm = ({ initialData = {}, onSubmit, onCancel, loading, stockReq
           ))}
         </select>
       </div>
+
       <div>
-        <label className="block text-sm font-medium text-gray-700">Bundle Size</label>
+        <label className={labelClass}>Bundle Size</label>
         <input
           type="number"
           name="bundleSize"
@@ -65,11 +83,12 @@ const TransportForm = ({ initialData = {}, onSubmit, onCancel, loading, stockReq
           onChange={handleChange}
           required
           min="1"
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
         />
       </div>
+
       <div>
-        <label className="block text-sm font-medium text-gray-700">Quantity</label>
+        <label className={labelClass}>Quantity</label>
         <input
           type="number"
           name="quantity"
@@ -77,43 +96,50 @@ const TransportForm = ({ initialData = {}, onSubmit, onCancel, loading, stockReq
           onChange={handleChange}
           required
           min="1"
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
         />
       </div>
+
       <div>
-        <label className="block text-sm font-medium text-gray-700">From</label>
+        <label className={labelClass}>From</label>
         <input
           type="text"
           name="from"
           value={form.from}
           onChange={handleChange}
           required
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
         />
       </div>
+
       <div>
-        <label className="block text-sm font-medium text-gray-700">To</label>
+        <label className={labelClass}>To</label>
         <input
           type="text"
           name="to"
           value={form.to}
           onChange={handleChange}
           required
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
         />
       </div>
-      <div className="flex justify-end space-x-2">
+
+      <div className="flex justify-end space-x-2 pt-4">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+          className={`px-4 py-2 rounded transition-colors duration-300 ${
+            isDark
+              ? 'bg-slate-700 text-slate-200 hover:bg-slate-600'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-all duration-300"
         >
           {loading ? 'Saving...' : 'Save'}
         </button>

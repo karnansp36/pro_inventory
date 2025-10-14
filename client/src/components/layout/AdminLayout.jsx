@@ -9,24 +9,26 @@ const AdminLayout = ({ children }) => {
   const { theme } = useTheme();
 
   return (
-    <div className={`flex h-screen transition-colors duration-300 ${
+    <div className={`flex h-screen overflow-hidden transition-colors duration-300 ${
       theme === 'dark' 
         ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950' 
         : 'bg-gradient-to-br from-gray-50 via-white to-gray-50'
     }`}>
-      {/* Sidebar */}
-      <Sidebar 
-        isOpen={sidebarOpen} 
-        onClose={() => setSidebarOpen(false)} 
-      />
+      {/* Sidebar - Fixed height */}
+      <div className="h-screen">
+        <Sidebar 
+          isOpen={sidebarOpen} 
+          onClose={() => setSidebarOpen(false)} 
+        />
+      </div>
       
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden h-screen">
         {/* Navbar */}
         <Navbar onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
         
         {/* Main Content */}
-        <main className={`flex-1 overflow-auto transition-colors duration-300 ${
+        <main className={`flex-1 overflow-y-auto transition-colors duration-300 ${
           theme === 'dark'
             ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950'
             : 'bg-gradient-to-br from-gray-50 via-white to-gray-50'
