@@ -18,6 +18,8 @@ const SalesManagement = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedSale, setSelectedSale] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [salesPerPage, setSalesPerPage] = useState(20); // Default sales per page
 
   useEffect(() => {
     dispatch(getSales());
@@ -26,10 +28,22 @@ const SalesManagement = () => {
     }
   }, [dispatch, user?.role]);
 
-  const filteredSales = sales?.filter(sale =>
+  const sortedSales = sales
+    ? [...sales].sort((a, b) => new Date(b.date) - new Date(a.date))
+    : [];
+
+  const filteredSales = sortedSales?.filter(sale =>
     sale.branchOwner?.name?.toLowerCase().includes(searchTerm.toLowerCase()) &&
     (dateFilter === '' || new Date(sale.date).toISOString().split('T')[0].includes(dateFilter))
   );
+
+  // Pagination logic
+  const indexOfLastSale = currentPage * salesPerPage;
+  const indexOfFirstSale = indexOfLastSale - salesPerPage;
+  const currentSales = filteredSales?.slice(indexOfFirstSale, indexOfLastSale);
+  const totalPages = Math.ceil(filteredSales?.length / salesPerPage);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   const handleDelete = (saleId) => {
     if (window.confirm('Are you sure you want to delete this sale record?')) {
@@ -231,6 +245,25 @@ const SalesManagement = () => {
               }`}
             />
           </div>
+          <div className="relative">
+            <select
+              value={salesPerPage}
+              onChange={(e) => {
+                setSalesPerPage(Number(e.target.value));
+                setCurrentPage(1); // Reset to first page on changing sales per page
+              }}
+              className={`pl-4 pr-10 py-3 rounded-xl border-2 transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                theme === 'dark'
+                  ? 'bg-slate-800/50 border-slate-700 text-slate-100'
+                  : 'bg-gray-50 border-gray-200 text-gray-900'
+              }`}
+            >
+              <option value={20}>20 per page</option>
+              <option value={50}>50 per page</option>
+              <option value={100}>100 per page</option>
+              <option value={250}>250 per page</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -279,7 +312,7 @@ const SalesManagement = () => {
             <tbody className={`divide-y ${
               theme === 'dark' ? 'divide-slate-800/50' : 'divide-gray-200'
             }`}>
-              {filteredSales?.map((sale) => (
+              {currentSales?.map((sale) => (
                 <tr key={sale._id} className={`transition-colors duration-150 ${
                   theme === 'dark' ? 'hover:bg-slate-800/30' : 'hover:bg-gray-50'
                 }`}>
@@ -325,7 +358,7 @@ const SalesManagement = () => {
                       >
                         <Edit className="h-4 w-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleDelete(sale._id)}
                         className={`p-2 rounded-lg transition-all duration-200 hover:scale-110 ${
                           theme === 'dark'
@@ -342,6 +375,52 @@ const SalesManagement = () => {
             </tbody>
           </table>
         </div>
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className={`flex justify-center items-center space-x-2 p-4 border-t ${
+            theme === 'dark' ? 'border-slate-800/50' : 'border-gray-200'
+          }`}>
+            <button
+              onClick={() => paginate(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+                theme === 'dark'
+                  ? 'bg-slate-700 text-slate-200 hover:bg-slate-600 disabled:opacity-50'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50'
+              }`}
+            >
+              Previous
+            </button>
+            {[...Array(totalPages).keys()].map((number) => (
+              <button
+                key={number + 1}
+                onClick={() => paginate(number + 1)}
+                className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+                  currentPage === number + 1
+                    ? theme === 'dark'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-blue-600 text-white'
+                    : theme === 'dark'
+                      ? 'bg-slate-700 text-slate-200 hover:bg-slate-600'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {number + 1}
+              </button>
+            ))}
+            <button
+              onClick={() => paginate(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+                theme === 'dark'
+                  ? 'bg-slate-700 text-slate-200 hover:bg-slate-600 disabled:opacity-50'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50'
+              }`}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
 
      {/* Add Sale Modal */}
