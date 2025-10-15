@@ -13,7 +13,9 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// ---------------------
 // Middleware
+// ---------------------
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -48,6 +50,8 @@ app.use('/api/export', (await import('./routes/exportRoutes.js')).default);
 app.use('/api/activity-logs', (await import('./routes/activityLogRoutes.js')).default);
 app.use('/api/daily-store-images', (await import('./routes/dailyStoreImageRoutes.js')).default);
 
+
+
 // Health check
 app.get('/api/auth/health', (req, res) => {
   res.status(200).json({
@@ -58,10 +62,10 @@ app.get('/api/auth/health', (req, res) => {
 });
 
 // ---------------------
-// Serve React Frontend
+// Serve React Frontend for all non-API routes
 // ---------------------
 app.use(express.static(path.join(__dirname, '../client/dist')));
-app.get('*', (req, res) => {
+app.get(/^\/(?!api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, '../client/dist/index.html'));
 });
 
@@ -73,10 +77,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// 404 Handler
-app.use((req, res) => {
-  res.status(404).json({ message: 'Route not found' });
-});
+// 404 Handler for undefined API routes
 
 // ---------------------
 // Connect MongoDB and Start Server
@@ -84,18 +85,14 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 5000;
 
 mongoose
-  .connect(
-    process.env.MONGODB_URI ||
-      'mongodb://localhost:27017/shopManagement'
-  
-  )
+  .connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/shopManagement')
   .then(() => {
     console.log('MongoDB connected');
-    app.listen(PORT, () =>
-      console.log(`Server running on port ${PORT}`)
-    );
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })
   .catch((err) => {
     console.error('Database connection error:', err);
     process.exit(1);
   });
+
+
