@@ -1,35 +1,46 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 
-const TransportForm = ({ initialData = {}, onSubmit, onCancel, loading, stockRequests = [], initialStockRequest = null }) => {
+const TransportForm = ({
+  initialData = {},
+  onSubmit,
+  onCancel,
+  loading = false,
+  stockRequests = [],
+  initialStockRequest = null,
+}) => {
   const { theme } = useTheme();
-  
-  const [form, setForm] = useState({
-    stockRequest: initialStockRequest ? initialStockRequest._id : '',
-    bundleSize: '',
-    quantity: initialStockRequest ? initialStockRequest.quantity : '',
-    from: initialStockRequest ? initialStockRequest.branchOwner?.address || '' : '',
-    to: '',
-    ...initialData,
-    stockRequest: initialData.stockRequest?._id || initialData.stockRequest || (initialStockRequest ? initialStockRequest._id : ''),
-    quantity: initialData.quantity || (initialStockRequest ? initialStockRequest.quantity : ''),
-    from: initialData.from || (initialStockRequest ? initialStockRequest.branchOwner?.address || '' : ''),
+  const isDark = theme === 'dark';
+
+  // 🔧 Initialize cleanly with defaults and fallbacks
+  const getInitialForm = () => ({
+    stockRequest:
+      initialData.stockRequest?._id ||
+      initialData.stockRequest ||
+      initialStockRequest?._id ||
+      '',
+    bundleSize: initialData.bundleSize || '',
+    quantity:
+      initialData.quantity ||
+      initialStockRequest?.quantity ||
+      '',
+    from:
+      initialData.from ||
+      initialStockRequest?.branchOwner?.address ||
+      '',
+    to: initialData.to || '',
   });
 
+  const [form, setForm] = useState(getInitialForm);
+
+  // 🧠 Update form only when editing or switching initial data
   useEffect(() => {
-    setForm({
-      stockRequest: initialStockRequest ? initialStockRequest._id : '',
-      bundleSize: '',
-      quantity: initialStockRequest ? initialStockRequest.quantity : '',
-      from: initialStockRequest ? initialStockRequest.branchOwner?.address || '' : '',
-      to: '',
-      ...initialData,
-      stockRequest: initialData.stockRequest?._id || initialData.stockRequest || (initialStockRequest ? initialStockRequest._id : ''),
-      quantity: initialData.quantity || (initialStockRequest ? initialStockRequest.quantity : ''),
-      from: initialData.from || (initialStockRequest ? initialStockRequest.branchOwner?.address || '' : ''),
-    });
+    if (Object.keys(initialData).length > 0 || initialStockRequest) {
+      setForm(getInitialForm());
+    }
   }, [initialData, initialStockRequest]);
 
+  // 🪶 Handlers
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -40,8 +51,7 @@ const TransportForm = ({ initialData = {}, onSubmit, onCancel, loading, stockReq
     onSubmit(form);
   };
 
-  const isDark = theme === 'dark';
-
+  // 🎨 Theming
   const inputClass = `mt-1 block w-full rounded-md shadow-sm px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-300 border ${
     isDark
       ? 'bg-slate-900/50 border-slate-700 text-slate-100 focus:bg-slate-900/80'
@@ -53,9 +63,13 @@ const TransportForm = ({ initialData = {}, onSubmit, onCancel, loading, stockReq
   }`;
 
   return (
-    <form onSubmit={handleSubmit} className={`space-y-4 transition-colors duration-300 p-6 rounded-lg ${
-      isDark ? 'bg-slate-800/50' : 'bg-white'
-    }`}>
+    <form
+      onSubmit={handleSubmit}
+      className={`space-y-4 transition-colors duration-300 p-6 rounded-lg ${
+        isDark ? 'bg-slate-800/50' : 'bg-white'
+      }`}
+    >
+      {/* Stock Request */}
       <div>
         <label className={labelClass}>Stock Request</label>
         <select
@@ -74,6 +88,7 @@ const TransportForm = ({ initialData = {}, onSubmit, onCancel, loading, stockReq
         </select>
       </div>
 
+      {/* Bundle Size */}
       <div>
         <label className={labelClass}>Bundle Size</label>
         <input
@@ -87,6 +102,7 @@ const TransportForm = ({ initialData = {}, onSubmit, onCancel, loading, stockReq
         />
       </div>
 
+      {/* Quantity */}
       <div>
         <label className={labelClass}>Quantity</label>
         <input
@@ -100,6 +116,7 @@ const TransportForm = ({ initialData = {}, onSubmit, onCancel, loading, stockReq
         />
       </div>
 
+      {/* From */}
       <div>
         <label className={labelClass}>From</label>
         <input
@@ -112,6 +129,7 @@ const TransportForm = ({ initialData = {}, onSubmit, onCancel, loading, stockReq
         />
       </div>
 
+      {/* To */}
       <div>
         <label className={labelClass}>To</label>
         <input
@@ -124,6 +142,7 @@ const TransportForm = ({ initialData = {}, onSubmit, onCancel, loading, stockReq
         />
       </div>
 
+      {/* Actions */}
       <div className="flex justify-end space-x-2 pt-4">
         <button
           type="button"

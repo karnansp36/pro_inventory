@@ -3,28 +3,40 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
-// Load env vars
+// Load environment variables
 dotenv.config();
 
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors({
-  origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173', // Your frontend URL
-  credentials: true
-}));
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Enable CORS only in development
+if (process.env.NODE_ENV === 'development') {
+  app.use(
+    cors({
+      origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+      credentials: true,
+    })
+  );
+}
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
 
-// Routes
+// Serve static uploads
+app.use('/uploads', express.static(uploadsDir));
+
+// ---------------------
+// API Routes
+// ---------------------
 app.use('/api/auth', (await import('./routes/authRoutes.js')).default);
 app.use('/api/users', (await import('./routes/userRoutes.js')).default);
 app.use('/api/expenses', (await import('./routes/expenseRoutes.js')).default);
@@ -35,33 +47,55 @@ app.use('/api/reports', (await import('./routes/reportRoutes.js')).default);
 app.use('/api/export', (await import('./routes/exportRoutes.js')).default);
 app.use('/api/activity-logs', (await import('./routes/activityLogRoutes.js')).default);
 app.use('/api/daily-store-images', (await import('./routes/dailyStoreImageRoutes.js')).default);
-// Error handling middleware
+
+// Health check
+app.get('/api/auth/health', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    message: 'Server is running',
+  });
+});
+
+// ---------------------
+// Serve React Frontend
+// ---------------------
+app.use(express.static(path.join(__dirname, '../client/dist')));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+});
+
+// ---------------------
+// Error Handling
+// ---------------------
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// 404 handler
+// 404 Handler
 app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-app.get('/api/auth/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    message: 'Server is running' 
-  });
-});
-
+// ---------------------
+// Connect MongoDB and Start Server
+// ---------------------
 const PORT = process.env.PORT || 5000;
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/shop-management')
-.then(() => {
-  console.log('MongoDB Connected');
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-})
-.catch(err => {
-  console.error('Database connection error:', err);
-  process.exit(1);
-});
+mongoose
+  .connect(
+    process.env.MONGODB_URI ||
+      'mongodb://localhost:27017/shopManagement'
+  
+  )
+  .then(() => {
+    console.log('MongoDB connected');
+    app.listen(PORT, () =>
+      console.log(`Server running on port ${PORT}`)
+    );
+  })
+  .catch((err) => {
+    console.error('Database connection error:', err);
+    process.exit(1);
+  });

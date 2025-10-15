@@ -42,10 +42,12 @@ const UserManagement = () => {
     });
   }, [dispatch]);
 
-  const filteredUsers = users?.filter(user => 
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    (roleFilter === '' || user.role === roleFilter)
-  );
+  const filteredUsers = users?.filter(user => {
+    const userName = user?.name || '';
+    const userRole = user?.role || '';
+    return userName.toLowerCase().includes(searchTerm.toLowerCase()) &&
+           (roleFilter === '' || userRole === roleFilter);
+  });
 
   const handleDelete = (userId) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
@@ -266,12 +268,12 @@ const UserManagement = () => {
                             ) : (
                               <span className={`text-sm font-semibold ${
                                 theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
-                              }`}>{user.name.charAt(0)}</span>
+                              }`}>{user.name ? user.name.charAt(0) : ''}</span>
                             )}
                           </div>
                           <div className={`text-sm font-medium ${
                             theme === 'dark' ? 'text-slate-200' : 'text-gray-900'
-                          }`}>{user.name}</div>
+                          }`}>{user.name || 'N/A'}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -347,13 +349,13 @@ const UserManagement = () => {
                       ) : (
                         <span className={`text-lg font-semibold ${
                           theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
-                        }`}>{user.name.charAt(0)}</span>
+                        }`}>{user.name ? user.name.charAt(0) : ''}</span>
                       )}
                     </div>
                     <div>
                       <h3 className={`font-semibold ${
                         theme === 'dark' ? 'text-slate-200' : 'text-gray-900'
-                      }`}>{user.name}</h3>
+                      }`}>{user.name || 'N/A'}</h3>
                       <p className={`text-sm ${
                         theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
                       }`}>{user.email}</p>
