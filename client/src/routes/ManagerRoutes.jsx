@@ -13,8 +13,8 @@ import DailyStoreImageManagerPage from '../pages/dashboard/manager/DailyStoreIma
 
 const ManagerRoutes = () => {
   return (
-    <ManagerLayout>
-      <Routes>
+    <Routes>
+      <Route element={<ManagerLayout />}>
         <Route index element={<ManagerDashboard />} />
         <Route path="sales" element={<ManagerSalesPage />} />
         <Route path="expenses" element={<ManagerExpensesPage />} />
@@ -25,8 +25,8 @@ const ManagerRoutes = () => {
         <Route path="branch-owners/:id" element={<ManagerBranchOwnerViewPage />} />
         <Route path="daily-store-images" element={<DailyStoreImageManagerPage />} />
         <Route path="*" element={<ManagerDashboard />} />
-      </Routes>
-    </ManagerLayout>
+      </Route>
+    </Routes>
   );
 };
 

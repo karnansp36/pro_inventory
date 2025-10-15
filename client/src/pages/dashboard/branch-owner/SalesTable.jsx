@@ -19,28 +19,29 @@ import {
   ChevronsRight
 } from 'lucide-react';
 
-const SalesTable = ({ branchOwnerId, isManagerView }) => {
+import salesService from '../../../services/salesService'; // Import salesService
+
+const SalesTable = ({ branchOwnerId, isManagerView, filters, currentPage, itemsPerPage, onPageChange, onItemsPerPageChange }) => {
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0); // New state for total items
   const { theme } = useTheme();
 
   useEffect(() => {
     fetchSales();
-  }, [branchOwnerId, isManagerView]);
+  }, [branchOwnerId, isManagerView, filters, currentPage, itemsPerPage]); // Add filters, currentPage, itemsPerPage to dependencies
 
   const fetchSales = async () => {
+    setLoading(true);
     try {
-      let url = '/sales';
-      if (branchOwnerId) {
-        url = `/sales?branchOwnerId=${branchOwnerId}`;
-      } else if (isManagerView) {
-        url = '/sales';
-      }
-      const response = await api.get(url);
-      setSales(response.data);
-      setCurrentPage(1); // Reset to first page when data changes
+      const response = await salesService.getSales({
+        branchId: branchOwnerId || (isManagerView ? filters?.branchId : undefined),
+        page: currentPage,
+        limit: itemsPerPage,
+        ...filters, // Pass other filters
+      });
+      setSales(response.data.sales); // Assuming API returns { sales: [], totalItems: 0 }
+      setTotalItems(response.data.totalItems);
     } catch (error) {
       console.error('Error fetching sales:', error);
       toast.error('Error loading sales data');
@@ -49,20 +50,19 @@ const SalesTable = ({ branchOwnerId, isManagerView }) => {
     }
   };
 
-  // Pagination calculations
-  const totalPages = Math.ceil(sales.length / itemsPerPage);
+  // Pagination calculations (now based on totalItems from backend)
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentSales = sales.slice(startIndex, endIndex);
+  const endIndex = startIndex + sales.length; // Use sales.length for current page
 
   const getTotalSales = () => {
     return sales.reduce((sum, sale) => sum + (sale.amount || 0), 0);
   };
 
-  const goToFirstPage = () => setCurrentPage(1);
-  const goToLastPage = () => setCurrentPage(totalPages);
-  const goToPreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
-  const goToNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
+  const goToFirstPage = () => onPageChange(1);
+  const goToLastPage = () => onPageChange(totalPages);
+  const goToPreviousPage = () => onPageChange(Math.max(1, currentPage - 1));
+  const goToNextPage = () => onPageChange(Math.min(totalPages, currentPage + 1));
 
   const getPageNumbers = () => {
     const pages = [];
@@ -333,7 +333,7 @@ const SalesTable = ({ branchOwnerId, isManagerView }) => {
           <tbody className={`divide-y ${
             theme === 'dark' ? 'divide-slate-700/50' : 'divide-gray-200'
           }`}>
-            {currentSales.length === 0 ? (
+            {sales.length === 0 ? (
               <tr>
                 <td colSpan="4" className="px-6 py-12">
                   <div className="flex flex-col items-center justify-center">
@@ -354,9 +354,9 @@ const SalesTable = ({ branchOwnerId, isManagerView }) => {
                 </td>
               </tr>
             ) : (
-              currentSales.map((sale, i) => (
-                <tr 
-                  key={i} 
+              sales.map((sale, i) => (
+                <tr
+                  key={sale._id || i} // Use _id for unique key if available
                   className={`transition-colors ${
                     theme === 'dark'
                       ? 'hover:bg-slate-700/30'
@@ -420,16 +420,13 @@ const SalesTable = ({ branchOwnerId, isManagerView }) => {
               theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
             }`}>
               Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-              <span className="font-medium">{Math.min(endIndex, sales.length)}</span> of{' '}
-              <span className="font-medium">{sales.length}</span> entries
+              <span className="font-medium">{Math.min(endIndex, totalItems)}</span> of{' '}
+              <span className="font-medium">{totalItems}</span> entries
             </div>
             
             <select
               value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
+              onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
               className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
                 theme === 'dark'
                   ? 'bg-slate-800 border-slate-700 text-gray-300 focus:border-emerald-500'
@@ -495,7 +492,7 @@ const SalesTable = ({ branchOwnerId, isManagerView }) => {
                 ) : (
                   <button
                     key={page}
-                    onClick={() => setCurrentPage(page)}
+                    onClick={() => onPageChange(page)}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       currentPage === page
                         ? theme === 'dark'

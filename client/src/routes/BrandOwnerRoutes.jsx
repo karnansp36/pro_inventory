@@ -13,8 +13,8 @@ import DailyStoreImageBrandOwnerPage from '../pages/dashboard/brand-owner/DailyS
 
 const BrandOwnerRoutes = () => {
   return (
-    <BrandOwnerLayout>
-      <Routes>
+    <Routes>
+      <Route element={<BrandOwnerLayout />}>
         <Route index element={<BrandOwnerDashboard />} />
         <Route path="dashboard" element={<BrandOwnerDashboard />} />
         <Route path="users" element={<BrandOwnerUserManagement />} />
@@ -26,8 +26,8 @@ const BrandOwnerRoutes = () => {
         <Route path="exports" element={<BrandOwnerExportsPage />} />
         <Route path="daily-store-images" element={<DailyStoreImageBrandOwnerPage />} />
         <Route path="*" element={<BrandOwnerDashboard />} />
-      </Routes>
-    </BrandOwnerLayout>
+      </Route>
+    </Routes>
   );
 };
 

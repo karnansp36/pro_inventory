@@ -65,7 +65,7 @@ const salesSlice = createSlice({
       })
       .addCase(getSales.fulfilled, (state, action) => {
         state.loading = false;
-        state.sales = action.payload;
+        state.sales = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(getSales.rejected, (state, action) => {
         state.loading = false;

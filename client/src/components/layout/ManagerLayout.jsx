@@ -1,9 +1,10 @@
 // client/src/components/layout/ManagerLayout.jsx
 import { useState } from 'react';
+import { Outlet } from 'react-router-dom';
 import ManagerSidebar from './ManagerSidebar';
 import Navbar from './Navbar';
 
-const ManagerLayout = ({ children }) => {
+const ManagerLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -17,7 +18,7 @@ const ManagerLayout = ({ children }) => {
         <Navbar onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
         
         <main className="flex-1 overflow-auto p-4">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>

@@ -1,10 +1,11 @@
 // client/src/components/layout/BrandOwnerLayout.jsx
 import { useState } from 'react';
+import { Outlet } from 'react-router-dom';
 import BrandOwnerSidebar from './BrandOwnerSidebar';
 import Navbar from './Navbar';
 import { useTheme } from '../../context/ThemeContext';
 
-const BrandOwnerLayout = ({ children }) => {
+const BrandOwnerLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme } = useTheme();
 
@@ -34,7 +35,7 @@ const BrandOwnerLayout = ({ children }) => {
             : 'bg-gradient-to-br from-gray-50 via-white to-gray-50'
         }`}>
           <div className="min-h-full">
-            {children}
+            <Outlet />
           </div>
         </main>
       </div>

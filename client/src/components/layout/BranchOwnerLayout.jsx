@@ -1,10 +1,11 @@
 // components/layout/BranchOwnerLayout.jsx
 import { useState } from 'react';
+import { Outlet } from 'react-router-dom';
 import BranchOwnerSidebar from './BranchOwnerSidebar';
 import Navbar from './Navbar';
 import { useTheme } from '../../context/ThemeContext';
 
-const BranchOwnerLayout = ({ children, branchOwnerId }) => {
+const BranchOwnerLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme } = useTheme();
 
@@ -19,7 +20,6 @@ const BranchOwnerLayout = ({ children, branchOwnerId }) => {
         <BranchOwnerSidebar
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
-          branchOwnerId={branchOwnerId}
         />
       </div>
       
@@ -35,7 +35,7 @@ const BranchOwnerLayout = ({ children, branchOwnerId }) => {
             : 'bg-gradient-to-br from-gray-50 via-white to-gray-50'
         }`}>
           <div className="min-h-full">
-            {children}
+            <Outlet />
           </div>
         </main>
       </div>

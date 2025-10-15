@@ -10,32 +10,23 @@ import ReportsPage from '../pages/dashboard/branch-owner/ReportsPage';
 import DailyStoreImagePage from '../pages/dashboard/branch-owner/DailyStoreImagePage';
 
 const BranchOwnerRoutes = () => {
-  const { branchOwnerId } = useParams(); // Get branchOwnerId from URL
-
   return (
-    <BranchOwnerLayout branchOwnerId={branchOwnerId}>
-      <Routes>
+    <Routes>
+      <Route element={<BranchOwnerLayout />}>
         {/* Default index route for /dashboard and /dashboard/ */}
         <Route index element={<BranchDashboard />} />
         {/* Explicit dashboard route for /dashboard/dashboard */}
         <Route path="dashboard" element={<BranchDashboard />} />
-        <Route path=":branchOwnerId/dashboard" element={<BranchDashboard />} />
         <Route path="sales" element={<SalesPage />} />
-        <Route path=":branchOwnerId/sales" element={<SalesPage />} />
         <Route path="expenses" element={<ExpensesPage />} />
-        <Route path=":branchOwnerId/expenses" element={<ExpensesPage />} />
         <Route path="stock-requests" element={<StockRequestsPage />} />
-        <Route path=":branchOwnerId/stock-requests" element={<StockRequestsPage />} />
         <Route path="transport" element={<TransportPage />} />
-        <Route path=":branchOwnerId/transport" element={<TransportPage />} />
         <Route path="reports" element={<ReportsPage />} />
-         <Route path=":branchOwnerId/reports" element={<ReportsPage />} />
-         <Route path="daily-store-images" element={<DailyStoreImagePage />} />
-         <Route path=":branchOwnerId/daily-store-images" element={<DailyStoreImagePage />} />
+        <Route path="daily-store-images" element={<DailyStoreImagePage />} />
         {/* Catch-all: redirect to dashboard if no match */}
         <Route path="*" element={<BranchDashboard />} />
-      </Routes>
-    </BranchOwnerLayout>
+      </Route>
+    </Routes>
   );
 };
 

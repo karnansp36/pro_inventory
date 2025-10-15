@@ -117,13 +117,20 @@ const getMe = asyncHandler(async (req, res) => {
 // @route   GET /api/users
 // @access  Private/Admin
 const getUsers = asyncHandler(async (req, res) => {
-  const users = await User.find({})
-    .select('-password')
-    .populate({ path: 'assignedManager', select: 'name email' })
-    .populate({ path: 'assignedBrandOwner', select: 'name email' })
-    .populate({ path: 'assignedManagers', select: 'name email assignedBranchOwners' })
-    .populate({ path: 'assignedBranchOwners', select: 'name email' });
-  res.json(users);
+  try {
+    const users = await User.find({})
+      .select('-password')
+      .populate({ path: 'assignedManager', select: 'name email' })
+      .populate({ path: 'assignedBrandOwner', select: 'name email' })
+      .populate({ path: 'assignedManagers', select: 'name email assignedBranchOwners' })
+      .populate({ path: 'assignedBranchOwners', select: 'name email' })
+      .exec(); // Add .exec() to explicitly return a promise
+
+    res.json(users);
+  } catch (error) {
+    console.error("Error populating users:", error);
+    res.status(500).json({ message: "Error fetching users with populated fields", error: error.message });
+  }
 });
 
 // @desc    Get user by ID (Admin only)

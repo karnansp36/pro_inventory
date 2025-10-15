@@ -15,11 +15,11 @@ import DailyStoreImageAdminPage from '../pages/dashboard/admin/DailyStoreImageAd
 
 const AdminRoutes = () => {
   return (
-    <AdminLayout>
-      <Routes>
+    <Routes>
+      <Route element={<AdminLayout />}>
         <Route index element={<AdminDashboard />} />
-  <Route path="users" element={<UserManagement />} />
-  <Route path="user-view/:id" element={<UserView />} />
+        <Route path="users" element={<UserManagement />} />
+        <Route path="user-view/:id" element={<UserView />} />
         <Route path="sales" element={<SalesManagement />} />
         <Route path="expenses" element={<ExpensesManagement />} />
         <Route path="stock-requests" element={<StockRequestsManagement />} />
@@ -28,8 +28,8 @@ const AdminRoutes = () => {
         <Route path="exports" element={<Exports />} />
         <Route path="activity-logs" element={<ActivityLogs />} />
         <Route path="daily-store-images" element={<DailyStoreImageAdminPage />} />
-      </Routes>
-    </AdminLayout>
+      </Route>
+    </Routes>
   );
 };
 
