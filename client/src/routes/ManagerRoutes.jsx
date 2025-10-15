@@ -7,8 +7,8 @@ import ManagerExpensesPage from '../pages/dashboard/manager/ManagerExpensesPage'
 import ManagerStockRequestsPage from '../pages/dashboard/manager/ManagerStockRequestsPage';
 import ManagerTransportPage from '../pages/dashboard/manager/ManagerTransportPage';
 import ManagerReportsPage from '../pages/dashboard/manager/ManagerReportsPage';
-import ManagerBranchOwnersPage from '../pages/dashboard/manager/ManagerBranchOwnersPage';
-import ManagerBranchOwnerViewPage from '../pages/dashboard/manager/ManagerBranchOwnerViewPage';
+import ManagerBranchOwners from '../pages/dashboard/manager/ManagerBranchOwners';
+import ManagerBranchDetails from '../pages/dashboard/manager/ManagerBranchDetails';
 import DailyStoreImageManagerPage from '../pages/dashboard/manager/DailyStoreImageManagerPage';
 
 const ManagerRoutes = () => {
@@ -21,8 +21,8 @@ const ManagerRoutes = () => {
         <Route path="stock-requests" element={<ManagerStockRequestsPage />} />
         <Route path="transport" element={<ManagerTransportPage />} />
         <Route path="reports" element={<ManagerReportsPage />} />
-        <Route path="branch-owners" element={<ManagerBranchOwnersPage />} />
-        <Route path="branch-owners/:id" element={<ManagerBranchOwnerViewPage />} />
+         <Route path="branch-owners" element={<ManagerBranchOwners />} />
+        <Route path="branch-owners/:branchId" element={<ManagerBranchDetails />} />
         <Route path="daily-store-images" element={<DailyStoreImageManagerPage />} />
         <Route path="*" element={<ManagerDashboard />} />
       </Route>

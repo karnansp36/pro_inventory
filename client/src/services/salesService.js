@@ -13,6 +13,10 @@ const salesService = {
     const response = await api.delete(`/api/sales/${id}`);
     return response.data;
   },
+  getSalesByBranch: async (branchOwnerId) => {
+    const response = await api.get(`/sales/branch/${branchOwnerId}`);
+    return response.data;
+  },
 };
 
 export default salesService;

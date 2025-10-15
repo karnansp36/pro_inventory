@@ -58,6 +58,18 @@ export const deleteStockRequest = createAsyncThunk(
   }
 );
 
+export const getStockRequestsByBranch = createAsyncThunk(
+  'stockRequests/getStockRequestsByBranch',
+  async (branchId, { rejectWithValue }) => {
+    try {
+      const response = await stockRequestService.getStockRequestsByBranch(branchId);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
 const stockRequestsSlice = createSlice({
   name: 'stockRequests',
   initialState: {
@@ -135,6 +147,18 @@ const stockRequestsSlice = createSlice({
       .addCase(deleteStockRequest.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to delete stock request';
+      })
+      .addCase(getStockRequestsByBranch.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getStockRequestsByBranch.fulfilled, (state, action) => {
+        state.loading = false;
+        state.stockRequests = action.payload;
+      })
+      .addCase(getStockRequestsByBranch.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch stock requests by branch';
       });
   },
 });

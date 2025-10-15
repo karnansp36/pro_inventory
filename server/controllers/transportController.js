@@ -204,7 +204,7 @@ const getTransportsByBranchOwnerId = asyncHandler(async (req, res) => {
     }
   } else if (user.role === 'Manager') {
     const branchOwner = await User.findById(branchOwnerId);
-    if (!branchOwner || !branchOwner.assignedBranchOwners.includes(branchOwnerId)) {
+    if (!branchOwner || branchOwner.assignedManager?.toString() !== user._id.toString()) {
       res.status(403);
       throw new Error('Not authorized to view this branch owner\'s transport details');
     }

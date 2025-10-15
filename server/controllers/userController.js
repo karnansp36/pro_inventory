@@ -118,7 +118,11 @@ const getMe = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const getUsers = asyncHandler(async (req, res) => {
   try {
-    const users = await User.find({})
+    let query = {};
+    if (req.user.role === 'Manager') {
+      query = { _id: { $in: req.user.assignedBranchOwners } };
+    }
+    const users = await User.find(query)
       .select('-password')
       .populate({ path: 'assignedManager', select: 'name email' })
       .populate({ path: 'assignedBrandOwner', select: 'name email' })

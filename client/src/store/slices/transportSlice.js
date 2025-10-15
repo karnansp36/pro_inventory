@@ -50,6 +50,18 @@ export const deleteTransport = createAsyncThunk(
   }
 );
 
+export const getTransportsByBranch = createAsyncThunk(
+  'transport/getTransportsByBranch',
+  async (branchId, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`/transport/branch/${branchId}`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
 const transportSlice = createSlice({
   name: 'transport',
   initialState: {
@@ -109,6 +121,18 @@ const transportSlice = createSlice({
       .addCase(deleteTransport.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to delete transport';
+      })
+      .addCase(getTransportsByBranch.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getTransportsByBranch.fulfilled, (state, action) => {
+        state.loading = false;
+        state.transport = action.payload;
+      })
+      .addCase(getTransportsByBranch.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch transports by branch';
       });
   },
 });

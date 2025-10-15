@@ -50,6 +50,18 @@ export const deleteExpense = createAsyncThunk(
   }
 );
 
+export const getExpensesByBranch = createAsyncThunk(
+  'expenses/getExpensesByBranch',
+  async (branchId, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`/expenses/branch/${branchId}`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
 const expensesSlice = createSlice({
   name: 'expenses',
   initialState: {
@@ -105,6 +117,18 @@ const expensesSlice = createSlice({
       .addCase(deleteExpense.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to delete expense';
+      })
+      .addCase(getExpensesByBranch.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getExpensesByBranch.fulfilled, (state, action) => {
+        state.loading = false;
+        state.expenses = action.payload;
+      })
+      .addCase(getExpensesByBranch.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch expenses by branch';
       });
   },
 });

@@ -49,6 +49,18 @@ export const updateSale = createAsyncThunk(
   }
 );
 
+export const getSalesByBranch = createAsyncThunk(
+  'sales/getSalesByBranch',
+  async (branchId, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`/sales/branch/${branchId}`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
 const salesSlice = createSlice({
   name: 'sales',
   initialState: {

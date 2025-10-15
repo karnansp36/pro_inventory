@@ -14,7 +14,7 @@ import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 import { profileImageUpload } from '../middleware/profileImageUploadMiddleware.js';
 
 router.route('/')
-  .get(protect, authorizeRoles('Admin'), getUsers)
+  .get(protect, authorizeRoles('Admin', 'Manager'), getUsers)
   .post(protect, authorizeRoles('Admin'), profileImageUpload.single('profileImage'), createUserByAdmin);
 
 router.route('/role/:role')
