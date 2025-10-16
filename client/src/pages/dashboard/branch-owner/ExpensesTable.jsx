@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { useTheme } from '../../../context/ThemeContext';
-import { getExpenses } from '../../../store/slices/expensesSlice';
+import { useDispatch } from 'react-redux';
+import { getExpenses, getExpensesByBranch, getExpensesByManager } from '../../../store/slices/expensesSlice';
 import { toast } from 'react-toastify';
 import api from '../../../services/api';
+import { useAuth } from '../../../context/AuthContext';
 
-const ExpensesTable = ({ branchOwnerId }) => {
+const ExpensesTable = ({ branchOwnerId, expensesData, loading, error, theme = 'light', isManagerView = false }) => {
   const dispatch = useDispatch();
-  const { theme } = useTheme();
+  const auth = useAuth();
   const isDark = theme === 'dark';
-  const { expenses, loading, error } = useSelector((state) => state.expenses);
+  const [expenses, setExpenses] = useState([]);
 
   // Pagination & Filtering States
   const [currentPage, setCurrentPage] = useState(1);
@@ -24,8 +24,16 @@ const ExpensesTable = ({ branchOwnerId }) => {
   const categories = ['Rent', 'Utilities', 'Supplies', 'Salaries', 'Maintenance', 'Marketing', 'Transportation', 'Other'];
 
   useEffect(() => {
-    dispatch(getExpenses({ branchOwnerId }));
-  }, [dispatch, branchOwnerId]);
+    const fetchExpenses = async () => {
+      try {
+        const response = await dispatch(isManagerView ? getExpensesByManager({filters: {}}) : getExpensesByBranch(branchOwnerId));
+        setExpenses(Array.isArray(response.payload) ? response.payload : []);
+      } catch (error) {
+        console.error('Error fetching expenses:', error);
+      }
+    };
+    fetchExpenses();
+  }, [dispatch, branchOwnerId, isManagerView, auth.user?.managerId]);
 
   // Filter and search
   const filteredExpenses = expenses ? expenses.filter(expense => {
@@ -73,7 +81,7 @@ const ExpensesTable = ({ branchOwnerId }) => {
     setDeleteLoading(true);
     try {
       await api.delete(`/expenses/${selectedExpense._id}`);
-      await dispatch(getExpenses({ branchOwnerId }));
+      await dispatch(getExpensesByBranch(branchOwnerId));
       toast.success('Expense deleted successfully!');
       setShowDeleteConfirm(false);
       setSelectedExpense(null);
@@ -120,6 +128,43 @@ const ExpensesTable = ({ branchOwnerId }) => {
     setSearchTerm('');
     setFilterCategory('');
     setCurrentPage(1);
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const renderPaginationButtons = () => {
+    const buttons = [];
+    const maxButtons = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+
+    if (endPage - startPage < maxButtons - 1) {
+      startPage = Math.max(1, endPage - maxButtons + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      buttons.push(
+        <button
+          key={i}
+          onClick={() => handlePageChange(i)}
+          className={`px-4 py-2 rounded-lg font-medium transition-all ${
+            currentPage === i
+              ? isDark
+                ? 'bg-rose-500 text-white'
+                : 'bg-rose-600 text-white'
+              : isDark
+              ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          {i}
+        </button>
+      );
+    }
+
+    return buttons;
   };
 
   return (
@@ -275,7 +320,7 @@ const ExpensesTable = ({ branchOwnerId }) => {
               </div>
               <p className="text-red-500 font-medium mb-2">{error}</p>
               <button
-                onClick={() => dispatch(getExpenses({ branchOwnerId }))}
+                onClick={() => dispatch(getExpensesByBranch(branchOwnerId))}
                 className="text-rose-600 hover:text-rose-700 font-medium text-sm"
               >
                 Try Again
@@ -445,115 +490,49 @@ const ExpensesTable = ({ branchOwnerId }) => {
         {/* Pagination */}
         {!loading && !error && currentExpenses.length > 0 && (
           <div className={`px-6 py-4 border-t ${
-            isDark ? 'border-slate-700 bg-slate-800/30' : 'border-gray-200 bg-gray-50'
+            isDark ? 'border-slate-700' : 'border-gray-200'
           }`}>
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              {/* Info */}
               <div className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>
-                Showing <span className="font-semibold">{startIndex + 1}</span> to{' '}
-                <span className="font-semibold">{Math.min(endIndex, sortedExpenses.length)}</span> of{' '}
-                <span className="font-semibold">{sortedExpenses.length}</span> expenses
+                Showing {startIndex + 1} to {Math.min(endIndex, sortedExpenses.length)} of {sortedExpenses.length} expenses
               </div>
-
-              {/* Pagination Controls */}
+              
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setCurrentPage(1)}
+                  onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className={`p-2 rounded-lg transition-all ${
+                  className={`px-3 py-2 rounded-lg font-medium transition-all ${
                     currentPage === 1
-                      ? isDark ? 'text-slate-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed'
-                      : isDark 
-                        ? 'text-slate-300 hover:bg-slate-700' 
-                        : 'text-gray-700 hover:bg-gray-200'
+                      ? isDark
+                        ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : isDark
+                      ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
-                  title="First page"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                  </svg>
-                </button>
-
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className={`p-2 rounded-lg transition-all ${
-                    currentPage === 1
-                      ? isDark ? 'text-slate-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed'
-                      : isDark 
-                        ? 'text-slate-300 hover:bg-slate-700' 
-                        : 'text-gray-700 hover:bg-gray-200'
-                  }`}
-                  title="Previous page"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
 
-                {/* Page Numbers */}
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
-
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`min-w-[40px] h-10 rounded-lg font-semibold transition-all ${
-                          currentPage === pageNum
-                            ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-lg shadow-rose-500/30'
-                            : isDark
-                              ? 'text-slate-300 hover:bg-slate-700'
-                              : 'text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                </div>
+                {renderPaginationButtons()}
 
                 <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className={`p-2 rounded-lg transition-all ${
+                  className={`px-3 py-2 rounded-lg font-medium transition-all ${
                     currentPage === totalPages
-                      ? isDark ? 'text-slate-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed'
-                      : isDark 
-                        ? 'text-slate-300 hover:bg-slate-700' 
-                        : 'text-gray-700 hover:bg-gray-200'
+                      ? isDark
+                        ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : isDark
+                      ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
-                  title="Next page"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-
-                <button
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                  className={`p-2 rounded-lg transition-all ${
-                    currentPage === totalPages
-                      ? isDark ? 'text-slate-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed'
-                      : isDark 
-                        ? 'text-slate-300 hover:bg-slate-700' 
-                        : 'text-gray-700 hover:bg-gray-200'
-                  }`}
-                  title="Last page"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                   </svg>
                 </button>
               </div>
@@ -562,44 +541,55 @@ const ExpensesTable = ({ branchOwnerId }) => {
         )}
       </div>
 
-
-      {/* Custom CSS for animations */}
-      <style>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        @keyframes scaleIn {
-          from {
-            transform: scale(0.95);
-            opacity: 0;
-          }
-          to {
-            transform: scale(1);
-            opacity: 1;
-          }
-        }
-
-        .animate-fadeIn {
-          animation: fadeIn 0.2s ease-out;
-        }
-
-        .animate-scaleIn {
-          animation: scaleIn 0.2s ease-out;
-        }
-
-        .line-clamp-2 {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-      `}</style>
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className={`rounded-2xl max-w-md w-full p-6 ${
+            isDark ? 'bg-slate-800 border border-slate-700' : 'bg-white'
+          }`}>
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 dark:bg-red-500/20 mb-4">
+                <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h3 className={`text-xl font-bold mb-2 ${
+                isDark ? 'text-slate-200' : 'text-gray-900'
+              }`}>
+                Delete Expense
+              </h3>
+              <p className={`mb-6 ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>
+                Are you sure you want to delete this expense? This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setSelectedExpense(null);
+                  }}
+                  disabled={deleteLoading}
+                  className={`flex-1 px-4 py-2.5 rounded-xl font-medium transition-all ${
+                    isDark
+                      ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  } ${deleteLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleteLoading}
+                  className={`flex-1 px-4 py-2.5 rounded-xl font-medium transition-all bg-red-500 text-white hover:bg-red-600 ${
+                    deleteLoading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {deleteLoading ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

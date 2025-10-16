@@ -3,9 +3,13 @@ import api from '../../services/api';
 
 export const getExpenses = createAsyncThunk(
   'expenses/getAll',
-  async (_, { rejectWithValue }) => {
+  async (managerId, { rejectWithValue }) => {
     try {
-      const response = await api.get('/expenses');
+      let url = '/expenses';
+      if (managerId) {
+        url = `/expenses/branch/${managerId}`;
+      }
+      const response = await api.get(url);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response.data);
@@ -62,6 +66,22 @@ export const getExpensesByBranch = createAsyncThunk(
   }
 );
 
+export const getExpensesByManager = createAsyncThunk(
+  'expenses/getExpensesByManager',
+  async ({ managerId, filters }, { rejectWithValue }) => {
+    try {
+      let url = `/expenses?managerId=${managerId}`;
+      if (filters && filters.branchId) {
+        url += `&branchId=${filters.branchId}`;
+      }
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
 const expensesSlice = createSlice({
   name: 'expenses',
   initialState: {
@@ -81,6 +101,18 @@ const expensesSlice = createSlice({
         state.expenses = action.payload;
       })
       .addCase(getExpenses.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch expenses';
+      })
+      .addCase(getExpensesByManager.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getExpensesByManager.fulfilled, (state, action) => {
+        state.loading = false;
+        state.expenses = action.payload;
+      })
+      .addCase(getExpensesByManager.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch expenses';
       })

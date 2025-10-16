@@ -18,7 +18,7 @@ const BranchOwnerRoutes = () => {
         {/* Explicit dashboard route for /dashboard/dashboard */}
         <Route path="dashboard" element={<BranchDashboard />} />
         <Route path="sales" element={<SalesPage />} />
-        <Route path="expenses" element={<ExpensesPage />} />
+        <Route path="expenses/:branchOwnerId" element={<ExpensesPage />} />
         <Route path="stock-requests" element={<StockRequestsPage />} />
         <Route path="transport" element={<TransportPage />} />
         <Route path="reports" element={<ReportsPage />} />

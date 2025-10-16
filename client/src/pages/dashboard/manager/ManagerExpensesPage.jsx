@@ -1,8 +1,11 @@
 // client/src/pages/dashboard/manager/ManagerExpensesPage.jsx
 import React from 'react';
 import ExpensesTable from '../branch-owner/ExpensesTable'; // Reusing the existing table for now
+import { useAuth } from '../../../context/AuthContext';
 
 const ManagerExpensesPage = () => {
+  const { user } = useAuth();
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -13,7 +16,10 @@ const ManagerExpensesPage = () => {
       </div>
 
       <div className="lg:col-span-2">
-        <ExpensesTable isManagerView={true} />
+        <ExpensesTable
+          isManagerView={true}
+          branchOwnerId={user?.managerId ? user.managerId : null}
+        />
       </div>
     </div>
   );
