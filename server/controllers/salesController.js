@@ -20,10 +20,28 @@ const getSales = asyncHandler(async (req, res) => {
     const branchOwners = await User.find({ assignedManager: user._id, role: 'BranchOwner' });
     const branchOwnerIds = branchOwners.map(owner => owner._id);
     sales = await Sales.find({ branchOwner: { $in: branchOwnerIds } }).populate('branchOwner', 'name email');
-  } else if (user.role === 'Manager') {
-    const branchOwners = await User.find({ assignedManager: user._id, role: 'BranchOwner' });
-    const branchOwnerIds = branchOwners.map(owner => owner._id);
-    sales = await Sales.find({ branchOwner: { $in: branchOwnerIds } }).populate('branchOwner', 'name email');
+  } else if (req.user.role === 'Manager') {
+    // Fetch sales data for branches assigned to the manager
+    const managerId = req.user.id;
+    const manager = await User.findById(managerId).populate('assignedBranchOwners');
+
+    console.log("Manager ID:", managerId);
+    console.log("Manager:", manager);
+
+    let branchOwnerIds = manager.assignedBranchOwners.map(bo => bo._id);
+    console.log("Branch Owner IDs:", branchOwnerIds);
+
+    let query = { branchOwner: { $in: branchOwnerIds } };
+    if (req.query.branchId) {
+      query.branchOwner = req.query.branchId;
+    }
+
+    console.log("Query:", query);
+
+    const sales = await Sales.find(query).populate('branchOwner', 'name email');
+
+    console.log("Sales Data:", sales);
+    return res.status(200).json(sales);
   } else if (user.role === 'BranchOwner') {
     sales = await Sales.find({ branchOwner: req.user.id }).populate('branchOwner', 'name email');
   } else {
@@ -143,7 +161,36 @@ export {
   deleteSales,
   updateSales,
   getSalesByBranchOwnerId,
+  getSalesByManagerId
 };
+
+// @desc    Get sales by manager ID
+// @route   GET /api/sales/manager/:managerId
+// @access  Private (Admin, BrandOwner, Manager)
+const getSalesByManagerId = asyncHandler(async (req, res) => {
+  const { managerId } = req.params;
+
+  // Find the manager
+  const manager = await User.findById(managerId);
+
+  if (!manager) {
+    res.status(404);
+    throw new Error('Manager not found');
+  }
+
+  const branchOwnerIds = manager.assignedBranchOwners;
+
+  if (!branchOwnerIds || branchOwnerIds.length === 0) {
+    return res.status(200).json([]); // no branches assigned
+  }
+
+  // Fetch the sales data for the branch owners
+  const sales = await Sales.find({
+    branchOwner: { $in: branchOwnerIds },
+  }).populate('branchOwner', 'name email');
+
+  res.status(200).json(sales);
+});
 
 // @desc    Get sales by branch owner ID
 // @route   GET /api/sales/branch/:branchOwnerId

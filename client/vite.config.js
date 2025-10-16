@@ -4,7 +4,9 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react({
+    include: "**/*.js",
+  }), tailwindcss()],
   server: {
     proxy: {
      '/api': {
@@ -12,5 +14,8 @@ export default defineConfig({
        changeOrigin: true,
      },
     },
+  },
+  esbuild: {
+    
   },
 })

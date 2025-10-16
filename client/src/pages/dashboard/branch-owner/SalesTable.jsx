@@ -21,42 +21,23 @@ import {
 
 import salesService from '../../../services/salesService'; // Import salesService
 
-const SalesTable = ({ branchOwnerId, isManagerView, filters, currentPage, itemsPerPage, onPageChange, onItemsPerPageChange }) => {
-  const [sales, setSales] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [totalItems, setTotalItems] = useState(0); // New state for total items
+const SalesTable = ({ salesData, branchOwnerId, isManagerView, filters, currentPage, itemsPerPage, onPageChange, onItemsPerPageChange }) => {
+  const [sales, setSales] = useState(salesData || []);
+  const [loading, setLoading] = useState(false);
+  const [totalItems, setTotalItems] = useState(salesData?.length || 0); // New state for total items
   const { theme } = useTheme();
 
   useEffect(() => {
-    fetchSales();
-  }, [branchOwnerId, isManagerView, filters, currentPage, itemsPerPage]); // Add filters, currentPage, itemsPerPage to dependencies
-
-  const fetchSales = async () => {
-    setLoading(true);
-    try {
-      const response = await salesService.getSales({
-        branchId: branchOwnerId || (isManagerView ? filters?.branchId : undefined),
-        page: currentPage,
-        limit: itemsPerPage,
-        ...filters, // Pass other filters
-      });
-      setSales(response.data.sales); // Assuming API returns { sales: [], totalItems: 0 }
-      setTotalItems(response.data.totalItems);
-    } catch (error) {
-      console.error('Error fetching sales:', error);
-      toast.error('Error loading sales data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Pagination calculations (now based on totalItems from backend)
+    setSales(salesData || []);
+    setTotalItems(salesData?.length || 0);
+  }, [salesData]);
+  
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + sales.length; // Use sales.length for current page
 
   const getTotalSales = () => {
-    return sales.reduce((sum, sale) => sum + (sale.amount || 0), 0);
+    return salesData ? salesData.reduce((sum, sale) => sum + (sale.amount || 0), 0) : 0;
   };
 
   const goToFirstPage = () => onPageChange(1);
@@ -111,27 +92,6 @@ const SalesTable = ({ branchOwnerId, isManagerView, filters, currentPage, itemsP
     return colors[theme][method] || colors[theme].Cash;
   };
 
-  if (loading) {
-    return (
-      <div className={`rounded-xl p-8 transition-all duration-300 ${
-        theme === 'dark'
-          ? 'bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm'
-          : 'bg-white border border-gray-200 shadow-lg'
-      }`}>
-        <div className="flex flex-col items-center justify-center py-12">
-          <Loader2 className={`w-12 h-12 animate-spin mb-4 ${
-            theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
-          }`} />
-          <p className={`text-sm ${
-            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-          }`}>
-            Loading sales data...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className={`rounded-xl overflow-hidden transition-all duration-300 ${
       theme === 'dark'
@@ -162,11 +122,11 @@ const SalesTable = ({ branchOwnerId, isManagerView, filters, currentPage, itemsP
               <p className={`text-xs ${
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
               }`}>
-                {sales.length} transaction{sales.length !== 1 ? 's' : ''}
+                {salesData?.length} transaction{salesData?.length !== 1 ? 's' : ''}
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <button className={`p-2 rounded-lg transition-colors ${
               theme === 'dark'
@@ -282,7 +242,7 @@ const SalesTable = ({ branchOwnerId, isManagerView, filters, currentPage, itemsP
                 <p className={`text-lg font-bold ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  ${sales.length > 0 ? (getTotalSales() / sales.length).toFixed(2) : '0.00'}
+                  ${salesData?.length > 0 ? (getTotalSales() / salesData?.length).toFixed(2) : '0.00'}
                 </p>
               </div>
             </div>
@@ -310,6 +270,11 @@ const SalesTable = ({ branchOwnerId, isManagerView, filters, currentPage, itemsP
               <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
               }`}>
+                Branch
+              </th>
+              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              }`}>
                 <div className="flex items-center gap-2">
                   <DollarSign className="w-4 h-4" />
                   Amount
@@ -333,7 +298,7 @@ const SalesTable = ({ branchOwnerId, isManagerView, filters, currentPage, itemsP
           <tbody className={`divide-y ${
             theme === 'dark' ? 'divide-slate-700/50' : 'divide-gray-200'
           }`}>
-            {sales.length === 0 ? (
+            {salesData?.length === 0 ? (
               <tr>
                 <td colSpan="4" className="px-6 py-12">
                   <div className="flex flex-col items-center justify-center">
@@ -354,7 +319,7 @@ const SalesTable = ({ branchOwnerId, isManagerView, filters, currentPage, itemsP
                 </td>
               </tr>
             ) : (
-              sales.map((sale, i) => (
+              salesData?.map((sale, i) => (
                 <tr
                   key={sale._id || i} // Use _id for unique key if available
                   className={`transition-colors ${
@@ -382,8 +347,13 @@ const SalesTable = ({ branchOwnerId, isManagerView, filters, currentPage, itemsP
                   <td className={`px-6 py-4 whitespace-nowrap ${
                     theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
                   }`}>
+                    {sale.branchOwner.name}
+                  </td>
+                  <td className={`px-6 py-4 whitespace-nowrap ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
+                  }`}>
                     <span className="text-sm font-semibold">
-                      ${sale.amount?.toFixed(2)}
+                      ${typeof sale.amount === 'number' ? sale.amount.toFixed(2) : '0.00'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -397,7 +367,7 @@ const SalesTable = ({ branchOwnerId, isManagerView, filters, currentPage, itemsP
                     <span className={`text-sm font-bold ${
                       theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
                     }`}>
-                      ${sale.amount?.toFixed(2)}
+                      ${typeof sale.amount === 'number' ? sale.amount.toFixed(2) : '0.00'}
                     </span>
                   </td>
                 </tr>
@@ -421,9 +391,9 @@ const SalesTable = ({ branchOwnerId, isManagerView, filters, currentPage, itemsP
             }`}>
               Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
               <span className="font-medium">{Math.min(endIndex, totalItems)}</span> of{' '}
-              <span className="font-medium">{totalItems}</span> entries
+              <span className="font-medium">{totalItems || 0}</span> entries
             </div>
-            
+
             <select
               value={itemsPerPage}
               onChange={(e) => onItemsPerPageChange(Number(e.target.value))}

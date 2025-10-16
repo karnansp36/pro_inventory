@@ -1,42 +1,49 @@
 // client/src/pages/dashboard/manager/ManagerSalesPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import SalesTable from '../branch-owner/SalesTable';
 import { useTheme } from '../../../context/ThemeContext';
 import { useSelector, useDispatch } from 'react-redux';
-import { getUsers } from '../../../store/slices/usersSlice'; // Assuming this fetches users including branch owners
+import { getUsers } from '../../../store/slices/usersSlice';
 import { Filter, Search } from 'lucide-react';
+import { getSalesByManager } from '../../../store/slices/salesSlice';
 
 const ManagerSalesPage = () => {
   const { theme } = useTheme();
   const dispatch = useDispatch();
-  const { users } = useSelector((state) => state.users); // Assuming users state contains branch owners
+  const { user } = useSelector((state) => state.auth);
+  const { users } = useSelector((state) => state.users);
+  const { sales, loading, error } = useSelector((state) => state.sales);
   const [selectedBranch, setSelectedBranch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  const handleItemsPerPageChange = (limit) => {
+    setItemsPerPage(limit);
+    setCurrentPage(1);
+  };
+
+  const filters = useMemo(() => ({
+    branchId: selectedBranch,
+  }), [selectedBranch]);
+
   useEffect(() => {
-    dispatch(getUsers()); // Fetch users to get branch owners for the filter
-  }, [dispatch]);
+    const managerId = user._id;
+    dispatch(getSalesByManager({ managerId, filters }));
+    dispatch(getUsers());
+  }, [dispatch, filters, user._id]);
+
 
   const branchOwners = users.filter(user => user.role === 'BranchOwner');
 
   const handleBranchChange = (e) => {
     setSelectedBranch(e.target.value);
-    setCurrentPage(1); // Reset to first page on filter change
+    setCurrentPage(1);
   };
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
 
-  const handleItemsPerPageChange = (limit) => {
-    setItemsPerPage(limit);
-    setCurrentPage(1); // Reset to first page on items per page change
-  };
-
-  const filters = {
-    branchId: selectedBranch,
-  };
 
   return (
     <div className="space-y-6">
@@ -85,15 +92,24 @@ const ManagerSalesPage = () => {
         </div> */}
       </div>
 
+
       <div className="lg:col-span-2">
-        <SalesTable
-          isManagerView={true}
-          filters={filters}
-          currentPage={currentPage}
-          itemsPerPage={itemsPerPage}
-          onPageChange={handlePageChange}
-          onItemsPerPageChange={handleItemsPerPageChange}
-        />
+        {/* Pass sales data directly to SalesTable */}
+        {loading ? (
+          <div>Loading...</div>
+        ) : error ? (
+          <div>Error: {error}</div>
+        ) : (
+          <SalesTable
+            salesData={sales}
+            isManagerView={true}
+            filters={filters}
+            currentPage={currentPage}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
+        )}
       </div>
     </div>
   );

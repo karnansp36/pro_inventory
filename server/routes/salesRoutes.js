@@ -14,4 +14,5 @@ router.route('/:id')
 router.route('/branch/:branchOwnerId')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getSalesByBranchOwnerId);
 
+
 export default router;

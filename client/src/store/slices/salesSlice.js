@@ -58,6 +58,22 @@ export const getSalesByBranch = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(error.response.data);
     }
+  })
+
+
+export const getSalesByManager = createAsyncThunk(
+  'sales/getSalesByManager',
+  async ({ managerId, filters }, { rejectWithValue }) => {
+    try {
+      let url = `/sales?managerId=${managerId}`;
+      if (filters && filters.branchId) {
+        url += `&branchId=${filters.branchId}`;
+      }
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
   }
 );
 
@@ -117,6 +133,18 @@ const salesSlice = createSlice({
       .addCase(updateSale.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to update sale';
+      })
+      .addCase(getSalesByManager.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getSalesByManager.fulfilled, (state, action) => {
+        state.loading = false;
+        state.sales = Array.isArray(action.payload) ? action.payload : [];
+      })
+      .addCase(getSalesByManager.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch sales';
       });
   },
 });
