@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import api from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 
-const ExpensesTable = ({ branchOwnerId, expensesData, loading, error, theme = 'light', isManagerView = false }) => {
+const ExpensesTable = ({ branchOwnerId, managerId, expensesData, loading, error, theme = 'light', isManagerView = false }) => {
   const dispatch = useDispatch();
   const auth = useAuth();
   const isDark = theme === 'dark';
@@ -26,14 +26,14 @@ const ExpensesTable = ({ branchOwnerId, expensesData, loading, error, theme = 'l
   useEffect(() => {
     const fetchExpenses = async () => {
       try {
-        const response = await dispatch(isManagerView ? getExpensesByManager({filters: {}}) : getExpensesByBranch(branchOwnerId));
+        const response = await dispatch(isManagerView ? getExpensesByManager({ managerId: managerId, filters: {} }) : getExpensesByBranch(branchOwnerId));
         setExpenses(Array.isArray(response.payload) ? response.payload : []);
       } catch (error) {
         console.error('Error fetching expenses:', error);
       }
     };
     fetchExpenses();
-  }, [dispatch, branchOwnerId, isManagerView, auth.user?.managerId]);
+  }, [dispatch, branchOwnerId, managerId, isManagerView, auth.user?.managerId]);
 
   // Filter and search
   const filteredExpenses = expenses ? expenses.filter(expense => {
@@ -415,14 +415,14 @@ const ExpensesTable = ({ branchOwnerId, expensesData, loading, error, theme = 'l
                           </svg>
                           <div>
                             <div className="text-sm font-medium">
-                              {new Date(expense.date).toLocaleDateString('en-US', {
+                              {expense.date ? new Date(expense.date).toLocaleDateString('en-US', {
                                 month: 'short',
                                 day: 'numeric',
                                 year: 'numeric'
-                              })}
-                            </div>
-                            <div className={`text-xs ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>
-                              {new Date(expense.date).toLocaleDateString('en-US', { weekday: 'short' })}
+                              }) : 'N/A'}
+                          </div>
+                          <div className={`text-xs ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>
+                              {expense.date ? new Date(expense.date).toLocaleDateString('en-US', { weekday: 'short' }) : 'N/A'}
                             </div>
                           </div>
                         </div>

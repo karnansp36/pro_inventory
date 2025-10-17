@@ -6,12 +6,16 @@ import User from '../models/User.js';
 // @route   GET /api/expenses
 // @access  Private (Admin, BrandOwner, Manager, BranchOwner)
 const getExpenses = asyncHandler(async (req, res) => {
+  console.log('getExpenses: User ID from request:', req.user.id);
   const user = await User.findById(req.user.id);
 
   if (!user) {
+    console.log('getExpenses: User not found for ID:', req.user.id);
     res.status(401);
     throw new Error('User not found');
   }
+
+  console.log('getExpenses: User role:', user.role);
 
   let expenses;
   if (user.role === 'Admin') {
@@ -38,7 +42,7 @@ const getExpenses = asyncHandler(async (req, res) => {
 // @route   POST /api/expenses
 // @access  Private (Admin, BrandOwner, BranchOwner)
 const createExpense = asyncHandler(async (req, res) => {
-  const { category, amount, description, branchOwner, paymentMethod } = req.body;
+  const { category, amount, description, branchOwner, paymentMethod, date } = req.body;
 
 
   const user = await User.findById(req.user.id);
@@ -74,6 +78,7 @@ const createExpense = asyncHandler(async (req, res) => {
     amount,
     description,
     paymentMethod,
+    date,
   });
 
   res.status(201).json(expense);
@@ -148,27 +153,32 @@ export {
   updateExpense,
   deleteExpense,
   getExpensesByManagerId,
+  getExpensesByBranchOwnerId,
 };
-
 
 // @desc    Get expenses by manager ID
 // @route   GET /api/expenses/manager/:managerId
 // @access  Private (Admin, BrandOwner, Manager)
 const getExpensesByManagerId = asyncHandler(async (req, res) => {
   const { managerId } = req.params;
+  console.log('getExpensesByManagerId: Received managerId:', managerId);
 
   // Find the manager
   const manager = await User.findById(managerId);
 
   if (!manager) {
+    console.log('getExpensesByManagerId: Manager not found for ID:', managerId);
     res.status(404);
     throw new Error('Manager not found');
   }
+  console.log('getExpensesByManagerId: Manager found:', manager.name, 'ID:', manager._id);
 
-  // Get assigned branch owners
+  // Get assigned branch owners from the manager's assignedBranchOwners array
   const branchOwnerIds = manager.assignedBranchOwners;
+  console.log('getExpensesByManagerId: Manager assignedBranchOwners:', branchOwnerIds);
 
   if (!branchOwnerIds || branchOwnerIds.length === 0) {
+    console.log('getExpensesByManagerId: No branch owners assigned to this manager. Returning empty array.');
     return res.status(200).json([]); // no branches assigned
   }
 
@@ -176,6 +186,34 @@ const getExpensesByManagerId = asyncHandler(async (req, res) => {
   const expenses = await Expense.find({
     branchOwner: { $in: branchOwnerIds },
   }).populate('branchOwner', 'name email');
+  console.log('getExpensesByManagerId: Querying expenses for branchOwner IDs:', branchOwnerIds);
+  console.log('getExpensesByManagerId: Fetched expenses count:', expenses.length);
+  console.log('getExpensesByManagerId: All fetched expenses:', expenses);
+  console.log('getExpensesByManagerId: Sample expenses (first 2):', expenses.slice(0, 2));
+
+  res.status(200).json(expenses);
+});
+
+// @desc    Get expenses by branch owner ID
+// @route   GET /api/expenses/branch-owner/:branchOwnerId
+// @access  Private (Admin, BrandOwner, Manager, BranchOwner)
+const getExpensesByBranchOwnerId = asyncHandler(async (req, res) => {
+  const { branchOwnerId } = req.params;
+  console.log('getExpensesByBranchOwnerId: Received branchOwnerId:', branchOwnerId);
+
+  const branchOwner = await User.findById(branchOwnerId);
+
+  if (!branchOwner || branchOwner.role !== 'BranchOwner') {
+    console.log('getExpensesByBranchOwnerId: Branch owner not found or invalid role for ID:', branchOwnerId);
+    res.status(404);
+    throw new Error('Branch owner not found or invalid role');
+  }
+  console.log('getExpensesByBranchOwnerId: Branch owner found:', branchOwner.name, 'ID:', branchOwner._id);
+
+  const expenses = await Expense.find({ branchOwner: branchOwnerId }).populate('branchOwner', 'name email');
+  console.log('getExpensesByBranchOwnerId: Querying expenses for branchOwner ID:', branchOwnerId);
+  console.log('getExpensesByBranchOwnerId: Fetched expenses count:', expenses.length);
+  console.log('getExpensesByBranchOwnerId: Sample expenses (first 2):', expenses.slice(0, 2));
 
   res.status(200).json(expenses);
 });

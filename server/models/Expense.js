@@ -25,6 +25,11 @@ const expenseSchema = mongoose.Schema(
       enum: ['cash', 'gpay', 'card'], // Enforce allowed payment methods
       default: 'cash',
     },
+    date: {
+      type: Date,
+      required: true,
+      default: Date.now,
+    },
   },
   {
     timestamps: true,

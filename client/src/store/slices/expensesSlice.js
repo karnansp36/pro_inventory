@@ -70,9 +70,9 @@ export const getExpensesByManager = createAsyncThunk(
   'expenses/getExpensesByManager',
   async ({ managerId, filters }, { rejectWithValue }) => {
     try {
-      let url = `/expenses?managerId=${managerId}`;
+      let url = `/expenses/manager/${managerId}`;
       if (filters && filters.branchId) {
-        url += `&branchId=${filters.branchId}`;
+        url += `?branchId=${filters.branchId}`;
       }
       const response = await api.get(url);
       return response.data;

@@ -18,7 +18,7 @@ const ManagerExpensesPage = () => {
       <div className="lg:col-span-2">
         <ExpensesTable
           isManagerView={true}
-          branchOwnerId={user?.managerId ? user.managerId : null}
+          managerId={user?._id}
         />
       </div>
     </div>

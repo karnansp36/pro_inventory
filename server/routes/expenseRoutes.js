@@ -1,6 +1,6 @@
 import express from 'express';
 const router = express.Router();
-import { getExpenses, createExpense, updateExpense, deleteExpense, getExpensesByManagerId } from '../controllers/expenseController.js';
+import { getExpenses, createExpense, updateExpense, deleteExpense, getExpensesByManagerId, getExpensesByBranchOwnerId } from '../controllers/expenseController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 
@@ -12,7 +12,10 @@ router.route('/:id')
   .put(express.json(), protect, authorizeRoles('Admin', 'BrandOwner'), updateExpense)
   .delete(protect, authorizeRoles('Admin', 'BrandOwner'), deleteExpense);
 
-router.route('/branch/:branchOwnerId')
+router.route('/manager/:managerId')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getExpensesByManagerId);
+
+router.route('/branch-owner/:branchOwnerId')
+  .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getExpensesByBranchOwnerId);
 
 export default router;

@@ -25,22 +25,15 @@ const getSales = asyncHandler(async (req, res) => {
     const managerId = req.user.id;
     const manager = await User.findById(managerId).populate('assignedBranchOwners');
 
-    console.log("Manager ID:", managerId);
-    console.log("Manager:", manager);
-
     let branchOwnerIds = manager.assignedBranchOwners.map(bo => bo._id);
-    console.log("Branch Owner IDs:", branchOwnerIds);
 
     let query = { branchOwner: { $in: branchOwnerIds } };
     if (req.query.branchId) {
       query.branchOwner = req.query.branchId;
     }
 
-    console.log("Query:", query);
-
     const sales = await Sales.find(query).populate('branchOwner', 'name email');
 
-    console.log("Sales Data:", sales);
     return res.status(200).json(sales);
   } else if (user.role === 'BranchOwner') {
     sales = await Sales.find({ branchOwner: req.user.id }).populate('branchOwner', 'name email');
