@@ -21,23 +21,23 @@ import {
 
 import salesService from '../../../services/salesService'; // Import salesService
 
-const SalesTable = ({ salesData, branchOwnerId, isManagerView, filters, currentPage, itemsPerPage, onPageChange, onItemsPerPageChange }) => {
-  const [sales, setSales] = useState(salesData || []);
+const SalesTable = ({ salesData: propSalesData, branchOwnerId, isManagerView, filters, currentPage, itemsPerPage, onPageChange, onItemsPerPageChange }) => {
+  const [sales, setSales] = useState(propSalesData || []);
   const [loading, setLoading] = useState(false);
-  const [totalItems, setTotalItems] = useState(salesData?.length || 0); // New state for total items
+  const [totalItems, setTotalItems] = useState(propSalesData?.length || 0); // New state for total items
   const { theme } = useTheme();
 
   useEffect(() => {
-    setSales(salesData || []);
-    setTotalItems(salesData?.length || 0);
-  }, [salesData]);
+    setSales(propSalesData || []);
+    setTotalItems(propSalesData?.length || 0);
+  }, [propSalesData]);
   
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + sales.length; // Use sales.length for current page
 
   const getTotalSales = () => {
-    return salesData ? salesData.reduce((sum, sale) => sum + (sale.amount || 0), 0) : 0;
+    return propSalesData ? propSalesData.reduce((sum, sale) => sum + (sale.amount || 0), 0) : 0;
   };
 
   const goToFirstPage = () => onPageChange(1);
@@ -122,7 +122,7 @@ const SalesTable = ({ salesData, branchOwnerId, isManagerView, filters, currentP
               <p className={`text-xs ${
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
               }`}>
-                {salesData?.length} transaction{salesData?.length !== 1 ? 's' : ''}
+                {propSalesData?.length} transaction{propSalesData?.length !== 1 ? 's' : ''}
               </p>
             </div>
           </div>
@@ -242,7 +242,7 @@ const SalesTable = ({ salesData, branchOwnerId, isManagerView, filters, currentP
                 <p className={`text-lg font-bold ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  ${salesData?.length > 0 ? (getTotalSales() / salesData?.length).toFixed(2) : '0.00'}
+                  ${propSalesData?.length > 0 ? (getTotalSales() / propSalesData?.length).toFixed(2) : '0.00'}
                 </p>
               </div>
             </div>
@@ -298,7 +298,7 @@ const SalesTable = ({ salesData, branchOwnerId, isManagerView, filters, currentP
           <tbody className={`divide-y ${
             theme === 'dark' ? 'divide-slate-700/50' : 'divide-gray-200'
           }`}>
-            {salesData?.length === 0 ? (
+            {propSalesData?.length === 0 ? (
               <tr>
                 <td colSpan="4" className="px-6 py-12">
                   <div className="flex flex-col items-center justify-center">
@@ -319,7 +319,7 @@ const SalesTable = ({ salesData, branchOwnerId, isManagerView, filters, currentP
                 </td>
               </tr>
             ) : (
-              salesData?.map((sale, i) => (
+              propSalesData?.map((sale, i) => (
                 <tr
                   key={sale._id || i} // Use _id for unique key if available
                   className={`transition-colors ${
