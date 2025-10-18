@@ -1,20 +1,22 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import stockRequestService from '../../services/stockRequestService';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import stockRequestService from "../../services/stockRequestService";
 
 // Thunk to approve a stock request
 export const approveStockRequest = createAsyncThunk(
-  'stockRequests/approve',
+  "stockRequests/approve",
   async (requestId, { rejectWithValue }) => {
     try {
       return await stockRequestService.approveStockRequest(requestId);
     } catch (error) {
-      return rejectWithValue(error.response?.data || { message: 'Failed to approve stock request' });
+      return rejectWithValue(
+        error.response?.data || { message: "Failed to approve stock request" }
+      );
     }
   }
 );
 
 export const getStockRequests = createAsyncThunk(
-  'stockRequests/getAll',
+  "stockRequests/getAll",
   async (_, { rejectWithValue }) => {
     try {
       return await stockRequestService.getStockRequests();
@@ -25,7 +27,7 @@ export const getStockRequests = createAsyncThunk(
 );
 
 export const createStockRequest = createAsyncThunk(
-  'stockRequests/create',
+  "stockRequests/create",
   async (requestData, { rejectWithValue }) => {
     try {
       return await stockRequestService.createStockRequest(requestData);
@@ -36,33 +38,39 @@ export const createStockRequest = createAsyncThunk(
 );
 
 export const updateStockRequest = createAsyncThunk(
-  'stockRequests/update',
+  "stockRequests/update",
   async ({ id, stockRequestData }, { rejectWithValue }) => {
     try {
       return await stockRequestService.updateStockRequest(id, stockRequestData);
     } catch (error) {
-      return rejectWithValue(error.response?.data || { message: 'Failed to update stock request' });
+      return rejectWithValue(
+        error.response?.data || { message: "Failed to update stock request" }
+      );
     }
   }
 );
 
 export const deleteStockRequest = createAsyncThunk(
-  'stockRequests/delete',
+  "stockRequests/delete",
   async (requestId, { rejectWithValue }) => {
     try {
       await stockRequestService.deleteStockRequest(requestId);
       return requestId;
     } catch (error) {
-      return rejectWithValue(error.response?.data || { message: 'Failed to delete stock request' });
+      return rejectWithValue(
+        error.response?.data || { message: "Failed to delete stock request" }
+      );
     }
   }
 );
 
 export const getStockRequestsByBranch = createAsyncThunk(
-  'stockRequests/getStockRequestsByBranch',
+  "stockRequests/getStockRequestsByBranch",
   async (branchId, { rejectWithValue }) => {
     try {
-      const response = await stockRequestService.getStockRequestsByBranch(branchId);
+      const response = await stockRequestService.getStockRequestsByBranch(
+        branchId
+      );
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response.data);
@@ -70,8 +78,25 @@ export const getStockRequestsByBranch = createAsyncThunk(
   }
 );
 
+export const getStockRequestsByManager = createAsyncThunk(
+  "stockRequests/getStockRequestsByManager",
+  async ({ managerId, filters }, { rejectWithValue }) => {
+    try {
+      let url = `/stockrequests/manager/${managerId}`;
+      if (filters && filters.branchId) {
+        url += `?branchId=${filters.branchId}`;
+      }
+      const response = await stockRequestService.getStockRequestsByManager(url);
+      console.log(response)
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
 const stockRequestsSlice = createSlice({
-  name: 'stockRequests',
+  name: "stockRequests",
   initialState: {
     stockRequests: [],
     loading: false,
@@ -90,7 +115,8 @@ const stockRequestsSlice = createSlice({
       })
       .addCase(getStockRequests.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload?.message || 'Failed to fetch stock requests';
+        state.error =
+          action.payload?.message || "Failed to fetch stock requests";
       })
       .addCase(createStockRequest.pending, (state) => {
         state.loading = true;
@@ -102,7 +128,8 @@ const stockRequestsSlice = createSlice({
       })
       .addCase(createStockRequest.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload?.message || 'Failed to create stock request';
+        state.error =
+          action.payload?.message || "Failed to create stock request";
       })
       .addCase(approveStockRequest.pending, (state) => {
         state.loading = true;
@@ -111,14 +138,15 @@ const stockRequestsSlice = createSlice({
       .addCase(approveStockRequest.fulfilled, (state, action) => {
         state.loading = false;
         const updated = action.payload;
-        const idx = state.stockRequests.findIndex(r => r._id === updated._id);
+        const idx = state.stockRequests.findIndex((r) => r._id === updated._id);
         if (idx !== -1) {
           state.stockRequests[idx] = updated;
         }
       })
       .addCase(approveStockRequest.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload?.message || 'Failed to approve stock request';
+        state.error =
+          action.payload?.message || "Failed to approve stock request";
       })
       .addCase(updateStockRequest.pending, (state) => {
         state.loading = true;
@@ -127,14 +155,15 @@ const stockRequestsSlice = createSlice({
       .addCase(updateStockRequest.fulfilled, (state, action) => {
         state.loading = false;
         const updated = action.payload;
-        const idx = state.stockRequests.findIndex(r => r._id === updated._id);
+        const idx = state.stockRequests.findIndex((r) => r._id === updated._id);
         if (idx !== -1) {
           state.stockRequests[idx] = updated;
         }
       })
       .addCase(updateStockRequest.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload?.message || 'Failed to update stock request';
+        state.error =
+          action.payload?.message || "Failed to update stock request";
       })
       .addCase(deleteStockRequest.pending, (state) => {
         state.loading = true;
@@ -142,11 +171,14 @@ const stockRequestsSlice = createSlice({
       })
       .addCase(deleteStockRequest.fulfilled, (state, action) => {
         state.loading = false;
-        state.stockRequests = state.stockRequests.filter(request => request._id !== action.payload);
+        state.stockRequests = state.stockRequests.filter(
+          (request) => request._id !== action.payload
+        );
       })
       .addCase(deleteStockRequest.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload?.message || 'Failed to delete stock request';
+        state.error =
+          action.payload?.message || "Failed to delete stock request";
       })
       .addCase(getStockRequestsByBranch.pending, (state) => {
         state.loading = true;
@@ -158,7 +190,27 @@ const stockRequestsSlice = createSlice({
       })
       .addCase(getStockRequestsByBranch.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload?.message || 'Failed to fetch stock requests by branch';
+        state.error =
+          action.payload?.message || "Failed to fetch stock requests by branch";
+      });
+    // In stockRequestsSlice.js - fix the extraReducers for getStockRequestsByManager
+    builder
+      .addCase(getStockRequestsByManager.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.stockRequests = []; // Clear previous data
+      })
+      .addCase(getStockRequestsByManager.fulfilled, (state, action) => {
+        state.loading = false;
+        // Ensure we're extracting the array correctly
+        state.stockRequests = action.payload?.data || action.payload || [];
+      })
+      .addCase(getStockRequestsByManager.rejected, (state, action) => {
+        state.loading = false;
+        state.error =
+          action.payload?.message ||
+          "Failed to fetch stock requests by manager";
+        state.stockRequests = []; // Clear on error
       });
   },
 });

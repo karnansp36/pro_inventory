@@ -1,7 +1,7 @@
 // client/src/pages/dashboard/brand-owner/BrandOwnerExpensesManagement.jsx
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getExpenses, deleteExpense, createExpense, updateExpense } from '../../../store/slices/expensesSlice';
+import { getExpenses, deleteExpense, createExpense, updateExpense, getExpensesByBranchOwners } from '../../../store/slices/expensesSlice';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import ExpenseForm from '../branch-owner/ExpensesForm'; // Reusing for now
 import ExpensesTable from '../branch-owner/ExpensesTable'; // Reusing for now
@@ -17,10 +17,16 @@ const BrandOwnerExpensesManagement = () => {
   const [refreshTable, setRefreshTable] = useState(0);
 
   useEffect(() => {
-    dispatch(getExpenses());
+    if (assignedBranchOwners.length > 0) {
+      dispatch(getExpensesByBranchOwners(assignedBranchOwners));
+    } else {
+      // If no assigned branch owners, clear expenses or fetch all if that's the desired fallback
+      // For now, we'll assume no expenses should be shown if no branch owners are assigned.
+      // You might want to dispatch getExpenses() here if you want to show all expenses for the brand owner.
+    }
     // Optionally fetch users if needed for filtering/displaying branch owner names
-    // dispatch(getUsers()); 
-  }, [dispatch]);
+    // dispatch(getUsers());
+  }, [dispatch, currentUser, users]); // Added currentUser and users to dependencies
 
   const assignedBranchOwners = users?.filter(user => 
     user.role === 'BranchOwner' && user.assignedBrandOwner === currentUser?._id
@@ -83,51 +89,14 @@ const BrandOwnerExpensesManagement = () => {
       </div>
 
       {/* Expenses Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch Owner</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredExpenses.length > 0 ? (
-                filteredExpenses.map((expense) => (
-                  <tr key={expense._id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(expense.date).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.branchOwner?.name || 'N/A'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{expense.category}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.amount.toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 truncate max-w-xs">{expense.description}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <button onClick={() => handleEdit(expense)} className="text-blue-600 hover:text-blue-900">
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => handleDelete(expense._id)} className="text-red-600 hover:text-red-900">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
-                    No expense records found for your assigned branches.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <ExpensesTable
+        expensesData={filteredExpenses}
+        loading={loading}
+        error={null} // Assuming error is handled by BrandOwnerExpensesManagement
+        isBrandOwnerView={true} // New prop to indicate BrandOwner view
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
 
       {/* Add/Edit Expense Modal */}
       {showModal && (

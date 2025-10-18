@@ -18,7 +18,7 @@ const ManagerRoutes = () => {
         <Route index element={<ManagerDashboard />} />
         <Route path="sales" element={<ManagerSalesPage />} />
         <Route path="expenses" element={<ManagerExpensesPage />} />
-        <Route path="stock-requests" element={<ManagerStockRequestsPage />} />
+        <Route path="stock-requests/:managerId" element={<ManagerStockRequestsPage />} />
         <Route path="transport" element={<ManagerTransportPage />} />
         <Route path="reports" element={<ManagerReportsPage />} />
          <Route path="branch-owners" element={<ManagerBranchOwners />} />

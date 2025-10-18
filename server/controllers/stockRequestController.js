@@ -143,13 +143,44 @@ export {
   createStockRequest,
   approveStockRequest,
   deleteStockRequest,
-  getStockRequestsByBranchOwnerId,
-};
+  getStockRequestsByBranchId,
+  getStockRequestsByManagerId,
+}
+// @desc    Get stock requests by manager ID
+// @route   GET /api/stockrequests/manager/:managerId
+// @access  Private (Admin, BrandOwner, Manager)
+const getStockRequestsByManagerId = asyncHandler(async (req, res) => {
+  const { managerId } = req.params;
+  console.log(`getStockRequestsByManagerId: managerId = ${managerId}`);
+
+  // Find the manager
+  const manager = await User.findById(managerId);
+
+  if (!manager) {
+    res.status(404);
+    throw new Error('Manager not found');
+  }
+
+  // Get assigned branch owners from the manager's assignedBranchOwners array
+  const branchOwnerIds = manager.assignedBranchOwners;
+
+  if (!branchOwnerIds || branchOwnerIds.length === 0) {
+    return res.status(200).json([]); // no branches assigned
+  }
+
+  // Fetch the stock requests for those branch owners
+  const stockRequests = await StockRequest.find({
+    branchOwner: { $in: branchOwnerIds },
+  }).populate('branchOwner', 'name email');
+  console.log(`getStockRequestsByManagerId: stockRequests = ${JSON.stringify(stockRequests)}`);
+
+  res.status(200).json(stockRequests);
+});
 
 // @desc    Get stock requests by branch owner ID
-// @route   GET /api/stock-requests/branch/:branchOwnerId
+// @route   GET /api/stockrequests/branch/:branchOwnerId
 // @access  Private (Admin, BrandOwner, Manager)
-const getStockRequestsByBranchOwnerId = asyncHandler(async (req, res) => {
+const getStockRequestsByBranchId = asyncHandler(async (req, res) => {
   const { branchOwnerId } = req.params;
 
   const user = await User.findById(req.user.id);
@@ -182,5 +213,5 @@ const getStockRequestsByBranchOwnerId = asyncHandler(async (req, res) => {
 
   const stockRequests = await StockRequest.find({ branchOwner: branchOwnerId }).populate('branchOwner', 'name email');
 
-  res.status(200).json(stockRequests);
+    res.status(200).json(stockRequests);
 });

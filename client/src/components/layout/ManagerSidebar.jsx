@@ -17,6 +17,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 
 const ManagerSidebar = ({ isOpen, onClose }) => {
+  const auth = useAuth();
   const { theme } = useTheme();
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -32,7 +33,7 @@ const ManagerSidebar = ({ isOpen, onClose }) => {
     { path: '/dashboard/manager/branch-owners', icon: Eye, label: 'Branch Owners', category: 'main' },
     { path: '/dashboard/manager/sales', icon: TrendingUp, label: 'Sales', category: 'operations' },
     { path: '/dashboard/manager/expenses', icon: FileText, label: 'Expenses', category: 'operations' },
-    { path: '/dashboard/manager/stock-requests', icon: Package, label: 'Stock Requests', category: 'operations' },
+    { path: `/dashboard/manager/stock-requests/${auth.user._id}`, icon: Package, label: 'Stock Requests', category: 'operations' },
     { path: '/dashboard/manager/transport', icon: Truck, label: 'Transport', category: 'operations' },
     { path: '/dashboard/manager/daily-store-images', icon: Camera, label: 'Store Images', category: 'monitoring' },
     { path: '/dashboard/manager/reports', icon: Activity, label: 'Reports', category: 'monitoring' },

@@ -5,7 +5,6 @@ import { useTheme } from '../../../context/ThemeContext';
 import { getSalesByBranch } from '../../../store/slices/salesSlice';
 import { getExpensesByBranch } from '../../../store/slices/expensesSlice';
 import { getTransportsByBranch } from '../../../store/slices/transportSlice';
-import { getStockRequestsByBranch } from '../../../store/slices/stockRequestsSlice';
 
 const ManagerBranchDetails = () => {
   const { branchId: branchOwnerId } = useParams();
@@ -23,16 +22,14 @@ const ManagerBranchDetails = () => {
     sales: state.sales.sales,
     expenses: state.expenses.expenses,
     transports: state.transport.transport,
-    stockRequests: state.stockRequests.stockRequests,
-    loading: state.sales.loading || state.expenses.loading || state.transport.loading || state.stockRequests.loading,
-    error: state.sales.error || state.expenses.error || state.transport.error || state.stockRequests.error,
+    loading: state.sales.loading || state.expenses.loading || state.transport.loading,
+    error: state.sales.error || state.expenses.error || state.transport.error,
   }));
 
   useEffect(() => {
     dispatch(getSalesByBranch(branchOwnerId));
     dispatch(getExpensesByBranch(branchOwnerId));
     dispatch(getTransportsByBranch(branchOwnerId));
-    dispatch(getStockRequestsByBranch(branchOwnerId));
   }, [dispatch, branchOwnerId]);
 
   if (loading) {
@@ -107,19 +104,6 @@ const ManagerBranchDetails = () => {
         )}
       </div>
 
-      {/* Stock Requests Data */}
-      <div>
-        <h2>Stock Requests</h2>
-        {stockRequests.length > 0 ? (
-          <ul>
-            {stockRequests.map((request) => (
-              <li key={request._id}>{request.quantity}</li>
-            ))}
-          </ul>
-        ) : (
-          <p>No stock requests data available.</p>
-        )}
-      </div>
     </div>
   );
 };

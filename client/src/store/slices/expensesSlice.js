@@ -82,6 +82,18 @@ export const getExpensesByManager = createAsyncThunk(
   }
 );
 
+export const getExpensesByBranchOwners = createAsyncThunk(
+  'expenses/getExpensesByBranchOwners',
+  async (branchOwnerIds, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/expenses/branch-owners', { branchOwnerIds });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
 const expensesSlice = createSlice({
   name: 'expenses',
   initialState: {
@@ -161,6 +173,18 @@ const expensesSlice = createSlice({
       .addCase(getExpensesByBranch.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch expenses by branch';
+      })
+      .addCase(getExpensesByBranchOwners.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getExpensesByBranchOwners.fulfilled, (state, action) => {
+        state.loading = false;
+        state.expenses = action.payload;
+      })
+      .addCase(getExpensesByBranchOwners.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch expenses by branch owners';
       });
   },
 });

@@ -14,7 +14,6 @@ import {
 } from 'lucide-react';
 import { getSales } from '../../../store/slices/salesSlice';
 import { getExpenses } from '../../../store/slices/expensesSlice';
-import { getStockRequests } from '../../../store/slices/stockRequestsSlice';
 import { getUsers } from '../../../store/slices/usersSlice';
 import { useTheme } from '../../../context/ThemeContext';
 import { Link } from 'react-router-dom';
@@ -31,7 +30,6 @@ const ManagerDashboard = () => {
   useEffect(() => {
     dispatch(getSales());
     dispatch(getExpenses());
-    dispatch(getStockRequests());
     dispatch(getUsers());
   }, [dispatch]);
 
@@ -102,7 +100,7 @@ const ManagerDashboard = () => {
       icon: Package,
       color: 'orange',
       change: `+${pendingRequests}`,
-      link: '/dashboard/manager/stock-requests'
+      link: `/dashboard/manager/stock-requests/${user._id}`
     },
     {
       title: 'Urgent Requests',
@@ -110,7 +108,7 @@ const ManagerDashboard = () => {
       icon: AlertTriangle,
       color: 'red',
       change: `+${urgentRequests}`,
-      link: '/dashboard/manager/stock-requests'
+      link: `/dashboard/manager/stock-requests/${user._id}`
     }
   ];
 
