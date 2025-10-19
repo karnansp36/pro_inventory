@@ -1,11 +1,12 @@
 // pages/dashboard/BranchOwnerDashboard.jsx
 import { useState, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import { Plus, TrendingUp, CreditCard, Package, Truck } from 'lucide-react'
+import { Plus, TrendingUp, CreditCard, Package, Truck, Image } from 'lucide-react'
 import { getSales, createSale } from '../../store/slices/salesSlice'
 import { getExpenses, createExpense } from '../../store/slices/expensesSlice'
 import { getStockRequests, createStockRequest } from '../../store/slices/stockRequestsSlice'
 import { getTransport, updateTransport } from '../../store/slices/transportSlice'
+import { getDailyStoreImagesForBranchOwner } from '../../store/slices/dailyStoreImageSlice'
 import QuickAddForm from '../../components/forms/QuickAddForm'
 
 const BranchOwnerDashboard = () => {
@@ -23,7 +24,8 @@ const BranchOwnerDashboard = () => {
     dispatch(getExpenses())
     dispatch(getStockRequests())
     dispatch(getTransport())
-  }, [dispatch])
+    dispatch(getDailyStoreImagesForBranchOwner(user?._id))
+  }, [dispatch, user?._id])
 
   // Filter data for current branch owner only
   const mySales = sales?.filter(sale => sale.branchOwner === user?._id) || []
@@ -65,6 +67,13 @@ const BranchOwnerDashboard = () => {
       icon: Truck,
       color: 'purple',
       action: () => setShowQuickForm('transport')
+    },
+    {
+      title: 'Daily Store Images',
+      value: 'View Images',
+      icon: Image,
+      color: 'pink',
+      action: () => {} // No quick add for images
     }
   ]
 

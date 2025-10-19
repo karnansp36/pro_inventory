@@ -51,14 +51,15 @@ export const updateSale = createAsyncThunk(
 
 export const getSalesByBranch = createAsyncThunk(
   'sales/getSalesByBranch',
-  async (branchId, { rejectWithValue }) => {
+  async (branchOwnerId, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/sales/branch/${branchId}`);
+      const response = await api.get(`/sales/branch/${branchOwnerId}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response.data);
     }
-  })
+  }
+);
 
 
 export const getSalesByManager = createAsyncThunk(
@@ -81,6 +82,7 @@ const salesSlice = createSlice({
   name: 'sales',
   initialState: {
     sales: [],
+    totalItems: 0, // Add totalItems to initial state
     loading: false,
     error: null,
   },
@@ -94,6 +96,7 @@ const salesSlice = createSlice({
       .addCase(getSales.fulfilled, (state, action) => {
         state.loading = false;
         state.sales = Array.isArray(action.payload) ? action.payload : [];
+        state.totalItems = action.payload.totalItems || action.payload.length; // Update totalItems
       })
       .addCase(getSales.rejected, (state, action) => {
         state.loading = false;
@@ -106,6 +109,7 @@ const salesSlice = createSlice({
       .addCase(createSale.fulfilled, (state, action) => {
         state.loading = false;
         state.sales.push(action.payload);
+        state.totalItems++; // Increment totalItems on new sale
       })
       .addCase(createSale.rejected, (state, action) => {
         state.loading = false;
@@ -114,6 +118,7 @@ const salesSlice = createSlice({
       .addCase(deleteSale.fulfilled, (state, action) => {
         state.loading = false;
         state.sales = state.sales.filter((sale) => sale._id !== action.payload);
+        state.totalItems--; // Decrement totalItems on sale deletion
       })
       .addCase(deleteSale.rejected, (state, action) => {
         state.loading = false;
@@ -134,6 +139,19 @@ const salesSlice = createSlice({
         state.loading = false;
         state.error = action.payload?.message || 'Failed to update sale';
       })
+      .addCase(getSalesByBranch.pending, (state) => { // Add pending case for getSalesByBranch
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getSalesByBranch.fulfilled, (state, action) => { // Add fulfilled case for getSalesByBranch
+        state.loading = false;
+        state.sales = Array.isArray(action.payload.sales) ? action.payload.sales : [];
+        state.totalItems = action.payload.totalItems || 0;
+      })
+      .addCase(getSalesByBranch.rejected, (state, action) => { // Add rejected case for getSalesByBranch
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch sales by branch';
+      })
       .addCase(getSalesByManager.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -141,6 +159,7 @@ const salesSlice = createSlice({
       .addCase(getSalesByManager.fulfilled, (state, action) => {
         state.loading = false;
         state.sales = Array.isArray(action.payload) ? action.payload : [];
+        state.totalItems = action.payload.totalItems || action.payload.length; // Update totalItems
       })
       .addCase(getSalesByManager.rejected, (state, action) => {
         state.loading = false;

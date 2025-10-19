@@ -66,10 +66,10 @@ export const deleteStockRequest = createAsyncThunk(
 
 export const getStockRequestsByBranch = createAsyncThunk(
   "stockRequests/getStockRequestsByBranch",
-  async (branchId, { rejectWithValue }) => {
+  async ({ branchId, page = 1, limit = 10 }, { rejectWithValue }) => {
     try {
       const response = await stockRequestService.getStockRequestsByBranch(
-        branchId
+        branchId, page, limit
       );
       return response.data;
     } catch (error) {
@@ -99,6 +99,7 @@ const stockRequestsSlice = createSlice({
   name: "stockRequests",
   initialState: {
     stockRequests: [],
+    totalItems: 0, // Add totalItems to initial state
     loading: false,
     error: null,
   },
@@ -112,6 +113,7 @@ const stockRequestsSlice = createSlice({
       .addCase(getStockRequests.fulfilled, (state, action) => {
         state.loading = false;
         state.stockRequests = action.payload;
+        state.totalItems = action.payload.totalItems || action.payload.length; // Update totalItems
       })
       .addCase(getStockRequests.rejected, (state, action) => {
         state.loading = false;
@@ -125,6 +127,7 @@ const stockRequestsSlice = createSlice({
       .addCase(createStockRequest.fulfilled, (state, action) => {
         state.loading = false;
         state.stockRequests.push(action.payload);
+        state.totalItems++; // Increment totalItems on new request
       })
       .addCase(createStockRequest.rejected, (state, action) => {
         state.loading = false;
@@ -174,6 +177,7 @@ const stockRequestsSlice = createSlice({
         state.stockRequests = state.stockRequests.filter(
           (request) => request._id !== action.payload
         );
+        state.totalItems--; // Decrement totalItems on request deletion
       })
       .addCase(deleteStockRequest.rejected, (state, action) => {
         state.loading = false;
@@ -186,7 +190,8 @@ const stockRequestsSlice = createSlice({
       })
       .addCase(getStockRequestsByBranch.fulfilled, (state, action) => {
         state.loading = false;
-        state.stockRequests = action.payload;
+        state.stockRequests = Array.isArray(action.payload.stockRequests) ? action.payload.stockRequests : [];
+        state.totalItems = action.payload.totalItems || 0;
       })
       .addCase(getStockRequestsByBranch.rejected, (state, action) => {
         state.loading = false;
@@ -204,6 +209,7 @@ const stockRequestsSlice = createSlice({
         state.loading = false;
         // Ensure we're extracting the array correctly
         state.stockRequests = action.payload?.data || action.payload || [];
+        state.totalItems = action.payload.totalItems || action.payload.length; // Update totalItems
       })
       .addCase(getStockRequestsByManager.rejected, (state, action) => {
         state.loading = false;

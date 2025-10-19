@@ -15,11 +15,14 @@ import {
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { useSelector } from 'react-redux';
 
-const BranchOwnerSidebar = ({ isOpen, onClose, branchOwnerId }) => {
+const BranchOwnerSidebar = ({ isOpen, onClose }) => {
   const { theme } = useTheme();
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
+  const branchOwnerId = user?._id;
 
   const handleLogout = () => {
     logout();
@@ -28,13 +31,13 @@ const BranchOwnerSidebar = ({ isOpen, onClose, branchOwnerId }) => {
   };
   
   const menuItems = [
-    { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/dashboard` : '/dashboard/branch-owner', icon: Activity, label: 'Dashboard', category: 'main' },
-    { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/sales` : '/dashboard/branch-owner/sales', icon: TrendingUp, label: 'Sales', category: 'operations' },
-    { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/expenses` : '/dashboard/branch-owner/expenses', icon: FileText, label: 'Expenses', category: 'operations' },
-    { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/stock-requests` : '/dashboard/branch-owner/stock-requests', icon: Package, label: 'Stock Requests', category: 'operations' },
-    { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/transport` : '/dashboard/branch-owner/transport', icon: Truck, label: 'Transport', category: 'operations' },
-    { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/daily-store-images` : '/dashboard/branch-owner/daily-store-images', icon: Camera, label: 'Store Images', category: 'monitoring' },
-    { path: branchOwnerId ? `/dashboard/branch-owner/${branchOwnerId}/reports` : '/dashboard/branch-owner/reports', icon: FileText, label: 'Reports', category: 'monitoring' },
+    { path: '/dashboard/branch-owner/dashboard', icon: Activity, label: 'Dashboard', category: 'main' },
+    { path: '/dashboard/branch-owner/sales', icon: TrendingUp, label: 'Sales', category: 'operations', state: { branchOwnerId } },
+    { path: '/dashboard/branch-owner/expenses', icon: FileText, label: 'Expenses', category: 'operations', state: { branchOwnerId } },
+    { path: '/dashboard/branch-owner/stock-requests', icon: Package, label: 'Stock Requests', category: 'operations', state: { branchOwnerId } },
+    { path: '/dashboard/branch-owner/transport', icon: Truck, label: 'Transport', category: 'operations', state: { branchOwnerId } },
+    { path: '/dashboard/branch-owner/daily-store-images', icon: Camera, label: 'Store Images', category: 'monitoring', state: { branchOwnerId } },
+    { path: '/dashboard/branch-owner/reports', icon: FileText, label: 'Reports', category: 'monitoring', state: { branchOwnerId } },
   ];
 
   const categories = {
@@ -121,6 +124,7 @@ const BranchOwnerSidebar = ({ isOpen, onClose, branchOwnerId }) => {
                 <NavLink
                   key={item.path}
                   to={item.path}
+                  state={item.state} // Pass state here
                   className={({ isActive }) => `
                     group flex items-center justify-between px-3 py-2.5 rounded-xl
                     transition-all duration-200 relative overflow-hidden

@@ -1,22 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { useParams } from 'react-router-dom';
 import api from '../../../services/api';
 
 const ShopProfile = () => {
-  const { user } = useSelector((state) => state.auth);
+  const { branchOwnerId } = useParams(); // Get branchOwnerId from URL
   const [shop, setShop] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchShopProfile = async () => {
-      if (!user?._id) {
-        setError('User ID not available');
+      if (!branchOwnerId) {
+        setError('Branch Owner ID not available in URL');
         setLoading(false);
         return;
       }
       try {
-        const res = await api.get(`/users/${user._id}`);
+        const res = await api.get(`/users/${branchOwnerId}`);
         setShop(res.data);
       } catch (e) {
         setError('Failed to load shop profile');
@@ -25,7 +26,7 @@ const ShopProfile = () => {
     };
 
     fetchShopProfile();
-  }, [user?._id]);
+  }, [branchOwnerId]); // Depend on branchOwnerId from URL
 
   if (loading) return <div className="p-4">Loading shop profile...</div>;
   if (error) return <div className="p-4 text-red-600">{error}</div>;

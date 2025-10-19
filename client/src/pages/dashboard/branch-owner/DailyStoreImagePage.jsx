@@ -26,7 +26,7 @@ const DailyStoreImagePage = () => {
 
   useEffect(() => {
     if (user && user.role === 'BranchOwner') {
-      dispatch(getDailyStoreImagesForBranchOwner());
+      dispatch(getDailyStoreImagesForBranchOwner(user._id));
     }
     return () => {
       dispatch(reset());
@@ -98,7 +98,7 @@ const DailyStoreImagePage = () => {
         toast.success('Image uploaded successfully');
         setImage(null);
         setImagePreview(null);
-        dispatch(getDailyStoreImagesForBranchOwner());
+        dispatch(getDailyStoreImagesForBranchOwner(user._id));
       })
       .catch((error) => {
         toast.error(error.message);

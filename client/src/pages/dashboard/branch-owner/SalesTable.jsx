@@ -1,12 +1,13 @@
 // components/branch-owner/SalesTable.jsx
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import api from '../../../services/api';
+import { useDispatch, useSelector } from 'react-redux';
+import { getSalesByBranch } from '../../../store/slices/salesSlice';
 import { useTheme } from '../../../context/ThemeContext';
-import { 
-  Calendar, 
-  DollarSign, 
-  CreditCard, 
+import {
+  Calendar,
+  DollarSign,
+  CreditCard,
   Receipt,
   TrendingUp,
   Search,
@@ -19,31 +20,39 @@ import {
   ChevronsRight
 } from 'lucide-react';
 
-import salesService from '../../../services/salesService'; // Import salesService
-
-const SalesTable = ({ salesData: propSalesData, branchOwnerId, isManagerView, filters, currentPage, itemsPerPage, onPageChange, onItemsPerPageChange }) => {
-  const [sales, setSales] = useState(propSalesData || []);
-  const [loading, setLoading] = useState(false);
-  const [totalItems, setTotalItems] = useState(propSalesData?.length || 0); // New state for total items
+const SalesTable = ({ branchOwnerId }) => {
+  const dispatch = useDispatch();
+  const { sales, loading, error } = useSelector((state) => state.sales);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const { theme } = useTheme();
 
   useEffect(() => {
-    setSales(propSalesData || []);
-    setTotalItems(propSalesData?.length || 0);
-  }, [propSalesData]);
-  
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+    if (branchOwnerId) {
+      dispatch(getSalesByBranch(branchOwnerId));
+    }
+  }, [dispatch, branchOwnerId]);
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+    }
+  }, [error]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(sales.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + sales.length; // Use sales.length for current page
+  const endIndex = startIndex + itemsPerPage;
+  const currentSales = sales.slice(startIndex, endIndex);
 
   const getTotalSales = () => {
-    return propSalesData ? propSalesData.reduce((sum, sale) => sum + (sale.amount || 0), 0) : 0;
+    return sales.reduce((sum, sale) => sum + (sale.amount || 0), 0);
   };
 
-  const goToFirstPage = () => onPageChange(1);
-  const goToLastPage = () => onPageChange(totalPages);
-  const goToPreviousPage = () => onPageChange(Math.max(1, currentPage - 1));
-  const goToNextPage = () => onPageChange(Math.min(totalPages, currentPage + 1));
+  const goToFirstPage = () => setCurrentPage(1);
+  const goToLastPage = () => setCurrentPage(totalPages);
+  const goToPreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
+  const goToNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
 
   const getPageNumbers = () => {
     const pages = [];
@@ -92,6 +101,27 @@ const SalesTable = ({ salesData: propSalesData, branchOwnerId, isManagerView, fi
     return colors[theme][method] || colors[theme].Cash;
   };
 
+  if (loading) {
+    return (
+      <div className={`rounded-xl p-8 transition-all duration-300 ${
+        theme === 'dark'
+          ? 'bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm'
+          : 'bg-white border border-gray-200 shadow-lg'
+      }`}>
+        <div className="flex flex-col items-center justify-center py-12">
+          <Loader2 className={`w-12 h-12 animate-spin mb-4 ${
+            theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
+          }`} />
+          <p className={`text-sm ${
+            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+          }`}>
+            Loading sales data...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`rounded-xl overflow-hidden transition-all duration-300 ${
       theme === 'dark'
@@ -122,11 +152,11 @@ const SalesTable = ({ salesData: propSalesData, branchOwnerId, isManagerView, fi
               <p className={`text-xs ${
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
               }`}>
-                {propSalesData?.length} transaction{propSalesData?.length !== 1 ? 's' : ''}
+                {sales.length} transaction{sales.length !== 1 ? 's' : ''}
               </p>
             </div>
           </div>
-
+          
           <div className="flex items-center gap-2">
             <button className={`p-2 rounded-lg transition-colors ${
               theme === 'dark'
@@ -242,7 +272,7 @@ const SalesTable = ({ salesData: propSalesData, branchOwnerId, isManagerView, fi
                 <p className={`text-lg font-bold ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  ${propSalesData?.length > 0 ? (getTotalSales() / propSalesData?.length).toFixed(2) : '0.00'}
+                  ${sales.length > 0 ? (getTotalSales() / sales.length).toFixed(2) : '0.00'}
                 </p>
               </div>
             </div>
@@ -270,11 +300,6 @@ const SalesTable = ({ salesData: propSalesData, branchOwnerId, isManagerView, fi
               <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
               }`}>
-                Branch
-              </th>
-              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-              }`}>
                 <div className="flex items-center gap-2">
                   <DollarSign className="w-4 h-4" />
                   Amount
@@ -298,7 +323,7 @@ const SalesTable = ({ salesData: propSalesData, branchOwnerId, isManagerView, fi
           <tbody className={`divide-y ${
             theme === 'dark' ? 'divide-slate-700/50' : 'divide-gray-200'
           }`}>
-            {propSalesData?.length === 0 ? (
+            {currentSales.length === 0 ? (
               <tr>
                 <td colSpan="4" className="px-6 py-12">
                   <div className="flex flex-col items-center justify-center">
@@ -319,9 +344,9 @@ const SalesTable = ({ salesData: propSalesData, branchOwnerId, isManagerView, fi
                 </td>
               </tr>
             ) : (
-              propSalesData?.map((sale, i) => (
-                <tr
-                  key={sale._id || i} // Use _id for unique key if available
+              currentSales.map((sale, i) => (
+                <tr 
+                  key={i} 
                   className={`transition-colors ${
                     theme === 'dark'
                       ? 'hover:bg-slate-700/30'
@@ -347,13 +372,8 @@ const SalesTable = ({ salesData: propSalesData, branchOwnerId, isManagerView, fi
                   <td className={`px-6 py-4 whitespace-nowrap ${
                     theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
                   }`}>
-                    {sale.branchOwner.name}
-                  </td>
-                  <td className={`px-6 py-4 whitespace-nowrap ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
-                  }`}>
                     <span className="text-sm font-semibold">
-                      ${typeof sale.amount === 'number' ? sale.amount.toFixed(2) : '0.00'}
+                      ${sale.amount?.toFixed(2)}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -367,7 +387,7 @@ const SalesTable = ({ salesData: propSalesData, branchOwnerId, isManagerView, fi
                     <span className={`text-sm font-bold ${
                       theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
                     }`}>
-                      ${typeof sale.amount === 'number' ? sale.amount.toFixed(2) : '0.00'}
+                      ${sale.amount?.toFixed(2)}
                     </span>
                   </td>
                 </tr>
@@ -390,13 +410,16 @@ const SalesTable = ({ salesData: propSalesData, branchOwnerId, isManagerView, fi
               theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
             }`}>
               Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-              <span className="font-medium">{Math.min(endIndex, totalItems)}</span> of{' '}
-              <span className="font-medium">{totalItems || 0}</span> entries
+              <span className="font-medium">{Math.min(endIndex, sales.length)}</span> of{' '}
+              <span className="font-medium">{sales.length}</span> entries
             </div>
-
+            
             <select
               value={itemsPerPage}
-              onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
               className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
                 theme === 'dark'
                   ? 'bg-slate-800 border-slate-700 text-gray-300 focus:border-emerald-500'
@@ -462,7 +485,7 @@ const SalesTable = ({ salesData: propSalesData, branchOwnerId, isManagerView, fi
                 ) : (
                   <button
                     key={page}
-                    onClick={() => onPageChange(page)}
+                    onClick={() => setCurrentPage(page)}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       currentPage === page
                         ? theme === 'dark'

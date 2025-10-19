@@ -198,14 +198,21 @@ const getSalesByBranchOwnerId = asyncHandler(async (req, res) => {
     throw new Error('User not found');
   }
 
-  // Only Admin, BrandOwner, and Manager roles can access this route
-  if (!['Admin', 'BrandOwner', 'Manager'].includes(user.role)) {
+  // Only Admin, BrandOwner, Manager, and BranchOwner roles can access this route
+  if (!['Admin', 'BrandOwner', 'Manager', 'BranchOwner'].includes(user.role)) {
     res.status(403);
-    throw new Error('Not authorized to view sales for other branches');
+    throw new Error('Not authorized to view sales');
   }
 
+  // For BranchOwner, ensure they can only view their own sales
+  if (user.role === 'BranchOwner') {
+    if (user._id.toString() !== branchOwnerId) {
+      res.status(403);
+      throw new Error('Not authorized to view sales for other branches');
+    }
+  }
   // For BrandOwner and Manager, ensure they are authorized to view this specific branch
-  if (user.role === 'BrandOwner') {
+  else if (user.role === 'BrandOwner') {
     const branchOwner = await User.findById(branchOwnerId);
     if (!branchOwner || branchOwner.assignedBrandOwner.toString() !== user._id.toString()) {
       res.status(403);
@@ -218,8 +225,22 @@ const getSalesByBranchOwnerId = asyncHandler(async (req, res) => {
       throw new Error('Not authorized to view this branch owner\'s sales');
     }
   }
-
-  const sales = await Sales.find({ branchOwner: branchOwnerId }).populate('branchOwner', 'name email');
-
-  res.status(200).json(sales);
+ 
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+ 
+  const sales = await Sales.find({ branchOwner: branchOwnerId })
+    .populate('branchOwner', 'name email')
+    .limit(limit)
+    .skip(skip);
+ 
+  const totalItems = await Sales.countDocuments({ branchOwner: branchOwnerId });
+ 
+  res.status(200).json({
+    sales,
+    totalItems,
+    currentPage: page,
+    totalPages: Math.ceil(totalItems / limit),
+  });
 });

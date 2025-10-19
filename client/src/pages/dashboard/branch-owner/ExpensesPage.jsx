@@ -3,18 +3,29 @@
 // 1. ExpensesPage.jsx - Main Page Component
 // ============================================
 
-import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { useTheme } from '../../../context/ThemeContext';
 import ExpensesForm from './ExpensesForm';
 import ExpensesTable from './ExpensesTable';
+import { getExpensesByBranch } from '../../../store/slices/expensesSlice';
 
 const ExpensesPage = () => {
-  const { branchOwnerId } = useParams();
+  const location = useLocation();
+  const { branchOwnerId } = location.state || {};
+  const dispatch = useDispatch();
+  const { expenses, loading, error } = useSelector((state) => state.expenses);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [refreshTable, setRefreshTable] = useState(0);
   const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => {
+    if (branchOwnerId) {
+      dispatch(getExpensesByBranch(branchOwnerId));
+    }
+  }, [branchOwnerId, dispatch, refreshTable]);
 
   const handleExpenseAdded = () => {
     setRefreshTable(prev => prev + 1);

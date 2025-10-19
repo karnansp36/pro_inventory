@@ -201,14 +201,41 @@ const getExpensesByBranchOwnerId = asyncHandler(async (req, res) => {
   const { branchOwnerId } = req.params;
   console.log('getExpensesByBranchOwnerId: Received branchOwnerId:', branchOwnerId);
 
-  const branchOwner = await User.findById(branchOwnerId);
+  const user = await User.findById(req.user.id);
 
-  if (!branchOwner || branchOwner.role !== 'BranchOwner') {
-    console.log('getExpensesByBranchOwnerId: Branch owner not found or invalid role for ID:', branchOwnerId);
-    res.status(404);
-    throw new Error('Branch owner not found or invalid role');
+  if (!user) {
+    res.status(401);
+    throw new Error('User not found');
   }
-  console.log('getExpensesByBranchOwnerId: Branch owner found:', branchOwner.name, 'ID:', branchOwner._id);
+  console.log('getExpensesByBranchOwnerId: User role:', user.role, 'User ID:', user._id);
+
+  // Only Admin, BrandOwner, Manager, and BranchOwner roles can access this route
+  if (!['Admin', 'BrandOwner', 'Manager', 'BranchOwner'].includes(user.role)) {
+    res.status(403);
+    throw new Error('Not authorized to view expenses');
+  }
+
+  // For BranchOwner, ensure they can only view their own expenses
+  if (user.role === 'BranchOwner') {
+    if (user._id.toString() !== branchOwnerId) {
+      res.status(403);
+      throw new Error('Not authorized to view expenses for other branches');
+    }
+  }
+  // For BrandOwner and Manager, ensure they are authorized to view this specific branch
+  else if (user.role === 'BrandOwner') {
+    const branchOwner = await User.findById(branchOwnerId);
+    if (!branchOwner || branchOwner.assignedBrandOwner.toString() !== user._id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to view this branch owner\'s expenses');
+    }
+  } else if (user.role === 'Manager') {
+    const branchOwner = await User.findById(branchOwnerId);
+    if (!branchOwner || !branchOwner.assignedManager.includes(user._id.toString())) {
+      res.status(403);
+      throw new Error('Not authorized to view this branch owner\'s expenses');
+    }
+  }
 
   const expenses = await Expense.find({ branchOwner: branchOwnerId }).populate('branchOwner', 'name email');
   console.log('getExpensesByBranchOwnerId: Querying expenses for branchOwner ID:', branchOwnerId);

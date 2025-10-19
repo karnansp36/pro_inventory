@@ -15,9 +15,10 @@ import api from '../../services/api';
 
 export const getTransports = createAsyncThunk(
   'transport/getAll',
-  async (_, { rejectWithValue }) => {
+  async (branchOwnerId = null, { rejectWithValue }) => {
     try {
-      const response = await api.get('/transport');
+      const url = branchOwnerId ? `/transport/branch/${branchOwnerId}` : '/transport';
+      const response = await api.get(url);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response.data);
@@ -52,9 +53,9 @@ export const deleteTransport = createAsyncThunk(
 
 export const getTransportsByBranch = createAsyncThunk(
   'transport/getTransportsByBranch',
-  async (branchId, { rejectWithValue }) => {
+  async (branchOwnerId, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/transport/branch/${branchId}`);
+      const response = await api.get(`/transport/branch/${branchOwnerId}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response.data);

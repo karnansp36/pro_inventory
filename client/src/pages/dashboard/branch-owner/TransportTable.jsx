@@ -4,21 +4,23 @@
 
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getTransports } from '../../../store/slices/transportSlice';
+import { getTransportsByBranch } from '../../../store/slices/transportSlice';
 import { useTheme } from '../../../context/ThemeContext';
-
+ 
 const TransportTable = ({ branchOwnerId }) => {
   const dispatch = useDispatch();
   const { transport, loading, error } = useSelector((state) => state.transport);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-
+ 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-
+ 
   useEffect(() => {
-    dispatch(getTransports({ branchOwnerId }));
+    if (branchOwnerId) {
+      dispatch(getTransportsByBranch(branchOwnerId));
+    }
   }, [dispatch, branchOwnerId]);
 
   // Reset to first page when data changes

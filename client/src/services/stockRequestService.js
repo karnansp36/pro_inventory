@@ -38,8 +38,8 @@ const stockRequestService = {
   approveStockRequest,
   updateStockRequest,
   deleteStockRequest,
-  getStockRequestsByBranch: async (branchOwnerId) => {
-    const response = await api.get(`/stockrequests/branch/${branchOwnerId}`);
+  getStockRequestsByBranch: async (branchOwnerId, page, limit) => {
+    const response = await api.get(`/stockrequests/branch/${branchOwnerId}?page=${page}&limit=${limit}`);
     return response.data;
   },
   getStockRequestsByManager: async (url) => {

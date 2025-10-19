@@ -1,15 +1,16 @@
 // pages/dashboard/branch-owner/SalesPage.jsx
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { getSalesByBranch } from '../../../store/slices/salesSlice'; // Corrected path
 import SalesForm from '../../../components/forms/SalesForm';
 import SalesTable from './SalesTable';
 import { useTheme } from '../../../context/ThemeContext';
 import { DollarSign, X, Plus } from 'lucide-react';
+import { getSalesByBranch } from '../../../store/slices/salesSlice';
 
 const SalesPage = () => {
-  const { branchOwnerId } = useParams();
+  const location = useLocation();
+  const { branchOwnerId } = location.state || {};
   const dispatch = useDispatch();
   const { sales, loading, error } = useSelector((state) => state.sales);
   const { theme } = useTheme();
@@ -21,7 +22,7 @@ const SalesPage = () => {
     if (branchOwnerId) {
       dispatch(getSalesByBranch(branchOwnerId));
     }
-  }, [dispatch, branchOwnerId, refreshTable]);
+  }, [branchOwnerId, dispatch, refreshTable]);
 
   const handleSaleAdded = () => {
     setRefreshTable(prev => prev + 1);
@@ -94,10 +95,9 @@ const SalesPage = () => {
           
           {/* Table */}
           <div className={showForm ? 'lg:col-span-2' : ''}>
-            <SalesTable
-              key={refreshTable}
-              salesData={sales} // Pass fetched sales data
-              branchOwnerId={branchOwnerId}
+            <SalesTable 
+              key={refreshTable} 
+              branchOwnerId={branchOwnerId} 
             />
           </div>
         </div>

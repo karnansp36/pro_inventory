@@ -60,9 +60,9 @@ export const getAllDailyStoreImages = createAsyncThunk(
 // Get daily store images for the logged-in branch owner
 export const getDailyStoreImagesForBranchOwner = createAsyncThunk(
   'dailyStoreImages/getForBranchOwner',
-  async (_, thunkAPI) => {
+  async (branchOwnerId, thunkAPI) => {
     try {
-      return await dailyStoreImageService.getDailyStoreImagesForBranchOwner();
+      return await dailyStoreImageService.getDailyStoreImagesForBranchOwner(branchOwnerId);
     } catch (error) {
       const message =
         (error.response && error.response.data && error.response.data.message) ||
