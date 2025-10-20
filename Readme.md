@@ -301,3 +301,7 @@ The frontend UI should dynamically adapt based on the authenticated user's `role
 Frontend components (e.g., navigation links, buttons, data tables) should be conditionally rendered or disabled based on the `user.role` obtained from the `/api/auth/me` endpoint. For instance, a "Create User" button should only be visible to Admins and Brand Owners. Similarly, "Edit" and "Delete" actions on sales or expense records should only appear for roles with appropriate permissions.
 
 This detailed breakdown should enable frontend developers to accurately implement the user interface and ensure proper role-based access control.
+
+
+
+it is good to add
