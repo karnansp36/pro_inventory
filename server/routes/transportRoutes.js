@@ -14,6 +14,6 @@ router.route('/:id')
   .delete(protect, authorizeRoles('Admin', 'BrandOwner'), deleteTransport);
 
 router.route('/branch/:branchOwnerId')
-  .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getTransportsByBranchOwnerId);
+  .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getTransportsByBranchOwnerId);
 
 export default router;

@@ -1,5 +1,5 @@
 // routes/BranchOwnerRoutes.jsx
-import { Routes, Route, useParams } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import BranchOwnerLayout from '../components/layout/BranchOwnerLayout';
 import BranchDashboard from '../pages/dashboard/branch-owner/BranchOwnerDashboard';
 import SalesPage from '../pages/dashboard/branch-owner/SalesPage';

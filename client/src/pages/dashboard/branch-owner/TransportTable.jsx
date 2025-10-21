@@ -1,98 +1,55 @@
-// ============================================
-// TransportTable.jsx - Redesigned Table Component with Pagination
-// ============================================
-
+// TransportTable.jsx - Fixed complete component
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getTransportsByBranch } from '../../../store/slices/transportSlice';
 import { useTheme } from '../../../context/ThemeContext';
- 
+import { getTransportsByBranch } from '../../../store/slices/transportSlice';
+
 const TransportTable = ({ branchOwnerId }) => {
-  const dispatch = useDispatch();
-  const { transport, loading, error } = useSelector((state) => state.transport);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
- 
-  // Pagination states
+  const dispatch = useDispatch();
+  const { transport: transports, totalItems, loading, error } = useSelector((state) => state.transport);
+  
+  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
- 
+
   useEffect(() => {
     if (branchOwnerId) {
-      dispatch(getTransportsByBranch(branchOwnerId));
+      dispatch(getTransportsByBranch({ branchId: branchOwnerId, page: currentPage, limit: itemsPerPage }));
     }
-  }, [dispatch, branchOwnerId]);
+  }, [dispatch, branchOwnerId, currentPage, itemsPerPage]);
 
-  // Reset to first page when data changes
-  useEffect(() => {
+  // Pagination calculations
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const totalPages = Math.ceil((totalItems || 0) / itemsPerPage);
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
+  const handleItemsPerPageChange = (value) => {
+    setItemsPerPage(value);
     setCurrentPage(1);
-  }, [transport]);
+  };
 
-  const getStatusColor = (status) => {
-    const statusLower = status?.toLowerCase();
-    if (statusLower === 'delivered' || statusLower === 'completed') {
+  const getStatusColor = (transport) => {
+    if (transport.receivedQuantity !== undefined && transport.receivedQuantity !== null) {
       return isDark 
         ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
         : 'bg-emerald-100 text-emerald-700 border-emerald-200';
     }
-    if (statusLower === 'pending' || statusLower === 'in transit') {
-      return isDark
-        ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-        : 'bg-amber-100 text-amber-700 border-amber-200';
-    }
-    if (statusLower === 'cancelled' || statusLower === 'rejected') {
-      return isDark
-        ? 'bg-red-500/20 text-red-400 border-red-500/30'
-        : 'bg-red-100 text-red-700 border-red-200';
-    }
     return isDark
-      ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-      : 'bg-blue-100 text-blue-700 border-blue-200';
+      ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+      : 'bg-amber-100 text-amber-700 border-amber-200';
   };
 
-  // Pagination calculations
-  const totalItems = transport?.length || 0;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentData = transport?.slice(startIndex, endIndex) || [];
-
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-  };
-
-  const handleItemsPerPageChange = (e) => {
-    setItemsPerPage(Number(e.target.value));
-    setCurrentPage(1);
-  };
-
-  // Generate page numbers to display
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisible = 5;
-
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      if (currentPage <= 3) {
-        for (let i = 1; i <= 4; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages);
-      } else if (currentPage >= totalPages - 2) {
-        pages.push(1);
-        pages.push('...');
-        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
-      } else {
-        pages.push(1);
-        pages.push('...');
-        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages);
-      }
+  const getStatusText = (transport) => {
+    if (transport.receivedQuantity !== undefined && transport.receivedQuantity !== null) {
+      return 'Delivered';
     }
-    return pages;
+    return 'In Transit';
   };
 
   if (loading) {
@@ -152,7 +109,7 @@ const TransportTable = ({ branchOwnerId }) => {
               </label>
               <select
                 value={itemsPerPage}
-                onChange={handleItemsPerPageChange}
+                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
                 className={`px-3 py-1 rounded-lg text-sm font-medium border transition-colors ${
                   isDark 
                     ? 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600' 
@@ -171,7 +128,7 @@ const TransportTable = ({ branchOwnerId }) => {
 
       {/* Table Content */}
       <div className="overflow-x-auto">
-        {currentData && currentData.length > 0 ? (
+        {transports && transports.length > 0 ? (
           <table className="w-full">
             <thead>
               <tr className={isDark ? 'bg-slate-700/50' : 'bg-gray-100'}>
@@ -179,6 +136,11 @@ const TransportTable = ({ branchOwnerId }) => {
                   isDark ? 'text-slate-300' : 'text-gray-600'
                 }`}>
                   Date
+                </th>
+                <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
+                  isDark ? 'text-slate-300' : 'text-gray-600'
+                }`}>
+                  Product
                 </th>
                 <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
                   isDark ? 'text-slate-300' : 'text-gray-600'
@@ -208,9 +170,9 @@ const TransportTable = ({ branchOwnerId }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-              {currentData.map((t, i) => (
+              {transports.map((transport, i) => (
                 <tr 
-                  key={t._id || i}
+                  key={transport._id || i}
                   className={`transition-colors duration-150 ${
                     isDark 
                       ? 'hover:bg-slate-700/50' 
@@ -224,32 +186,37 @@ const TransportTable = ({ branchOwnerId }) => {
                       <svg className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      {new Date(t.createdAt || t.date).toLocaleDateString()}
+                      {new Date(transport.createdAt).toLocaleDateString()}
                     </div>
                   </td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
                     isDark ? 'text-white' : 'text-gray-900'
                   }`}>
-                    {t.from}
+                    {transport.stockRequest?.productName || 'N/A'}
                   </td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
                     isDark ? 'text-white' : 'text-gray-900'
                   }`}>
-                    {t.to}
+                    {transport.from}
+                  </td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
+                    isDark ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    {transport.to}
                   </td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                     isDark ? 'text-slate-300' : 'text-gray-700'
                   }`}>
                     <span className={`font-semibold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
-                      {t.quantity}
+                      {transport.quantity}
                     </span>
                   </td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                     isDark ? 'text-slate-300' : 'text-gray-700'
                   }`}>
-                    {t.receivedQuantity ? (
+                    {transport.receivedQuantity ? (
                       <span className={`font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                        {t.receivedQuantity}
+                        {transport.receivedQuantity}
                       </span>
                     ) : (
                       <span className={isDark ? 'text-slate-500' : 'text-gray-400'}>-</span>
@@ -257,9 +224,9 @@ const TransportTable = ({ branchOwnerId }) => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${
-                      getStatusColor(t.status)
+                      getStatusColor(transport)
                     }`}>
-                      {t.status}
+                      {getStatusText(transport)}
                     </span>
                   </td>
                 </tr>
@@ -286,15 +253,15 @@ const TransportTable = ({ branchOwnerId }) => {
       </div>
 
       {/* Pagination Footer */}
-      {totalItems > 0 && (
+      {transports && transports.length > 0 && (
         <div className={`px-6 py-4 border-t ${
           isDark ? 'border-slate-700 bg-slate-800/50' : 'border-gray-200 bg-gray-50'
         }`}>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             {/* Results info */}
             <div className={`text-sm ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
-              Showing <span className="font-semibold">{startIndex + 1}</span> to{' '}
-              <span className="font-semibold">{Math.min(endIndex, totalItems)}</span> of{' '}
+              Showing <span className="font-semibold">{indexOfFirstItem + 1}</span> to{' '}
+              <span className="font-semibold">{Math.min(indexOfLastItem, totalItems)}</span> of{' '}
               <span className="font-semibold">{totalItems}</span> results
             </div>
 
@@ -321,17 +288,33 @@ const TransportTable = ({ branchOwnerId }) => {
 
               {/* Page numbers */}
               <div className="flex items-center gap-1">
-                {getPageNumbers().map((page, idx) => (
-                  page === '...' ? (
-                    <span key={`ellipsis-${idx}`} className={`px-3 py-2 ${isDark ? 'text-slate-400' : 'text-gray-400'}`}>
-                      ...
-                    </span>
-                  ) : (
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
+                  // Show first page, last page, current page, and pages around current
+                  const showPage = 
+                    pageNum === 1 ||
+                    pageNum === totalPages ||
+                    (pageNum >= currentPage - 1 && pageNum <= currentPage + 1);
+                  
+                  const showEllipsis = 
+                    (pageNum === currentPage - 2 && currentPage > 3) ||
+                    (pageNum === currentPage + 2 && currentPage < totalPages - 2);
+
+                  if (showEllipsis) {
+                    return (
+                      <span key={`ellipsis-${pageNum}`} className={`px-3 py-2 ${isDark ? 'text-slate-400' : 'text-gray-400'}`}>
+                        ...
+                      </span>
+                    );
+                  }
+
+                  if (!showPage) return null;
+
+                  return (
                     <button
-                      key={page}
-                      onClick={() => handlePageChange(page)}
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
                       className={`min-w-[40px] px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                        currentPage === page
+                        currentPage === pageNum
                           ? isDark
                             ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30'
                             : 'bg-emerald-600 text-white shadow-lg'
@@ -340,10 +323,10 @@ const TransportTable = ({ branchOwnerId }) => {
                           : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                       }`}
                     >
-                      {page}
+                      {pageNum}
                     </button>
-                  )
-                ))}
+                  );
+                })}
               </div>
 
               {/* Next button */}

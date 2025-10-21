@@ -1,16 +1,33 @@
-// ============================================
-// TransportPage.jsx - Main Page Component
-// ============================================
-
-import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { useTheme } from '../../../context/ThemeContext';
+// TransportPage.jsx
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import TransportTable from './TransportTable';
+import { useTheme } from '../../../context/ThemeContext';
+import { getTransportsByBranch } from '../../../store/slices/transportSlice';
+import { Truck, X, Plus } from 'lucide-react';
+import TransportForm from '../../../components/forms/TransportForm';
 
 const TransportPage = () => {
-  const { branchOwnerId } = useParams();
+  const location = useLocation();
+  const { branchOwnerId } = location.state || {};
+  const dispatch = useDispatch();
+  const { transport: transports, totalItems, loading, error } = useSelector((state) => state.transport);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const [refreshTable, setRefreshTable] = useState(0);
+  const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => {
+    if (branchOwnerId) {
+      dispatch(getTransportsByBranch({ branchId: branchOwnerId, page: 1, limit: 10 }));
+    }
+  }, [branchOwnerId, dispatch, refreshTable]);
+
+  const handleTransportAdded = () => {
+    setRefreshTable(prev => prev + 1);
+    setShowForm(false);
+  };
 
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8">
@@ -25,9 +42,7 @@ const TransportPage = () => {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
-                  </svg>
+                  <Truck className="w-6 h-6 text-white" />
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-white">
                   Transport Management
@@ -37,15 +52,61 @@ const TransportPage = () => {
                 Confirm received quantities and track shipments
               </p>
             </div>
-            <div className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-lg backdrop-blur-sm">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-white text-sm font-medium">Live Tracking</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-lg backdrop-blur-sm">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-white text-sm font-medium">Live Tracking</span>
+              </div>
+              <button
+                onClick={() => setShowForm(!showForm)}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                  showForm
+                    ? 'bg-white/20 text-white hover:bg-white/30'
+                    : 'bg-white text-emerald-600 hover:bg-gray-50 shadow-lg'
+                }`}
+              >
+                {showForm ? (
+                  <>
+                    <X className="w-5 h-5" />
+                    Close Form
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-5 h-5" />
+                    Add Transport
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Table */}
-        <TransportTable branchOwnerId={branchOwnerId} />
+        {/* Content */}
+        <div className={`grid grid-cols-1 ${showForm ? 'lg:grid-cols-3' : ''} gap-6`}>
+          {/* Form - Conditional */}
+          {showForm && (
+            <div className="lg:col-span-1">
+              <div className={`rounded-2xl overflow-hidden transition-all duration-300 border ${
+                isDark
+                  ? 'bg-gradient-to-br from-slate-900/80 to-slate-800/80 backdrop-blur-xl border-slate-700/50'
+                  : 'bg-white border-gray-200 shadow-lg'
+              }`}>
+                <TransportForm
+                  onClose={handleTransportAdded}
+                  branchOwnerId={branchOwnerId}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Table */}
+          <div className={showForm ? 'lg:col-span-2' : ''}>
+            <TransportTable
+              key={refreshTable}
+              branchOwnerId={branchOwnerId}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
