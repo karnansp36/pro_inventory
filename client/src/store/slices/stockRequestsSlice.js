@@ -87,7 +87,6 @@ export const getStockRequestsByManager = createAsyncThunk(
         url += `?branchId=${filters.branchId}`;
       }
       const response = await stockRequestService.getStockRequestsByManager(url);
-      console.log(response)
       return response;
     } catch (error) {
       return rejectWithValue(error.response.data);

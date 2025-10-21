@@ -12,6 +12,10 @@ const salesSchema = mongoose.Schema(
       required: true,
       default: 0,
     },
+    productName: {
+      type: String,
+      required: true,
+    },
     paymentMethod: {
       type: String,
       required: true,

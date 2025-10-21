@@ -1,12 +1,11 @@
-// TransportPage.jsx
+// TransportPage.jsx - Updated to match StockRequestsPage pattern
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import TransportTable from './TransportTable';
 import { useTheme } from '../../../context/ThemeContext';
 import { getTransportsByBranch } from '../../../store/slices/transportSlice';
-import { Truck, X, Plus } from 'lucide-react';
-import TransportForm from '../../../components/forms/TransportForm';
+import { Truck } from 'lucide-react';
 
 const TransportPage = () => {
   const location = useLocation();
@@ -16,7 +15,6 @@ const TransportPage = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [refreshTable, setRefreshTable] = useState(0);
-  const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
     if (branchOwnerId) {
@@ -26,8 +24,15 @@ const TransportPage = () => {
 
   const handleTransportAdded = () => {
     setRefreshTable(prev => prev + 1);
-    setShowForm(false);
   };
+
+  if (loading && !transports.length) {
+    return <div className="text-center text-white">Loading transports...</div>;
+  }
+
+  if (error && !transports.length) {
+    return <div className="text-center text-red-500">Error: {error.message}</div>;
+  }
 
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8">
@@ -57,53 +62,21 @@ const TransportPage = () => {
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                 <span className="text-white text-sm font-medium">Live Tracking</span>
               </div>
-              <button
-                onClick={() => setShowForm(!showForm)}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                  showForm
-                    ? 'bg-white/20 text-white hover:bg-white/30'
-                    : 'bg-white text-emerald-600 hover:bg-gray-50 shadow-lg'
-                }`}
-              >
-                {showForm ? (
-                  <>
-                    <X className="w-5 h-5" />
-                    Close Form
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-5 h-5" />
-                    Add Transport
-                  </>
-                )}
-              </button>
             </div>
           </div>
         </div>
 
         {/* Content */}
-        <div className={`grid grid-cols-1 ${showForm ? 'lg:grid-cols-3' : ''} gap-6`}>
-          {/* Form - Conditional */}
-          {showForm && (
-            <div className="lg:col-span-1">
-              <div className={`rounded-2xl overflow-hidden transition-all duration-300 border ${
-                isDark
-                  ? 'bg-gradient-to-br from-slate-900/80 to-slate-800/80 backdrop-blur-xl border-slate-700/50'
-                  : 'bg-white border-gray-200 shadow-lg'
-              }`}>
-                <TransportForm
-                  onClose={handleTransportAdded}
-                  branchOwnerId={branchOwnerId}
-                />
-              </div>
-            </div>
-          )}
-
+        <div className="grid grid-cols-1 gap-6">
           {/* Table */}
-          <div className={showForm ? 'lg:col-span-2' : ''}>
+          <div>
             <TransportTable
               key={refreshTable}
               branchOwnerId={branchOwnerId}
+              transports={transports}
+              totalItems={totalItems}
+              loading={loading}
+              error={error}
             />
           </div>
         </div>

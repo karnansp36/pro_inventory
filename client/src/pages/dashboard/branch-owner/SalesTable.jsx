@@ -17,7 +17,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  X,
+  Calendar as CalendarIcon
 } from 'lucide-react';
 
 const SalesTable = ({ branchOwnerId }) => {
@@ -25,7 +27,60 @@ const SalesTable = ({ branchOwnerId }) => {
   const { sales, totalItems, loading, error } = useSelector((state) => state.sales);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [showFilters, setShowFilters] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateFilter, setDateFilter] = useState({
+    type: 'all', // 'all', 'today', 'week', 'month', 'custom'
+    startDate: '',
+    endDate: ''
+  });
   const { theme } = useTheme();
+
+  // Filter sales based on search and date filters
+  const filteredSales = sales.filter(sale => {
+    // Search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch =
+        sale.paymentMethod?.toLowerCase().includes(searchLower) ||
+        sale.productName?.toLowerCase().includes(searchLower) ||
+        sale.amount?.toString().includes(searchTerm) ||
+        new Date(sale.date).toLocaleDateString().toLowerCase().includes(searchLower);
+      if (!matchesSearch) return false;
+    }
+
+    // Date filter
+    if (dateFilter.type !== 'all') {
+      const saleDate = new Date(sale.date);
+      const today = new Date();
+      
+      switch (dateFilter.type) {
+        case 'today':
+          return saleDate.toDateString() === today.toDateString();
+        case 'week':
+          const weekAgo = new Date(today);
+          weekAgo.setDate(today.getDate() - 7);
+          return saleDate >= weekAgo && saleDate <= today;
+        case 'month':
+          const monthAgo = new Date(today);
+          monthAgo.setMonth(today.getMonth() - 1);
+          return saleDate >= monthAgo && saleDate <= today;
+        case 'custom':
+          if (dateFilter.startDate && dateFilter.endDate) {
+            const start = new Date(dateFilter.startDate);
+            const end = new Date(dateFilter.endDate);
+            end.setHours(23, 59, 59, 999); // Include entire end date
+            return saleDate >= start && saleDate <= end;
+          }
+          return true;
+        default:
+          return true;
+      }
+    }
+
+    return true;
+  });
 
   useEffect(() => {
     if (branchOwnerId) {
@@ -45,7 +100,7 @@ const SalesTable = ({ branchOwnerId }) => {
   const endIndex = startIndex + itemsPerPage;
 
   const getTotalSales = () => {
-    return sales.reduce((sum, sale) => sum + (sale.amount || 0), 0);
+    return filteredSales.reduce((sum, sale) => sum + (sale.amount || 0), 0);
   };
 
   const goToFirstPage = () => setCurrentPage(1);
@@ -100,6 +155,156 @@ const SalesTable = ({ branchOwnerId }) => {
     return colors[theme][method] || colors[theme].Cash;
   };
 
+  // CSV Export Function
+  const downloadCSV = () => {
+    if (filteredSales.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+
+    try {
+      // Enhanced CSV formatting with proper escaping
+      const escapeCSV = (field) => {
+        if (field === null || field === undefined) return '""';
+        const stringField = String(field);
+        // Escape quotes and wrap in quotes if contains comma, quote, or newline
+        if (stringField.includes('"') || stringField.includes(',') || stringField.includes('\n')) {
+          return `"${stringField.replace(/"/g, '""')}"`;
+        }
+        return stringField;
+      };
+
+      // CSV headers
+      const headers = [
+        'Date',
+        'Product Name',
+        'Amount ($)',
+        'Payment Method',
+        'Transaction ID',
+        'Branch ID',
+        'Created At'
+      ];
+
+      // Convert sales data to CSV rows
+      const csvRows = filteredSales.map(sale => [
+        escapeCSV(new Date(sale.date).toLocaleDateString('en-US')),
+        escapeCSV(sale.productName || 'N/A'),
+        escapeCSV(sale.amount?.toFixed(2) || '0.00'),
+        escapeCSV(sale.paymentMethod || 'Unknown'),
+        escapeCSV(sale._id || 'N/A'),
+        escapeCSV(sale.branchId || branchOwnerId || 'N/A'),
+        escapeCSV(new Date(sale.createdAt || sale.date).toISOString())
+      ]);
+
+      // Build CSV content
+      let csvContent = [headers.join(',')];
+      csvContent = csvContent.concat(csvRows.map(row => row.join(',')));
+
+      // Add summary section if there are filters applied
+      if (dateFilter.type !== 'all' || searchTerm) {
+        csvContent.push(''); // Empty line
+        csvContent.push('Summary');
+        csvContent.push(`Total Records,${filteredSales.length}`);
+        csvContent.push(`Total Amount,$${getTotalSales().toFixed(2)}`);
+        csvContent.push(`Average Sale,$${filteredSales.length > 0 ? (getTotalSales() / filteredSales.length).toFixed(2) : '0.00'}`);
+        
+        if (dateFilter.type !== 'all') {
+          csvContent.push(`Date Filter,${dateFilter.type}`);
+          if (dateFilter.type === 'custom' && dateFilter.startDate && dateFilter.endDate) {
+            csvContent.push(`Start Date,${dateFilter.startDate}`);
+            csvContent.push(`End Date,${dateFilter.endDate}`);
+          }
+        }
+        
+        if (searchTerm) {
+          csvContent.push(`Search Term,${searchTerm}`);
+        }
+        
+        csvContent.push(`Export Date,${new Date().toLocaleDateString('en-US')}`);
+      }
+
+      // Create blob and download
+      const blob = new Blob([csvContent.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      
+      // Create filename with date and branch info
+      const date = new Date().toISOString().split('T')[0];
+      const filename = `sales-data-${branchOwnerId || 'branch'}-${date}.csv`;
+      
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up URL object
+      URL.revokeObjectURL(url);
+      
+      toast.success('CSV file downloaded successfully!');
+      setShowExportMenu(false);
+    } catch (error) {
+      console.error('Error downloading CSV:', error);
+      toast.error('Failed to download CSV file');
+    }
+  };
+
+  // Apply quick date filter
+  const applyQuickDateFilter = (type) => {
+    const today = new Date();
+    let startDate = new Date();
+    
+    switch (type) {
+      case 'today':
+        startDate = new Date(today);
+        break;
+      case 'week':
+        startDate.setDate(today.getDate() - 7);
+        break;
+      case 'month':
+        startDate.setMonth(today.getMonth() - 1);
+        break;
+      case 'custom':
+        setDateFilter({ type: 'custom', startDate: '', endDate: '' });
+        return;
+      default:
+        setDateFilter({ type: 'all', startDate: '', endDate: '' });
+        return;
+    }
+
+    setDateFilter({
+      type,
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: today.toISOString().split('T')[0]
+    });
+  };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setSearchTerm('');
+    setDateFilter({ type: 'all', startDate: '', endDate: '' });
+    setShowFilters(false);
+  };
+
+  const dateFilters = [
+    { key: 'all', label: 'All Time' },
+    { key: 'today', label: 'Today' },
+    { key: 'week', label: 'Last 7 Days' },
+    { key: 'month', label: 'Last 30 Days' },
+    { key: 'custom', label: 'Custom Range' }
+  ];
+
+  const exportFormats = [
+    { 
+      key: 'csv', 
+      label: 'CSV', 
+      color: 'bg-blue-500 hover:bg-blue-600',
+      handler: downloadCSV
+    }
+  ];
+
   if (loading && sales.length === 0) {
     return (
       <div className={`rounded-xl p-8 transition-all duration-300 ${
@@ -151,35 +356,187 @@ const SalesTable = ({ branchOwnerId }) => {
               <p className={`text-xs ${
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
               }`}>
-                {totalItems} transaction{totalItems !== 1 ? 's' : ''}
+                {filteredSales.length} of {totalItems} transaction{totalItems !== 1 ? 's' : ''}
+                {dateFilter.type !== 'all' && ' (filtered)'}
               </p>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
-            <button className={`p-2 rounded-lg transition-colors ${
-              theme === 'dark'
-                ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
-                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-            }`}>
-              <Search className="w-4 h-4" />
-            </button>
-            <button className={`p-2 rounded-lg transition-colors ${
-              theme === 'dark'
-                ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
-                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-            }`}>
+            {/* Search */}
+            <div className="relative">
+              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+              }`} />
+              <input
+                type="text"
+                placeholder="Search sales..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={`pl-10 pr-4 py-2 rounded-lg border transition-colors text-sm ${
+                  theme === 'dark'
+                    ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400 focus:border-emerald-500'
+                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-emerald-500'
+                } focus:outline-none focus:ring-2 focus:ring-emerald-500/20`}
+              />
+            </div>
+
+            {/* Filter Button */}
+            <button 
+              onClick={() => setShowFilters(!showFilters)}
+              className={`p-2 rounded-lg transition-colors ${
+                showFilters
+                  ? theme === 'dark'
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-emerald-500 text-white'
+                  : theme === 'dark'
+                  ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+              }`}
+            >
               <Filter className="w-4 h-4" />
             </button>
-            <button className={`p-2 rounded-lg transition-colors ${
-              theme === 'dark'
-                ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
-                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-            }`}>
-              <Download className="w-4 h-4" />
-            </button>
+
+            {/* Export Button with Dropdown */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                disabled={filteredSales.length === 0}
+                className={`p-2 rounded-lg transition-colors ${
+                  theme === 'dark'
+                    ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
+                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                } ${filteredSales.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <Download className="w-4 h-4" />
+              </button>
+
+              {/* Export Dropdown Menu */}
+              {showExportMenu && (
+                <div className={`absolute right-0 top-full mt-1 w-48 rounded-lg shadow-lg border z-50 ${
+                  theme === 'dark'
+                    ? 'bg-slate-800 border-slate-700'
+                    : 'bg-white border-gray-200'
+                }`}>
+                  <div className="p-2">
+                    <div className={`px-3 py-2 text-xs font-semibold ${
+                      theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
+                      Export As
+                    </div>
+                    {exportFormats.map((format) => (
+                      <button
+                        key={format.key}
+                        onClick={format.handler}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-white font-medium transition-all mb-1 last:mb-0 ${format.color}`}
+                      >
+                        {format.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Filters Panel */}
+        {showFilters && (
+          <div className={`mt-4 p-4 rounded-lg border ${
+            theme === 'dark'
+              ? 'bg-slate-700/50 border-slate-600'
+              : 'bg-gray-50 border-gray-200'
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className={`text-sm font-medium ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+              }`}>
+                Filters
+              </h3>
+              <button
+                onClick={clearFilters}
+                className={`text-xs flex items-center gap-1 ${
+                  theme === 'dark' 
+                    ? 'text-gray-400 hover:text-gray-300' 
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <X className="w-3 h-3" />
+                Clear All
+              </button>
+            </div>
+
+            {/* Date Filters */}
+            <div className="space-y-3">
+              <label className={`text-sm font-medium ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+              }`}>
+                Date Range
+              </label>
+              
+              {/* Quick Date Filters */}
+              <div className="flex flex-wrap gap-2">
+                {dateFilters.map((filter) => (
+                  <button
+                    key={filter.key}
+                    onClick={() => applyQuickDateFilter(filter.key)}
+                    className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
+                      dateFilter.type === filter.key
+                        ? theme === 'dark'
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-emerald-500 text-white'
+                        : theme === 'dark'
+                        ? 'bg-slate-600 text-gray-300 hover:bg-slate-500'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom Date Range */}
+              {dateFilter.type === 'custom' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${
+                      theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={dateFilter.startDate}
+                      onChange={(e) => setDateFilter(prev => ({ ...prev, startDate: e.target.value }))}
+                      className={`w-full px-3 py-1.5 rounded border text-sm ${
+                        theme === 'dark'
+                          ? 'bg-slate-600 border-slate-500 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${
+                      theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      value={dateFilter.endDate}
+                      onChange={(e) => setDateFilter(prev => ({ ...prev, endDate: e.target.value }))}
+                      className={`w-full px-3 py-1.5 rounded border text-sm ${
+                        theme === 'dark'
+                          ? 'bg-slate-600 border-slate-500 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      }`}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -241,7 +598,7 @@ const SalesTable = ({ branchOwnerId }) => {
                 <p className={`text-lg font-bold ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  {totalItems}
+                  {filteredSales.length}
                 </p>
               </div>
             </div>
@@ -271,7 +628,7 @@ const SalesTable = ({ branchOwnerId }) => {
                 <p className={`text-lg font-bold ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  ${sales.length > 0 ? (getTotalSales() / sales.length).toFixed(2) : '0.00'}
+                  ${filteredSales.length > 0 ? (getTotalSales() / filteredSales.length).toFixed(2) : '0.00'}
                 </p>
               </div>
             </div>
@@ -292,8 +649,15 @@ const SalesTable = ({ branchOwnerId }) => {
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
               }`}>
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
+                  <CalendarIcon className="w-4 h-4" />
                   Date
+                </div>
+              </th>
+              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                <div className="flex items-center gap-2">
+                  Product Name
                 </div>
               </th>
               <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
@@ -322,9 +686,9 @@ const SalesTable = ({ branchOwnerId }) => {
           <tbody className={`divide-y ${
             theme === 'dark' ? 'divide-slate-700/50' : 'divide-gray-200'
           }`}>
-            {sales.length === 0 ? (
+            {filteredSales.length === 0 ? (
               <tr>
-                <td colSpan="4" className="px-6 py-12">
+                <td colSpan="5" className="px-6 py-12">
                   <div className="flex flex-col items-center justify-center">
                     <Receipt className={`w-12 h-12 mb-3 ${
                       theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
@@ -332,20 +696,20 @@ const SalesTable = ({ branchOwnerId }) => {
                     <p className={`text-sm font-medium ${
                       theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                     }`}>
-                      No sales records found
+                      {sales.length === 0 ? 'No sales records found' : 'No matching sales found'}
                     </p>
                     <p className={`text-xs mt-1 ${
                       theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
                     }`}>
-                      Sales transactions will appear here
+                      {sales.length === 0 ? 'Sales transactions will appear here' : 'Try adjusting your filters'}
                     </p>
                   </div>
                 </td>
               </tr>
             ) : (
-              sales.map((sale, i) => (
-                <tr 
-                  key={sale._id || i} 
+              filteredSales.map((sale, i) => (
+                <tr
+                  key={sale._id || i}
                   className={`transition-colors ${
                     theme === 'dark'
                       ? 'hover:bg-slate-700/30'
@@ -367,6 +731,13 @@ const SalesTable = ({ branchOwnerId }) => {
                         })}
                       </span>
                     </div>
+                  </td>
+                  <td className={`px-6 py-4 whitespace-nowrap ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
+                  }`}>
+                    <span className="text-sm font-medium">
+                      {sale.productName || 'N/A'}
+                    </span>
                   </td>
                   <td className={`px-6 py-4 whitespace-nowrap ${
                     theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
@@ -397,7 +768,7 @@ const SalesTable = ({ branchOwnerId }) => {
       </div>
 
       {/* Pagination Footer */}
-      {sales.length > 0 && (
+      {filteredSales.length > 0 && (
         <div className={`px-6 py-4 border-t flex flex-col sm:flex-row items-center justify-between gap-4 ${
           theme === 'dark' 
             ? 'border-slate-700/50 bg-slate-900/30' 
@@ -408,9 +779,9 @@ const SalesTable = ({ branchOwnerId }) => {
             <div className={`text-sm ${
               theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
             }`}>
-              Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-              <span className="font-medium">{Math.min(endIndex, totalItems)}</span> of{' '}
-              <span className="font-medium">{totalItems}</span> entries
+              Showing <span className="font-medium">{Math.min(startIndex + 1, filteredSales.length)}</span> to{' '}
+              <span className="font-medium">{Math.min(endIndex, filteredSales.length)}</span> of{' '}
+              <span className="font-medium">{filteredSales.length}</span> entries
             </div>
             
             <select

@@ -6,6 +6,22 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTheme } from '../../../context/ThemeContext';
 import { getStockRequestsByBranch } from '../../../store/slices/stockRequestsSlice';
+import { toast } from 'react-toastify';
+import {
+  Search,
+  Filter,
+  Download,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  X,
+  Calendar,
+  Package,
+  AlertTriangle,
+  CheckCircle,
+  Clock
+} from 'lucide-react';
 
 const StockRequestsTable = ({ branchOwnerId }) => {
   const { theme } = useTheme();
@@ -13,9 +29,74 @@ const StockRequestsTable = ({ branchOwnerId }) => {
   const dispatch = useDispatch();
   const { stockRequests: requests, totalItems, loading, error } = useSelector((state) => state.stockRequests);
   
-  // Pagination state
+  // State management
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [showFilters, setShowFilters] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateFilter, setDateFilter] = useState({
+    type: 'all',
+    startDate: '',
+    endDate: ''
+  });
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+
+  // Filter stock requests based on search and filters
+  const filteredRequests = requests.filter(request => {
+    // Search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = 
+        request.productName?.toLowerCase().includes(searchLower) ||
+        request.quantity?.toString().includes(searchTerm) ||
+        request.priority?.toLowerCase().includes(searchLower);
+      if (!matchesSearch) return false;
+    }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      if (statusFilter === 'approved' && !request.approved) return false;
+      if (statusFilter === 'pending' && request.approved) return false;
+    }
+
+    // Priority filter
+    if (priorityFilter !== 'all' && request.priority !== priorityFilter) {
+      return false;
+    }
+
+    // Date filter
+    if (dateFilter.type !== 'all') {
+      const requestDate = new Date(request.createdAt || request.date);
+      const today = new Date();
+      
+      switch (dateFilter.type) {
+        case 'today':
+          return requestDate.toDateString() === today.toDateString();
+        case 'week':
+          const weekAgo = new Date(today);
+          weekAgo.setDate(today.getDate() - 7);
+          return requestDate >= weekAgo && requestDate <= today;
+        case 'month':
+          const monthAgo = new Date(today);
+          monthAgo.setMonth(today.getMonth() - 1);
+          return requestDate >= monthAgo && requestDate <= today;
+        case 'custom':
+          if (dateFilter.startDate && dateFilter.endDate) {
+            const start = new Date(dateFilter.startDate);
+            const end = new Date(dateFilter.endDate);
+            end.setHours(23, 59, 59, 999);
+            return requestDate >= start && requestDate <= end;
+          }
+          return true;
+        default:
+          return true;
+      }
+    }
+
+    return true;
+  });
 
   useEffect(() => {
     if (branchOwnerId) {
@@ -23,12 +104,153 @@ const StockRequestsTable = ({ branchOwnerId }) => {
     }
   }, [dispatch, branchOwnerId, currentPage, itemsPerPage]);
 
+  // CSV Export Function
+  const downloadCSV = () => {
+    if (filteredRequests.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+
+    try {
+      // Enhanced CSV formatting with proper escaping
+      const escapeCSV = (field) => {
+        if (field === null || field === undefined) return '""';
+        const stringField = String(field);
+        if (stringField.includes('"') || stringField.includes(',') || stringField.includes('\n')) {
+          return `"${stringField.replace(/"/g, '""')}"`;
+        }
+        return stringField;
+      };
+
+      // CSV headers
+      const headers = [
+        'Date',
+        'Product Name',
+        'Quantity',
+        'Priority',
+        'Status',
+        'Request ID',
+        'Branch ID',
+        'Created At'
+      ];
+
+      // Convert requests data to CSV rows
+      const csvRows = filteredRequests.map(request => [
+        escapeCSV(new Date(request.createdAt || request.date).toLocaleDateString('en-US')),
+        escapeCSV(request.productName || 'Unknown'),
+        escapeCSV(request.quantity || '0'),
+        escapeCSV(request.priority || 'Normal'),
+        escapeCSV(request.approved ? 'Approved' : 'Pending'),
+        escapeCSV(request._id || 'N/A'),
+        escapeCSV(request.branchId || branchOwnerId || 'N/A'),
+        escapeCSV(new Date(request.createdAt || request.date).toISOString())
+      ]);
+
+      // Build CSV content
+      let csvContent = [headers.join(',')];
+      csvContent = csvContent.concat(csvRows.map(row => row.join(',')));
+
+      // Add summary section if there are filters applied
+      if (dateFilter.type !== 'all' || searchTerm || statusFilter !== 'all' || priorityFilter !== 'all') {
+        csvContent.push('');
+        csvContent.push('Summary');
+        csvContent.push(`Total Records,${filteredRequests.length}`);
+        csvContent.push(`Approved Requests,${filteredRequests.filter(r => r.approved).length}`);
+        csvContent.push(`Pending Requests,${filteredRequests.filter(r => !r.approved).length}`);
+        
+        if (dateFilter.type !== 'all') {
+          csvContent.push(`Date Filter,${dateFilter.type}`);
+          if (dateFilter.type === 'custom' && dateFilter.startDate && dateFilter.endDate) {
+            csvContent.push(`Start Date,${dateFilter.startDate}`);
+            csvContent.push(`End Date,${dateFilter.endDate}`);
+          }
+        }
+        
+        if (statusFilter !== 'all') {
+          csvContent.push(`Status Filter,${statusFilter}`);
+        }
+        
+        if (priorityFilter !== 'all') {
+          csvContent.push(`Priority Filter,${priorityFilter}`);
+        }
+        
+        if (searchTerm) {
+          csvContent.push(`Search Term,${searchTerm}`);
+        }
+        
+        csvContent.push(`Export Date,${new Date().toLocaleDateString('en-US')}`);
+      }
+
+      // Create blob and download
+      const blob = new Blob([csvContent.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      
+      const date = new Date().toISOString().split('T')[0];
+      const filename = `stock-requests-${branchOwnerId || 'branch'}-${date}.csv`;
+      
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      URL.revokeObjectURL(url);
+      
+      toast.success('CSV file downloaded successfully!');
+      setShowExportMenu(false);
+    } catch (error) {
+      console.error('Error downloading CSV:', error);
+      toast.error('Failed to download CSV file');
+    }
+  };
+
+  // Apply quick date filter
+  const applyQuickDateFilter = (type) => {
+    const today = new Date();
+    let startDate = new Date();
+    
+    switch (type) {
+      case 'today':
+        startDate = new Date(today);
+        break;
+      case 'week':
+        startDate.setDate(today.getDate() - 7);
+        break;
+      case 'month':
+        startDate.setMonth(today.getMonth() - 1);
+        break;
+      case 'custom':
+        setDateFilter({ type: 'custom', startDate: '', endDate: '' });
+        return;
+      default:
+        setDateFilter({ type: 'all', startDate: '', endDate: '' });
+        return;
+    }
+
+    setDateFilter({
+      type,
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: today.toISOString().split('T')[0]
+    });
+  };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setSearchTerm('');
+    setDateFilter({ type: 'all', startDate: '', endDate: '' });
+    setStatusFilter('all');
+    setPriorityFilter('all');
+    setShowFilters(false);
+  };
 
   // Pagination calculations
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = requests || [];
-  const totalPages = Math.ceil((totalItems || 0) / itemsPerPage);
+  const currentItems = filteredRequests.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -36,7 +258,7 @@ const StockRequestsTable = ({ branchOwnerId }) => {
 
   const handleItemsPerPageChange = (value) => {
     setItemsPerPage(value);
-    setCurrentPage(1); // Reset to first page
+    setCurrentPage(1);
   };
 
   const getStatusStyles = (approved) => {
@@ -77,6 +299,27 @@ const StockRequestsTable = ({ branchOwnerId }) => {
     return icons[priority] || '📦';
   };
 
+  const getStatusIcon = (approved) => {
+    return approved ? <CheckCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />;
+  };
+
+  const dateFilters = [
+    { key: 'all', label: 'All Time' },
+    { key: 'today', label: 'Today' },
+    { key: 'week', label: 'Last 7 Days' },
+    { key: 'month', label: 'Last 30 Days' },
+    { key: 'custom', label: 'Custom Range' }
+  ];
+
+  const exportFormats = [
+    { 
+      key: 'csv', 
+      label: 'CSV', 
+      color: 'bg-blue-500 hover:bg-blue-600',
+      handler: downloadCSV
+    }
+  ];
+
   return (
     <div className={`rounded-2xl shadow-lg overflow-hidden ${
       isDark ? 'bg-slate-800 border border-slate-700' : 'bg-white'
@@ -90,20 +333,241 @@ const StockRequestsTable = ({ branchOwnerId }) => {
             <div className={`p-2 rounded-lg ${
               isDark ? 'bg-blue-500/20' : 'bg-blue-100'
             }`}>
-              <svg className={`w-5 h-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
+              <Package className={`w-5 h-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
             </div>
             <div>
               <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>
                 Request History
               </h2>
               <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                {totalItems || 0} total requests
+                {filteredRequests.length} of {totalItems || 0} request{totalItems !== 1 ? 's' : ''}
+                {(dateFilter.type !== 'all' || statusFilter !== 'all' || priorityFilter !== 'all' || searchTerm) && ' (filtered)'}
               </p>
             </div>
           </div>
+          
+          <div className="flex items-center gap-2">
+            {/* Search */}
+            <div className="relative">
+              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                isDark ? 'text-gray-400' : 'text-gray-500'
+              }`} />
+              <input
+                type="text"
+                placeholder="Search requests..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={`pl-10 pr-4 py-2 rounded-lg border transition-colors text-sm ${
+                  isDark
+                    ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400 focus:border-blue-500'
+                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-blue-500'
+                } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+              />
+            </div>
+
+            {/* Filter Button */}
+            <button 
+              onClick={() => setShowFilters(!showFilters)}
+              className={`p-2 rounded-lg transition-colors ${
+                showFilters
+                  ? isDark
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-blue-500 text-white'
+                  : isDark
+                  ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Filter className="w-4 h-4" />
+            </button>
+
+            {/* Export Button with Dropdown */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                disabled={filteredRequests.length === 0}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark
+                    ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
+                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                } ${filteredRequests.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <Download className="w-4 h-4" />
+              </button>
+
+              {/* Export Dropdown Menu */}
+              {showExportMenu && (
+                <div className={`absolute right-0 top-full mt-1 w-48 rounded-lg shadow-lg border z-50 ${
+                  isDark
+                    ? 'bg-slate-800 border-slate-700'
+                    : 'bg-white border-gray-200'
+                }`}>
+                  <div className="p-2">
+                    <div className={`px-3 py-2 text-xs font-semibold ${
+                      isDark ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
+                      Export As
+                    </div>
+                    {exportFormats.map((format) => (
+                      <button
+                        key={format.key}
+                        onClick={format.handler}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-white font-medium transition-all mb-1 last:mb-0 ${format.color}`}
+                      >
+                        {format.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+
+        {/* Filters Panel */}
+        {showFilters && (
+          <div className={`mt-4 p-4 rounded-lg border ${
+            isDark
+              ? 'bg-slate-700/50 border-slate-600'
+              : 'bg-gray-50 border-gray-200'
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className={`text-sm font-medium ${
+                isDark ? 'text-gray-300' : 'text-gray-700'
+              }`}>
+                Filters
+              </h3>
+              <button
+                onClick={clearFilters}
+                className={`text-xs flex items-center gap-1 ${
+                  isDark 
+                    ? 'text-gray-400 hover:text-gray-300' 
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <X className="w-3 h-3" />
+                Clear All
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Status Filter */}
+              <div className="space-y-3">
+                <label className={`text-sm font-medium ${
+                  isDark ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Status
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className={`w-full px-3 py-2 rounded border text-sm ${
+                    isDark
+                      ? 'bg-slate-600 border-slate-500 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                </select>
+              </div>
+
+              {/* Priority Filter */}
+              <div className="space-y-3">
+                <label className={`text-sm font-medium ${
+                  isDark ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Priority
+                </label>
+                <select
+                  value={priorityFilter}
+                  onChange={(e) => setPriorityFilter(e.target.value)}
+                  className={`w-full px-3 py-2 rounded border text-sm ${
+                    isDark
+                      ? 'bg-slate-600 border-slate-500 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                >
+                  <option value="all">All Priorities</option>
+                  <option value="Urgent">Urgent</option>
+                  <option value="Required">Required</option>
+                  <option value="Normal">Normal</option>
+                </select>
+              </div>
+
+              {/* Date Filters */}
+              <div className="space-y-3">
+                <label className={`text-sm font-medium ${
+                  isDark ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Date Range
+                </label>
+                
+                {/* Quick Date Filters */}
+                <div className="flex flex-wrap gap-2">
+                  {dateFilters.map((filter) => (
+                    <button
+                      key={filter.key}
+                      onClick={() => applyQuickDateFilter(filter.key)}
+                      className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
+                        dateFilter.type === filter.key
+                          ? isDark
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-blue-500 text-white'
+                          : isDark
+                          ? 'bg-slate-600 text-gray-300 hover:bg-slate-500'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Custom Date Range */}
+                {dateFilter.type === 'custom' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${
+                        isDark ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                        Start Date
+                      </label>
+                      <input
+                        type="date"
+                        value={dateFilter.startDate}
+                        onChange={(e) => setDateFilter(prev => ({ ...prev, startDate: e.target.value }))}
+                        className={`w-full px-3 py-1.5 rounded border text-sm ${
+                          isDark
+                            ? 'bg-slate-600 border-slate-500 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${
+                        isDark ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                        End Date
+                      </label>
+                      <input
+                        type="date"
+                        value={dateFilter.endDate}
+                        onChange={(e) => setDateFilter(prev => ({ ...prev, endDate: e.target.value }))}
+                        className={`w-full px-3 py-1.5 rounded border text-sm ${
+                          isDark
+                            ? 'bg-slate-600 border-slate-500 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Table Body */}
@@ -118,20 +582,21 @@ const StockRequestsTable = ({ branchOwnerId }) => {
         ) : error ? (
           <div className="p-8 text-center">
             <div className="text-red-500 mb-2">
-              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <AlertTriangle className="w-12 h-12 mx-auto" />
             </div>
             <p className="text-red-600 font-medium">{error}</p>
           </div>
-        ) : requests && requests.length > 0 ? (
+        ) : filteredRequests.length > 0 ? (
           <table className="min-w-full divide-y divide-gray-200">
             <thead className={isDark ? 'bg-slate-700/30' : 'bg-gray-50'}>
               <tr>
                 <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
                   isDark ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  Date
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    Date
+                  </div>
                 </th>
                 <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
                   isDark ? 'text-gray-300' : 'text-gray-700'
@@ -167,9 +632,7 @@ const StockRequestsTable = ({ branchOwnerId }) => {
                     isDark ? 'text-gray-300' : 'text-gray-900'
                   }`}>
                     <div className="flex items-center gap-2">
-                      <svg className={`w-4 h-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
+                      <Calendar className={`w-4 h-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
                       {new Date(request.createdAt || request.date).toLocaleDateString()}
                     </div>
                   </td>
@@ -200,9 +663,10 @@ const StockRequestsTable = ({ branchOwnerId }) => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${
+                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${
                       getStatusStyles(request.approved)
                     }`}>
+                      {getStatusIcon(request.approved)}
                       {request.approved ? 'Approved' : 'Pending'}
                     </span>
                   </td>
@@ -215,22 +679,20 @@ const StockRequestsTable = ({ branchOwnerId }) => {
             <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
               isDark ? 'bg-slate-700' : 'bg-gray-100'
             }`}>
-              <svg className={`w-8 h-8 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-              </svg>
+              <Package className={`w-8 h-8 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
             </div>
             <p className={`text-lg font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-              No stock requests yet
+              {requests.length === 0 ? 'No stock requests yet' : 'No matching requests found'}
             </p>
             <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-              Create your first stock request to get started
+              {requests.length === 0 ? 'Create your first stock request to get started' : 'Try adjusting your filters'}
             </p>
           </div>
         )}
       </div>
 
       {/* Pagination */}
-      {requests && requests.length > 0 && (
+      {filteredRequests.length > 0 && (
         <div className={`px-6 py-4 border-t ${
           isDark ? 'bg-slate-700/30 border-slate-600' : 'bg-gray-50 border-gray-200'
         }`}>
@@ -261,11 +723,28 @@ const StockRequestsTable = ({ branchOwnerId }) => {
 
             {/* Page info */}
             <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, totalItems)} of {totalItems} requests
+              Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredRequests.length)} of {filteredRequests.length} requests
             </div>
 
             {/* Pagination buttons */}
             <div className="flex items-center gap-2">
+              {/* First page button */}
+              <button
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage === 1}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  currentPage === 1
+                    ? isDark 
+                      ? 'bg-slate-700/50 text-gray-600 cursor-not-allowed' 
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : isDark
+                      ? 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <ChevronsLeft className="w-5 h-5" />
+              </button>
+
               {/* Previous button */}
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
@@ -280,15 +759,12 @@ const StockRequestsTable = ({ branchOwnerId }) => {
                       : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
+                <ChevronLeft className="w-5 h-5" />
               </button>
 
               {/* Page numbers */}
               <div className="flex items-center gap-1">
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
-                  // Show first page, last page, current page, and pages around current
                   const showPage = 
                     pageNum === 1 ||
                     pageNum === totalPages ||
@@ -343,9 +819,24 @@ const StockRequestsTable = ({ branchOwnerId }) => {
                       : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <ChevronRight className="w-5 h-5" />
+              </button>
+
+              {/* Last page button */}
+              <button
+                onClick={() => handlePageChange(totalPages)}
+                disabled={currentPage === totalPages}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  currentPage === totalPages
+                    ? isDark 
+                      ? 'bg-slate-700/50 text-gray-600 cursor-not-allowed' 
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : isDark
+                      ? 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <ChevronsRight className="w-5 h-5" />
               </button>
             </div>
           </div>

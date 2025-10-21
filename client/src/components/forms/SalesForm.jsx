@@ -21,6 +21,7 @@ const SalesForm = ({ onClose, branchOwnerId: propBranchOwnerId, saleToEdit }) =>
   const dropdownRef = useRef(null);
 
   const [amount, setAmount] = useState(saleToEdit ? saleToEdit.amount : '');
+  const [productName, setProductName] = useState(saleToEdit ? saleToEdit.productName : '');
   const [paymentMethod, setPaymentMethod] = useState(saleToEdit ? saleToEdit.paymentMethod : 'cash');
   const [branchOwner, setBranchOwner] = useState(saleToEdit ? saleToEdit.branchOwner._id : (propBranchOwnerId || ''));
   const [selectedBranchOwnerName, setSelectedBranchOwnerName] = useState(saleToEdit ? saleToEdit.branchOwner.name : '');
@@ -91,13 +92,14 @@ const SalesForm = ({ onClose, branchOwnerId: propBranchOwnerId, saleToEdit }) =>
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!amount || !paymentMethod || (user.role !== 'BranchOwner' && !branchOwner)) {
+    if (!amount || !productName || !paymentMethod || (user.role !== 'BranchOwner' && !branchOwner)) {
       toast.error('Please fill in all required fields.');
       return;
     }
 
     const salesData = {
       amount: parseFloat(amount),
+      productName,
       paymentMethod,
       branchOwner: user.role === 'BranchOwner' ? user._id : branchOwner,
     };
@@ -152,6 +154,26 @@ const SalesForm = ({ onClose, branchOwnerId: propBranchOwnerId, saleToEdit }) =>
         </div>
       </div>
 
+      {/* Product Name Input */}
+      <div className="space-y-2">
+        <label htmlFor="productName" className={`block text-sm font-semibold transition-colors duration-300 ${
+          theme === 'dark' ? 'text-slate-200' : 'text-gray-800'
+        }`}>
+          Product Name
+        </label>
+        <div className="relative group">
+          <input
+            type="text"
+            id="productName"
+            value={productName}
+            onChange={(e) => setProductName(e.target.value)}
+            placeholder="Enter product name"
+            className={inputBase}
+            required
+          />
+        </div>
+      </div>
+
       {/* Payment Method Selection */}
       <div className="space-y-3">
         <label className={`block text-sm font-semibold transition-colors duration-300 ${
@@ -190,14 +212,14 @@ const SalesForm = ({ onClose, branchOwnerId: propBranchOwnerId, saleToEdit }) =>
                 <div className="flex flex-col items-center space-y-2">
                   <Icon
                     className={`h-6 w-6 transition-colors duration-300 ${
-                      isSelected 
+                      isSelected
                         ? theme === 'dark' ? 'text-blue-400' : 'text-blue-700'
                         : theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
                     }`}
                   />
                   <span
                     className={`text-sm font-semibold transition-colors duration-300 ${
-                      isSelected 
+                      isSelected
                         ? theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
                         : theme === 'dark' ? 'text-slate-300' : 'text-gray-700'
                     }`}

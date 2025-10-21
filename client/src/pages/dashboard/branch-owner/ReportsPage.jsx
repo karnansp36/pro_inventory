@@ -104,13 +104,11 @@ const ReportsPage = () => {
       const response = await fetch(`/api/reports/${reportType}?branchOwnerId=${branchOwnerId}&start=${dateRange.start}&end=${dateRange.end}`);
       if (response.ok) {
         const data = await response.json();
-        console.log('Report data:', data);
         toast.success('Report generated successfully!');
       } else {
         throw new Error('Failed to generate report');
       }
     } catch (error) {
-      console.error('Error generating report:', error);
       toast.error('Error generating report. Please try again.');
     } finally {
       setIsGenerating(false);
@@ -136,7 +134,6 @@ const ReportsPage = () => {
         throw new Error('Failed to export report');
       }
     } catch (error) {
-      console.error('Error exporting report:', error);
       toast.error('Error exporting report. Please try again.');
     }
   };

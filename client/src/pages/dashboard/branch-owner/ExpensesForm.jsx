@@ -60,7 +60,6 @@ const ExpensesForm = ({ onExpenseAdded, branchOwnerId, onCancel }) => {
       onExpenseAdded();
       toast.success('💸 Expense recorded successfully!');
     } catch (error) {
-      console.error('Error recording expense:', error);
       toast.error('Failed to record expense. Please try again.');
     } finally {
       setSubmitting(false);

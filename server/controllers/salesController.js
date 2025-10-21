@@ -78,11 +78,11 @@ const getSales = asyncHandler(async (req, res) => {
 // @route   POST /api/sales
 // @access  Private (BranchOwner)
 const createSales = asyncHandler(async (req, res) => {
-  const { amount, paymentMethod, branchOwner } = req.body;
+  const { amount, productName, paymentMethod, branchOwner } = req.body;
 
-  if (!amount || !paymentMethod) {
+  if (!amount || !productName || !paymentMethod) {
     res.status(400);
-    throw new Error('Please add amount and payment method');
+    throw new Error('Please add amount, product name, and payment method');
   }
 
   const user = await User.findById(req.user.id);
@@ -109,6 +109,7 @@ const createSales = asyncHandler(async (req, res) => {
   const sales = await Sales.create({
     branchOwner: branchOwnerId,
     amount,
+    productName,
     paymentMethod,
     date: new Date(),
   });
@@ -147,7 +148,7 @@ const deleteSales = asyncHandler(async (req, res) => {
 // @route   PUT /api/sales/:id
 // @access  Private (Admin, BrandOwner)
 const updateSales = asyncHandler(async (req, res) => {
-  const { amount, paymentMethod, branchOwner } = req.body;
+  const { amount, productName, paymentMethod, branchOwner } = req.body;
 
   const sales = await Sales.findById(req.params.id);
 
@@ -169,6 +170,7 @@ const updateSales = asyncHandler(async (req, res) => {
   }
 
   sales.amount = amount || sales.amount;
+  sales.productName = productName || sales.productName;
   sales.paymentMethod = paymentMethod || sales.paymentMethod;
   sales.branchOwner = branchOwner || sales.branchOwner;
 
