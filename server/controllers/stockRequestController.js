@@ -181,7 +181,10 @@ const getStockRequestsByManagerId = asyncHandler(async (req, res) => {
 // @route   GET /api/stockrequests/branch/:branchOwnerId
 // @access  Private (Admin, BrandOwner, Manager)
 const getStockRequestsByBranchId = asyncHandler(async (req, res) => {
-  const { branchOwnerId } = req.params;
+  let { branchOwnerId } = req.params;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
 
   const user = await User.findById(req.user.id);
 
@@ -190,28 +193,66 @@ const getStockRequestsByBranchId = asyncHandler(async (req, res) => {
     throw new Error('User not found');
   }
 
-  // Only Admin, BrandOwner, and Manager roles can access this route
-  if (!['Admin', 'BrandOwner', 'Manager'].includes(user.role)) {
+  // If branchOwnerId is not provided in params and user is BranchOwner, use their own ID
+  if (!branchOwnerId && user.role === 'BranchOwner') {
+    branchOwnerId = user._id.toString();
+  }
+
+  if (!branchOwnerId) {
+    res.status(400);
+    throw new Error('BranchOwnerId is required');
+  }
+
+  console.log("Auth Check: User Role:", user.role, "User ID:", user._id.toString());
+  console.log("Auth Check: Requested BranchOwnerId:", branchOwnerId);
+
+  // Allow BranchOwner to access their own requests
+  if (user.role === 'BranchOwner') {
+    if (user._id.toString() !== branchOwnerId) {
+      console.log("Auth Error: BranchOwner trying to access other branch's requests.");
+      res.status(403);
+      throw new Error('Not authorized to view stock requests for other branches');
+    }
+  }
+  // Restrict other roles to Admin, BrandOwner, and Manager
+  else if (!['Admin', 'BrandOwner', 'Manager'].includes(user.role)) {
+    console.log("Auth Error: User role not authorized.");
     res.status(403);
-    throw new Error('Not authorized to view stock requests for other branches');
+    throw new Error('Not authorized to view stock requests');
   }
 
   // For BrandOwner and Manager, ensure they are authorized to view this specific branch
   if (user.role === 'BrandOwner') {
     const branchOwner = await User.findById(branchOwnerId);
+    console.log("Auth Check: BrandOwner - Found Branch Owner:", branchOwner?._id.toString());
+    console.log("Auth Check: BrandOwner - Assigned Brand Owner:", branchOwner?.assignedBrandOwner?.toString());
     if (!branchOwner || branchOwner.assignedBrandOwner.toString() !== user._id.toString()) {
+      console.log("Auth Error: BrandOwner not authorized for this branch owner's requests.");
       res.status(403);
       throw new Error('Not authorized to view this branch owner\'s stock requests');
     }
   } else if (user.role === 'Manager') {
     const branchOwner = await User.findById(branchOwnerId);
-    if (!branchOwner || !branchOwner.assignedBranchOwners.includes(branchOwnerId)) {
+    console.log("Auth Check: Manager - Found Branch Owner:", branchOwner?._id.toString());
+    console.log("Auth Check: Manager - Assigned Manager:", branchOwner?.assignedManager?.toString());
+    if (!branchOwner || branchOwner.assignedManager.toString() !== user._id.toString()) {
+      console.log("Auth Error: Manager not authorized for this branch owner's requests.");
       res.status(403);
       throw new Error('Not authorized to view this branch owner\'s stock requests');
     }
   }
 
-  const stockRequests = await StockRequest.find({ branchOwner: branchOwnerId }).populate('branchOwner', 'name email');
+  const stockRequests = await StockRequest.find({ branchOwner: branchOwnerId })
+    .populate('branchOwner', 'name email')
+    .limit(limit)
+    .skip(skip);
 
-    res.status(200).json(stockRequests);
+  const totalItems = await StockRequest.countDocuments({ branchOwner: branchOwnerId });
+
+  res.status(200).json({
+    stockRequests,
+    totalItems,
+    currentPage: page,
+    totalPages: Math.ceil(totalItems / limit),
+  });
 });

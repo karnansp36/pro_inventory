@@ -5,27 +5,30 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTheme } from '../../../context/ThemeContext';
-import { getStockRequests } from '../../../store/slices/stockRequestsSlice';
+import { getStockRequestsByBranch } from '../../../store/slices/stockRequestsSlice';
 
 const StockRequestsTable = ({ branchOwnerId }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const dispatch = useDispatch();
-  const { stockRequests, loading, error } = useSelector((state) => state.stockRequests);
+  const { stockRequests: requests, totalItems, loading, error } = useSelector((state) => state.stockRequests);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
-    dispatch(getStockRequests({ branchOwnerId }));
-  }, [dispatch, branchOwnerId]);
+    if (branchOwnerId) {
+      dispatch(getStockRequestsByBranch({ branchId: branchOwnerId, page: currentPage, limit: itemsPerPage }));
+    }
+  }, [dispatch, branchOwnerId, currentPage, itemsPerPage]);
+
 
   // Pagination calculations
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = stockRequests?.slice(indexOfFirstItem, indexOfLastItem) || [];
-  const totalPages = Math.ceil((stockRequests?.length || 0) / itemsPerPage);
+  const currentItems = requests || [];
+  const totalPages = Math.ceil((totalItems || 0) / itemsPerPage);
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -36,20 +39,15 @@ const StockRequestsTable = ({ branchOwnerId }) => {
     setCurrentPage(1); // Reset to first page
   };
 
-  const getStatusStyles = (status) => {
+  const getStatusStyles = (approved) => {
+    const status = approved ? 'Approved' : 'Pending';
     const lightStyles = {
       Pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
       Approved: 'bg-green-100 text-green-800 border-green-200',
-      Processing: 'bg-blue-100 text-blue-800 border-blue-200',
-      Rejected: 'bg-red-100 text-red-800 border-red-200',
-      Completed: 'bg-purple-100 text-purple-800 border-purple-200'
     };
     const darkStyles = {
       Pending: 'bg-yellow-900/30 text-yellow-300 border-yellow-700',
       Approved: 'bg-green-900/30 text-green-300 border-green-700',
-      Processing: 'bg-blue-900/30 text-blue-300 border-blue-700',
-      Rejected: 'bg-red-900/30 text-red-300 border-red-700',
-      Completed: 'bg-purple-900/30 text-purple-300 border-purple-700'
     };
     const styles = isDark ? darkStyles : lightStyles;
     return styles[status] || (isDark ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-800 border-gray-200');
@@ -101,7 +99,7 @@ const StockRequestsTable = ({ branchOwnerId }) => {
                 Request History
               </h2>
               <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                {stockRequests?.length || 0} total requests
+                {totalItems || 0} total requests
               </p>
             </div>
           </div>
@@ -126,7 +124,7 @@ const StockRequestsTable = ({ branchOwnerId }) => {
             </div>
             <p className="text-red-600 font-medium">{error}</p>
           </div>
-        ) : stockRequests && stockRequests.length > 0 ? (
+        ) : requests && requests.length > 0 ? (
           <table className="min-w-full divide-y divide-gray-200">
             <thead className={isDark ? 'bg-slate-700/30' : 'bg-gray-50'}>
               <tr>
@@ -158,9 +156,9 @@ const StockRequestsTable = ({ branchOwnerId }) => {
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-slate-700' : 'divide-gray-200'}`}>
-              {currentItems.map((request, i) => (
+              {currentItems.map((request) => (
                 <tr 
-                  key={request._id || i}
+                  key={request._id}
                   className={`transition-colors duration-150 ${
                     isDark ? 'hover:bg-slate-700/50' : 'hover:bg-gray-50'
                   }`}
@@ -203,9 +201,9 @@ const StockRequestsTable = ({ branchOwnerId }) => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${
-                      getStatusStyles(request.status)
+                      getStatusStyles(request.approved)
                     }`}>
-                      {request.status}
+                      {request.approved ? 'Approved' : 'Pending'}
                     </span>
                   </td>
                 </tr>
@@ -232,7 +230,7 @@ const StockRequestsTable = ({ branchOwnerId }) => {
       </div>
 
       {/* Pagination */}
-      {stockRequests && stockRequests.length > 0 && (
+      {requests && requests.length > 0 && (
         <div className={`px-6 py-4 border-t ${
           isDark ? 'bg-slate-700/30 border-slate-600' : 'bg-gray-50 border-gray-200'
         }`}>
@@ -263,7 +261,7 @@ const StockRequestsTable = ({ branchOwnerId }) => {
 
             {/* Page info */}
             <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, stockRequests.length)} of {stockRequests.length} requests
+              Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, totalItems)} of {totalItems} requests
             </div>
 
             {/* Pagination buttons */}

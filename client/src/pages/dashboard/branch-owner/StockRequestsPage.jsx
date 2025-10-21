@@ -2,18 +2,23 @@
 // 1. StockRequestsPage.jsx - Main Page Component
 // ============================================
 
-import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useOutletContext } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { useTheme } from '../../../context/ThemeContext';
 import StockRequestForm from './StockRequestForm';
 import StockRequestsTable from './StockRequestsTable';
+import { getStockRequestsByBranch } from '../../../store/slices/stockRequestsSlice';
 
 const StockRequestsPage = () => {
-  const { branchOwnerId } = useParams();
+  const { branchOwnerId } = useOutletContext();
+  const dispatch = useDispatch();
+  const { stockRequests, loading, error } = useSelector((state) => state.stockRequests);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [refreshTable, setRefreshTable] = useState(0);
   const [showForm, setShowForm] = useState(false);
+
 
   const handleRequestAdded = () => {
     setRefreshTable(prev => prev + 1);

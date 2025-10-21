@@ -14,7 +14,7 @@ router.route('/:id')
   .delete(protect, authorizeRoles('Admin', 'BrandOwner'), deleteStockRequest);
 
 router.route('/branch/:branchId')
-  .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getStockRequestsByBranchId);
+  .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getStockRequestsByBranchId);
 router.route('/manager/:managerId').get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getStockRequestsByManagerId);
 
 export default router

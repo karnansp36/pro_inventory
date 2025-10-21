@@ -9,7 +9,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useTheme } from '../../../context/ThemeContext';
 import ExpensesForm from './ExpensesForm';
 import ExpensesTable from './ExpensesTable';
-import { getExpensesByBranch } from '../../../store/slices/expensesSlice';
+import { getExpensesByBranchOwners } from '../../../store/slices/expensesSlice';
 
 const ExpensesPage = () => {
   const location = useLocation();
@@ -23,7 +23,7 @@ const ExpensesPage = () => {
 
   useEffect(() => {
     if (branchOwnerId) {
-      dispatch(getExpensesByBranch(branchOwnerId));
+      dispatch(getExpensesByBranchOwners(branchOwnerId));
     }
   }, [branchOwnerId, dispatch, refreshTable]);
 

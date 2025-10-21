@@ -154,6 +154,7 @@ export {
   deleteExpense,
   getExpensesByManagerId,
   getExpensesByBranchOwnerId,
+  getExpensesByBranchOwners,
 };
 
 // @desc    Get expenses by manager ID
@@ -241,6 +242,64 @@ const getExpensesByBranchOwnerId = asyncHandler(async (req, res) => {
   console.log('getExpensesByBranchOwnerId: Querying expenses for branchOwner ID:', branchOwnerId);
   console.log('getExpensesByBranchOwnerId: Fetched expenses count:', expenses.length);
   console.log('getExpensesByBranchOwnerId: Sample expenses (first 2):', expenses.slice(0, 2));
+
+  res.status(200).json(expenses);
+});
+
+// @desc    Get expenses by multiple branch owner IDs
+// @route   GET /api/expenses/branch-owners?branchOwnerIds=id1&branchOwnerIds=id2
+// @access  Private (Admin, BrandOwner, Manager, BranchOwner)
+const getExpensesByBranchOwners = asyncHandler(async (req, res) => {
+  const { branchOwnerIds } = req.query;
+  console.log('getExpensesByBranchOwners: Received branchOwnerIds:', branchOwnerIds);
+
+  if (!branchOwnerIds) {
+    res.status(400);
+    throw new Error('branchOwnerIds are required as query parameters');
+  }
+
+  // Ensure branchOwnerIds is an array
+  const ids = Array.isArray(branchOwnerIds) ? branchOwnerIds : [branchOwnerIds];
+
+  const user = await User.findById(req.user.id);
+
+  if (!user) {
+    res.status(401);
+    throw new Error('User not found');
+  }
+  console.log('getExpensesByBranchOwners: User role:', user.role, 'User ID:', user._id);
+
+  // Authorization logic (similar to getExpensesByBranchOwnerId but for multiple IDs)
+  if (!['Admin', 'BrandOwner', 'Manager', 'BranchOwner'].includes(user.role)) {
+    res.status(403);
+    throw new Error('Not authorized to view expenses');
+  }
+
+  // For BranchOwner, ensure they can only view their own expenses
+  if (user.role === 'BranchOwner') {
+    if (!ids.every(id => user._id.toString() === id)) {
+      res.status(403);
+      throw new Error('Not authorized to view expenses for other branches');
+    }
+  }
+  // For BrandOwner and Manager, ensure they are authorized to view these specific branches
+  else if (user.role === 'BrandOwner') {
+    const authorizedBranchOwners = await User.find({ assignedBrandOwner: user._id, role: 'BranchOwner', _id: { $in: ids } });
+    if (authorizedBranchOwners.length !== ids.length) {
+      res.status(403);
+      throw new Error('Not authorized to view all specified branch owners\' expenses');
+    }
+  } else if (user.role === 'Manager') {
+    const authorizedBranchOwners = await User.find({ assignedManager: user._id, role: 'BranchOwner', _id: { $in: ids } });
+    if (authorizedBranchOwners.length !== ids.length) {
+      res.status(403);
+      throw new Error('Not authorized to view all specified branch owners\' expenses');
+    }
+  }
+
+  const expenses = await Expense.find({ branchOwner: { $in: ids } }).populate('branchOwner', 'name email');
+  console.log('getExpensesByBranchOwners: Querying expenses for branchOwner IDs:', ids);
+  console.log('getExpensesByBranchOwners: Fetched expenses count:', expenses.length);
 
   res.status(200).json(expenses);
 });

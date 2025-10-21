@@ -71,7 +71,7 @@ export const getStockRequestsByBranch = createAsyncThunk(
       const response = await stockRequestService.getStockRequestsByBranch(
         branchId, page, limit
       );
-      return response.data;
+      return response;
     } catch (error) {
       return rejectWithValue(error.response.data);
     }
@@ -191,7 +191,7 @@ const stockRequestsSlice = createSlice({
       .addCase(getStockRequestsByBranch.fulfilled, (state, action) => {
         state.loading = false;
         state.stockRequests = Array.isArray(action.payload.stockRequests) ? action.payload.stockRequests : [];
-        state.totalItems = action.payload.totalItems || 0;
+        state.totalItems = action.payload.totalItems || action.payload.stockRequests?.length || 0;
       })
       .addCase(getStockRequestsByBranch.rejected, (state, action) => {
         state.loading = false;

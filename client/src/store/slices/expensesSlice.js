@@ -87,7 +87,8 @@ export const getExpensesByBranchOwners = createAsyncThunk(
   'expenses/getExpensesByBranchOwners',
   async (branchOwnerIds, { rejectWithValue }) => {
     try {
-      const response = await api.post('/expenses/branch-owners', { branchOwnerIds });
+      const query = branchOwnerIds.map(id => `branchOwnerIds=${id}`).join('&');
+      const response = await api.get(`/expenses/branch-owners?${query}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response.data);
