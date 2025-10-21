@@ -12,21 +12,23 @@ const uploadDailyStoreImage = async (imageData) => {
   return response.data;
 };
 
-// Get daily store images for a specific branch
-const getDailyStoreImagesByBranch = async (branchId) => {
-  const response = await api.get(`${DAILY_STORE_IMAGE_URL}/branch/${branchId}`);
+
+
+// Get all daily store images with pagination (for admin/brand owner)
+const getAllDailyStoreImages = async (page = 1, limit = 10) => {
+  const response = await api.get(`${DAILY_STORE_IMAGE_URL}?page=${page}&limit=${limit}`);
   return response.data;
 };
 
-// Get all daily store images (for admin/brand owner)
-const getAllDailyStoreImages = async () => {
-  const response = await api.get(DAILY_STORE_IMAGE_URL);
+// Get daily store images for the logged-in branch owner with pagination
+const getDailyStoreImagesForBranchOwner = async (page = 1, limit = 10) => {
+  const response = await api.get(`${DAILY_STORE_IMAGE_URL}/my-images?page=${page}&limit=${limit}`);
   return response.data;
 };
 
-// Get daily store images for the logged-in branch owner
-const getDailyStoreImagesForBranchOwner = async () => {
-  const response = await api.get(`${DAILY_STORE_IMAGE_URL}/my-images`);
+// Get daily store images for a specific branch with pagination
+const getDailyStoreImagesByBranch = async (branchId, page = 1, limit = 10) => {
+  const response = await api.get(`${DAILY_STORE_IMAGE_URL}/branch/${branchId}?page=${page}&limit=${limit}`);
   return response.data;
 };
 

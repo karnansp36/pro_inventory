@@ -2,7 +2,7 @@ import asyncHandler from 'express-async-handler';
 import Expense from '../models/Expense.js';
 import User from '../models/User.js';
 
-// @desc    Get all expenses
+// @desc    Get all expenses with pagination
 // @route   GET /api/expenses
 // @access  Private (Admin, BrandOwner, Manager, BranchOwner)
 const getExpenses = asyncHandler(async (req, res) => {
@@ -17,25 +17,65 @@ const getExpenses = asyncHandler(async (req, res) => {
 
   console.log('getExpenses: User role:', user.role);
 
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
   let expenses;
+  let totalItems;
+  
   if (user.role === 'Admin') {
-    expenses = await Expense.find({}).populate('branchOwner', 'name email');
+    expenses = await Expense.find({})
+      .populate('branchOwner', 'name email')
+      .sort({ date: -1 })
+      .limit(limit)
+      .skip(skip);
+    totalItems = await Expense.countDocuments({});
   } else if (user.role === 'BrandOwner') {
-    const branchOwners = await User.find({ assignedManager: user._id, role: 'BranchOwner' });
+    const branchOwners = await User.find({ assignedBrandOwner: user._id, role: 'BranchOwner' });
     const branchOwnerIds = branchOwners.map(owner => owner._id);
-    expenses = await Expense.find({ branchOwner: { $in: branchOwnerIds } }).populate('branchOwner', 'name email');
+    expenses = await Expense.find({ branchOwner: { $in: branchOwnerIds } })
+      .populate('branchOwner', 'name email')
+      .sort({ date: -1 })
+      .limit(limit)
+      .skip(skip);
+    totalItems = await Expense.countDocuments({ branchOwner: { $in: branchOwnerIds } });
   } else if (user.role === 'Manager') {
-    const branchOwners = await User.find({ assignedManager: user._id, role: 'BranchOwner' });
-    const branchOwnerIds = branchOwners.map(owner => owner._id);
-    expenses = await Expense.find({ branchOwner: { $in: branchOwnerIds } }).populate('branchOwner', 'name email');
+    // Fetch expenses data for branches assigned to the manager
+    const managerId = req.user.id;
+    const manager = await User.findById(managerId).populate('assignedBranchOwners');
+
+    let branchOwnerIds = manager.assignedBranchOwners.map(bo => bo._id);
+
+    let query = { branchOwner: { $in: branchOwnerIds } };
+    if (req.query.branchId) {
+      query.branchOwner = req.query.branchId;
+    }
+
+    expenses = await Expense.find(query)
+      .populate('branchOwner', 'name email')
+      .sort({ date: -1 })
+      .limit(limit)
+      .skip(skip);
+    totalItems = await Expense.countDocuments(query);
   } else if (user.role === 'BranchOwner') {
-    expenses = await Expense.find({ branchOwner: req.user.id }).populate('branchOwner', 'name email');
+    expenses = await Expense.find({ branchOwner: req.user.id })
+      .populate('branchOwner', 'name email')
+      .sort({ date: -1 })
+      .limit(limit)
+      .skip(skip);
+    totalItems = await Expense.countDocuments({ branchOwner: req.user.id });
   } else {
     res.status(403);
     throw new Error('Not authorized to view expenses');
   }
 
-  res.status(200).json(expenses);
+  res.status(200).json({
+    expenses,
+    totalItems,
+    currentPage: page,
+    totalPages: Math.ceil(totalItems / limit),
+  });
 });
 
 // @desc    Create new expense (Admin, BrandOwner, BranchOwner)
@@ -43,7 +83,6 @@ const getExpenses = asyncHandler(async (req, res) => {
 // @access  Private (Admin, BrandOwner, BranchOwner)
 const createExpense = asyncHandler(async (req, res) => {
   const { category, amount, description, branchOwner, paymentMethod, date } = req.body;
-
 
   const user = await User.findById(req.user.id);
 
@@ -143,25 +182,15 @@ const deleteExpense = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Expense removed' });
 });
 
-
-
-
-
-export {
-  getExpenses,
-  createExpense,
-  updateExpense,
-  deleteExpense,
-  getExpensesByManagerId,
-  getExpensesByBranchOwnerId,
-  getExpensesByBranchOwners,
-};
-
-// @desc    Get expenses by manager ID
+// @desc    Get expenses by manager ID with pagination
 // @route   GET /api/expenses/manager/:managerId
 // @access  Private (Admin, BrandOwner, Manager)
 const getExpensesByManagerId = asyncHandler(async (req, res) => {
   const { managerId } = req.params;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
   console.log('getExpensesByManagerId: Received managerId:', managerId);
 
   // Find the manager
@@ -180,26 +209,48 @@ const getExpensesByManagerId = asyncHandler(async (req, res) => {
 
   if (!branchOwnerIds || branchOwnerIds.length === 0) {
     console.log('getExpensesByManagerId: No branch owners assigned to this manager. Returning empty array.');
-    return res.status(200).json([]); // no branches assigned
+    return res.status(200).json({
+      expenses: [],
+      totalItems: 0,
+      currentPage: page,
+      totalPages: 0,
+    });
   }
 
   // Fetch the expenses for those branch owners
   const expenses = await Expense.find({
     branchOwner: { $in: branchOwnerIds },
-  }).populate('branchOwner', 'name email');
+  })
+    .populate('branchOwner', 'name email')
+    .sort({ date: -1 })
+    .limit(limit)
+    .skip(skip);
+
+  const totalItems = await Expense.countDocuments({
+    branchOwner: { $in: branchOwnerIds },
+  });
+
   console.log('getExpensesByManagerId: Querying expenses for branchOwner IDs:', branchOwnerIds);
   console.log('getExpensesByManagerId: Fetched expenses count:', expenses.length);
-  console.log('getExpensesByManagerId: All fetched expenses:', expenses);
-  console.log('getExpensesByManagerId: Sample expenses (first 2):', expenses.slice(0, 2));
+  console.log('getExpensesByManagerId: Total items:', totalItems);
 
-  res.status(200).json(expenses);
+  res.status(200).json({
+    expenses,
+    totalItems,
+    currentPage: page,
+    totalPages: Math.ceil(totalItems / limit),
+  });
 });
 
-// @desc    Get expenses by branch owner ID
+// @desc    Get expenses by branch owner ID with pagination
 // @route   GET /api/expenses/branch-owner/:branchOwnerId
 // @access  Private (Admin, BrandOwner, Manager, BranchOwner)
 const getExpensesByBranchOwnerId = asyncHandler(async (req, res) => {
-  const { branchOwnerId } = req.params;
+  let { branchOwnerId } = req.params;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
   console.log('getExpensesByBranchOwnerId: Received branchOwnerId:', branchOwnerId);
 
   const user = await User.findById(req.user.id);
@@ -210,47 +261,85 @@ const getExpensesByBranchOwnerId = asyncHandler(async (req, res) => {
   }
   console.log('getExpensesByBranchOwnerId: User role:', user.role, 'User ID:', user._id);
 
-  // Only Admin, BrandOwner, Manager, and BranchOwner roles can access this route
-  if (!['Admin', 'BrandOwner', 'Manager', 'BranchOwner'].includes(user.role)) {
-    res.status(403);
-    throw new Error('Not authorized to view expenses');
+  // If branchOwnerId is not provided in params and user is BranchOwner, use their own ID
+  if (!branchOwnerId && user.role === 'BranchOwner') {
+    branchOwnerId = user._id.toString();
   }
 
-  // For BranchOwner, ensure they can only view their own expenses
+  if (!branchOwnerId) {
+    res.status(400);
+    throw new Error('BranchOwnerId is required');
+  }
+
+  console.log("Auth Check: User Role:", user.role, "User ID:", user._id.toString());
+  console.log("Auth Check: Requested BranchOwnerId:", branchOwnerId);
+  console.log("Pagination: Page:", page, "Limit:", limit);
+
+  // Allow BranchOwner to access their own requests
   if (user.role === 'BranchOwner') {
     if (user._id.toString() !== branchOwnerId) {
+      console.log("Auth Error: BranchOwner trying to access other branch's expenses.");
       res.status(403);
       throw new Error('Not authorized to view expenses for other branches');
     }
   }
+  // Restrict other roles to Admin, BrandOwner, and Manager
+  else if (!['Admin', 'BrandOwner', 'Manager'].includes(user.role)) {
+    console.log("Auth Error: User role not authorized.");
+    res.status(403);
+    throw new Error('Not authorized to view expenses');
+  }
+
   // For BrandOwner and Manager, ensure they are authorized to view this specific branch
-  else if (user.role === 'BrandOwner') {
+  if (user.role === 'BrandOwner') {
     const branchOwner = await User.findById(branchOwnerId);
-    if (!branchOwner || branchOwner.assignedBrandOwner.toString() !== user._id.toString()) {
+    console.log("Auth Check: BrandOwner - Found Branch Owner:", branchOwner?._id.toString());
+    console.log("Auth Check: BrandOwner - Assigned Brand Owner:", branchOwner?.assignedBrandOwner?.toString());
+    if (!branchOwner || branchOwner.assignedBrandOwner?.toString() !== user._id.toString()) {
+      console.log("Auth Error: BrandOwner not authorized for this branch owner's expenses.");
       res.status(403);
       throw new Error('Not authorized to view this branch owner\'s expenses');
     }
   } else if (user.role === 'Manager') {
     const branchOwner = await User.findById(branchOwnerId);
-    if (!branchOwner || !branchOwner.assignedManager.includes(user._id.toString())) {
+    console.log("Auth Check: Manager - Found Branch Owner:", branchOwner?._id.toString());
+    console.log("Auth Check: Manager - Assigned Manager:", branchOwner?.assignedManager?.toString());
+    if (!branchOwner || !branchOwner.assignedManager?.includes(user._id.toString())) {
+      console.log("Auth Error: Manager not authorized for this branch owner's expenses.");
       res.status(403);
       throw new Error('Not authorized to view this branch owner\'s expenses');
     }
   }
 
-  const expenses = await Expense.find({ branchOwner: branchOwnerId }).populate('branchOwner', 'name email');
+  const expenses = await Expense.find({ branchOwner: branchOwnerId })
+    .populate('branchOwner', 'name email')
+    .sort({ date: -1 })
+    .limit(limit)
+    .skip(skip);
+
+  const totalItems = await Expense.countDocuments({ branchOwner: branchOwnerId });
+
   console.log('getExpensesByBranchOwnerId: Querying expenses for branchOwner ID:', branchOwnerId);
   console.log('getExpensesByBranchOwnerId: Fetched expenses count:', expenses.length);
-  console.log('getExpensesByBranchOwnerId: Sample expenses (first 2):', expenses.slice(0, 2));
+  console.log('getExpensesByBranchOwnerId: Total items:', totalItems);
 
-  res.status(200).json(expenses);
+  res.status(200).json({
+    expenses,
+    totalItems,
+    currentPage: page,
+    totalPages: Math.ceil(totalItems / limit),
+  });
 });
 
-// @desc    Get expenses by multiple branch owner IDs
+// @desc    Get expenses by multiple branch owner IDs with pagination
 // @route   GET /api/expenses/branch-owners?branchOwnerIds=id1&branchOwnerIds=id2
 // @access  Private (Admin, BrandOwner, Manager, BranchOwner)
 const getExpensesByBranchOwners = asyncHandler(async (req, res) => {
   const { branchOwnerIds } = req.query;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
   console.log('getExpensesByBranchOwners: Received branchOwnerIds:', branchOwnerIds);
 
   if (!branchOwnerIds) {
@@ -297,9 +386,32 @@ const getExpensesByBranchOwners = asyncHandler(async (req, res) => {
     }
   }
 
-  const expenses = await Expense.find({ branchOwner: { $in: ids } }).populate('branchOwner', 'name email');
+  const expenses = await Expense.find({ branchOwner: { $in: ids } })
+    .populate('branchOwner', 'name email')
+    .sort({ date: -1 })
+    .limit(limit)
+    .skip(skip);
+
+  const totalItems = await Expense.countDocuments({ branchOwner: { $in: ids } });
+
   console.log('getExpensesByBranchOwners: Querying expenses for branchOwner IDs:', ids);
   console.log('getExpensesByBranchOwners: Fetched expenses count:', expenses.length);
+  console.log('getExpensesByBranchOwners: Total items:', totalItems);
 
-  res.status(200).json(expenses);
+  res.status(200).json({
+    expenses,
+    totalItems,
+    currentPage: page,
+    totalPages: Math.ceil(totalItems / limit),
+  });
 });
+
+export {
+  getExpenses,
+  createExpense,
+  updateExpense,
+  deleteExpense,
+  getExpensesByManagerId,
+  getExpensesByBranchOwnerId,
+  getExpensesByBranchOwners,
+};

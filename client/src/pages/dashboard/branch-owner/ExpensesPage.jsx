@@ -1,21 +1,17 @@
-
-// ============================================
-// 1. ExpensesPage.jsx - Main Page Component
-// ============================================
-
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTheme } from '../../../context/ThemeContext';
 import ExpensesForm from './ExpensesForm';
 import ExpensesTable from './ExpensesTable';
-import { getExpensesByBranchOwners } from '../../../store/slices/expensesSlice';
+import { getExpensesByBranch } from '../../../store/slices/expensesSlice';
+import { CreditCard, X, Plus } from 'lucide-react';
 
 const ExpensesPage = () => {
   const location = useLocation();
   const { branchOwnerId } = location.state || {};
   const dispatch = useDispatch();
-  const { expenses, loading, error } = useSelector((state) => state.expenses);
+  const { expenses, totalItems, loading, error } = useSelector((state) => state.expenses);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [refreshTable, setRefreshTable] = useState(0);
@@ -23,7 +19,7 @@ const ExpensesPage = () => {
 
   useEffect(() => {
     if (branchOwnerId) {
-      dispatch(getExpensesByBranchOwners(branchOwnerId));
+      dispatch(getExpensesByBranch({ branchId: branchOwnerId, page: 1, limit: 10 }));
     }
   }, [branchOwnerId, dispatch, refreshTable]);
 
@@ -45,9 +41,7 @@ const ExpensesPage = () => {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
+                  <CreditCard className="w-6 h-6 text-white" />
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-white">
                   Expenses Management
@@ -67,16 +61,12 @@ const ExpensesPage = () => {
             >
               {showForm ? (
                 <>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <X className="w-5 h-5" />
                   Close Form
                 </>
               ) : (
                 <>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
+                  <Plus className="w-5 h-5" />
                   Add Expense
                 </>
               )}
@@ -89,11 +79,17 @@ const ExpensesPage = () => {
           {/* Form - Conditional */}
           {showForm && (
             <div className="lg:col-span-1">
-              <ExpensesForm 
-                onExpenseAdded={handleExpenseAdded} 
-                branchOwnerId={branchOwnerId}
-                onCancel={() => setShowForm(false)}
-              />
+              <div className={`rounded-2xl overflow-hidden transition-all duration-300 border ${
+                isDark
+                  ? 'bg-gradient-to-br from-slate-900/80 to-slate-800/80 backdrop-blur-xl border-slate-700/50'
+                  : 'bg-white border-gray-200 shadow-lg'
+              }`}>
+                <ExpensesForm 
+                  onExpenseAdded={handleExpenseAdded} 
+                  branchOwnerId={branchOwnerId}
+                  onCancel={() => setShowForm(false)}
+                />
+              </div>
             </div>
           )}
           

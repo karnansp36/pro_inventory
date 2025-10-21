@@ -1,37 +1,69 @@
-// ============================================
-// DailyStoreImagePage.jsx - Redesigned
-// ============================================
-
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { uploadDailyStoreImage, getDailyStoreImagesForBranchOwner, reset } from '../../../../src/store/slices/dailyStoreImageSlice';
+import {
+  uploadDailyStoreImage,
+  getDailyStoreImagesByBranch,
+  reset
+} from '../../../../src/store/slices/dailyStoreImageSlice';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Upload,
+  Image as ImageIcon,
+  Calendar,
+  Search,
+  X
+} from 'lucide-react';
 
 const DailyStoreImagePage = () => {
+  const location = useLocation();
+  const { branchOwnerId } = location.state || {};
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [dragActive, setDragActive] = useState(false);
+
+  // Utility function to normalize image paths
+  const normalizeImagePath = (path) => {
+    if (!path) return '';
+    // Ensure path starts with a '/'
+    return path.startsWith('/') ? path : `/${path}`;
+  };
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(9);
   const [selectedImage, setSelectedImage] = useState(null);
-  const imagesPerPage = 9;
+  const [searchTerm, setSearchTerm] = useState('');
 
   const dispatch = useDispatch();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { user } = useSelector((state) => state.auth);
-  const { dailyStoreImages, isLoading, isSuccess, isError, message } = useSelector(
+  const { dailyStoreImages, totalItems, isLoading, isSuccess, isError, message } = useSelector(
     (state) => state.dailyStoreImages
   );
 
+  // Fetch images based on branchOwnerId if available, otherwise for the logged-in branch owner
   useEffect(() => {
-    if (user && user.role === 'BranchOwner') {
-      dispatch(getDailyStoreImagesForBranchOwner(user._id));
+    if (branchOwnerId) {
+      dispatch(getDailyStoreImagesByBranch({
+        branchId: branchOwnerId,
+        page: currentPage,
+        limit: itemsPerPage
+      }));
+    } else if (user && user.role === 'BranchOwner') {
+      dispatch(getDailyStoreImagesByBranch({
+        page: currentPage,
+        limit: itemsPerPage
+      }));
     }
     return () => {
       dispatch(reset());
     };
-  }, [dispatch, user]);
+  }, [dispatch, user, branchOwnerId, currentPage, itemsPerPage]);
 
   useEffect(() => {
     if (isError) {
@@ -39,13 +71,13 @@ const DailyStoreImagePage = () => {
     }
   }, [isError, message]);
 
-  useEffect(() => {
-    console.log('Daily Store Images from Redux:', dailyStoreImages);
-  }, [dailyStoreImages]);
-
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Image size must be less than 10MB');
+        return;
+      }
       setImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -72,6 +104,10 @@ const DailyStoreImagePage = () => {
     
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Image size must be less than 10MB');
+        return;
+      }
       setImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -98,10 +134,12 @@ const DailyStoreImagePage = () => {
         toast.success('Image uploaded successfully');
         setImage(null);
         setImagePreview(null);
-        dispatch(getDailyStoreImagesForBranchOwner(user._id));
+        // Refresh the first page to show the newly uploaded image
+        setCurrentPage(1);
+        dispatch(getDailyStoreImagesForBranchOwner({ page: 1, limit: itemsPerPage }));
       })
       .catch((error) => {
-        toast.error(error.message);
+        toast.error(error);
       });
   };
 
@@ -110,11 +148,15 @@ const DailyStoreImagePage = () => {
     setImagePreview(null);
   };
 
-  // Pagination
-  const totalPages = Math.ceil(dailyStoreImages.length / imagesPerPage);
-  const startIndex = (currentPage - 1) * imagesPerPage;
-  const endIndex = startIndex + imagesPerPage;
-  const currentImages = dailyStoreImages.slice(startIndex, endIndex);
+  // Server-side pagination calculations
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+
+  const goToFirstPage = () => setCurrentPage(1);
+  const goToLastPage = () => setCurrentPage(totalPages);
+  const goToPreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
+  const goToNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
 
   const getPageNumbers = () => {
     const pages = [];
@@ -144,7 +186,22 @@ const DailyStoreImagePage = () => {
     return pages;
   };
 
-  if (isLoading) {
+  // Fixed image error handler
+  const handleImageError = (e) => {
+    console.error('Failed to load image');
+    // Remove the onerror handler to prevent infinite loop
+    e.target.onerror = null;
+    // Set a simple placeholder without trying to load another image
+    e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzljYTBiMSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBmb3VuZDwvdGV4dD48L3N2Zz4=';
+  };
+
+  // Filter images based on search term
+  const filteredImages = dailyStoreImages.filter(img =>
+    img.originalName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    new Date(img.createdAt).toLocaleDateString().includes(searchTerm)
+  );
+
+  if (isLoading && dailyStoreImages.length === 0) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${
         isDark ? 'bg-slate-900' : 'bg-gray-50'
@@ -170,12 +227,10 @@ const DailyStoreImagePage = () => {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
+                  <ImageIcon className="w-6 h-6 text-white" />
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-white">
-                  Daily Store Images
+                  My Daily Store Images
                 </h1>
               </div>
               <p className="text-white/90 text-sm">
@@ -183,11 +238,9 @@ const DailyStoreImagePage = () => {
               </p>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-lg backdrop-blur-sm">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
+              <ImageIcon className="w-5 h-5 text-white" />
               <span className="text-white text-sm font-medium">
-                {dailyStoreImages.length} Images
+                {totalItems} My Images
               </span>
             </div>
           </div>
@@ -203,9 +256,7 @@ const DailyStoreImagePage = () => {
             <h2 className={`text-lg font-semibold flex items-center gap-2 ${
               isDark ? 'text-white' : 'text-gray-800'
             }`}>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
+              <Upload className="w-5 h-5" />
               Upload New Image
             </h2>
           </div>
@@ -249,9 +300,7 @@ const DailyStoreImagePage = () => {
                         onClick={clearImage}
                         className="absolute top-2 right-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors shadow-lg"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <X className="w-5 h-5" />
                       </button>
                     </div>
                     <p className={`text-center text-sm ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>
@@ -264,9 +313,7 @@ const DailyStoreImagePage = () => {
                       <div className={`p-4 rounded-full mb-4 ${
                         isDark ? 'bg-slate-600' : 'bg-gray-200'
                       }`}>
-                        <svg className={`w-12 h-12 ${isDark ? 'text-slate-400' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
+                        <Upload className={`w-12 h-12 ${isDark ? 'text-slate-400' : 'text-gray-400'}`} />
                       </div>
                       <p className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>
                         Drop your image here, or click to browse
@@ -283,9 +330,9 @@ const DailyStoreImagePage = () => {
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  disabled={!image}
+                  disabled={!image || isLoading}
                   className={`flex items-center gap-2 px-8 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                    image
+                    image && !isLoading
                       ? isDark
                         ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/30'
                         : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg'
@@ -294,10 +341,17 @@ const DailyStoreImagePage = () => {
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   }`}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  Upload Image
+                  {isLoading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-5 h-5" />
+                      Upload Image
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -311,28 +365,60 @@ const DailyStoreImagePage = () => {
           <div className={`px-6 py-4 border-b ${
             isDark ? 'border-slate-700 bg-slate-800/50' : 'border-gray-200 bg-gray-50'
           }`}>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h2 className={`text-lg font-semibold flex items-center gap-2 ${
                 isDark ? 'text-white' : 'text-gray-800'
               }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Uploaded Images
+                <ImageIcon className="w-5 h-5" />
+                My Uploaded Images
               </h2>
-              <span className={`text-sm font-medium px-3 py-1 rounded-full ${
-                isDark ? 'bg-slate-700 text-slate-300' : 'bg-gray-200 text-gray-700'
-              }`}>
-                {dailyStoreImages.length} Total
-              </span>
+              
+              <div className="flex flex-col sm:flex-row gap-4">
+                {/* Search */}
+                <div className="relative">
+                  <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
+                    isDark ? 'text-slate-400' : 'text-gray-400'
+                  }`} />
+                  <input
+                    type="text"
+                    placeholder="Search my images..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className={`pl-10 pr-4 py-2 rounded-lg border transition-all ${
+                      isDark
+                        ? 'bg-slate-700 border-slate-600 text-slate-200 placeholder-slate-400 focus:border-purple-500'
+                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-purple-500'
+                    }`}
+                  />
+                </div>
+
+                {/* Items Per Page */}
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-2 rounded-lg border transition-all ${
+                    isDark
+                      ? 'bg-slate-700 border-slate-600 text-slate-200 focus:border-purple-500'
+                      : 'bg-white border-gray-300 text-gray-900 focus:border-purple-500'
+                  }`}
+                >
+                  <option value={6}>6 per page</option>
+                  <option value={9}>9 per page</option>
+                  <option value={12}>12 per page</option>
+                  <option value={18}>18 per page</option>
+                </select>
+              </div>
             </div>
           </div>
 
           <div className="p-6">
-            {currentImages.length > 0 ? (
+            {dailyStoreImages.length > 0 ? (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {currentImages.map((img) => (
+                  {(searchTerm ? filteredImages : dailyStoreImages).map((img) => (
                     <div
                       key={img._id}
                       className={`group relative rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 cursor-pointer ${
@@ -342,47 +428,43 @@ const DailyStoreImagePage = () => {
                     >
                       <div className="aspect-video overflow-hidden">
                         <img
-                          src={`http://localhost:5000${img.img.startsWith('/') ? img.img : '/' + img.img}`}
+                          src={`http://localhost:5000${normalizeImagePath(img.img)}`}
                           alt="Daily Store"
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                          onError={(e) => {
-                            console.error('Failed to load image:', img.img);
-                            e.target.src = '/placeholder-image.jpg';
-                          }}
+                          onError={handleImageError}
                         />
                       </div>
                       <div className={`p-4 ${isDark ? 'bg-slate-700' : 'bg-white'}`}>
-                        <div className="flex items-center gap-2 text-sm">
-                          <svg className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
+                        <div className="flex items-center gap-2 text-sm mb-2">
+                          <Calendar className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-gray-400'}`} />
                           <span className={isDark ? 'text-slate-300' : 'text-gray-600'}>
                             {new Date(img.createdAt).toLocaleString()}
                           </span>
                         </div>
+                        <p className={`text-xs truncate ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                          {img.originalName}
+                        </p>
                       </div>
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 flex items-center justify-center">
-                        <svg className="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
+                        <Search className="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {/* Pagination */}
-                {totalPages > 1 && (
+                {/* Pagination - Only show if not searching */}
+                {totalPages > 1 && !searchTerm && (
                   <div className={`mt-6 pt-6 border-t ${isDark ? 'border-slate-700' : 'border-gray-200'}`}>
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                       <div className={`text-sm ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
                         Showing <span className="font-semibold">{startIndex + 1}</span> to{' '}
-                        <span className="font-semibold">{Math.min(endIndex, dailyStoreImages.length)}</span> of{' '}
-                        <span className="font-semibold">{dailyStoreImages.length}</span> images
+                        <span className="font-semibold">{Math.min(endIndex, totalItems)}</span> of{' '}
+                        <span className="font-semibold">{totalItems}</span> images
                       </div>
 
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => setCurrentPage(currentPage - 1)}
+                          onClick={goToFirstPage}
                           disabled={currentPage === 1}
                           className={`p-2 rounded-lg transition-all ${
                             currentPage === 1
@@ -394,9 +476,23 @@ const DailyStoreImagePage = () => {
                               : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                           }`}
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                          </svg>
+                          <ChevronsLeft className="w-5 h-5" />
+                        </button>
+
+                        <button
+                          onClick={goToPreviousPage}
+                          disabled={currentPage === 1}
+                          className={`p-2 rounded-lg transition-all ${
+                            currentPage === 1
+                              ? isDark
+                                ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
+                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : isDark
+                              ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                          }`}
+                        >
+                          <ChevronLeft className="w-5 h-5" />
                         </button>
 
                         <div className="flex items-center gap-1">
@@ -426,7 +522,7 @@ const DailyStoreImagePage = () => {
                         </div>
 
                         <button
-                          onClick={() => setCurrentPage(currentPage + 1)}
+                          onClick={goToNextPage}
                           disabled={currentPage === totalPages}
                           className={`p-2 rounded-lg transition-all ${
                             currentPage === totalPages
@@ -438,9 +534,23 @@ const DailyStoreImagePage = () => {
                               : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                           }`}
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
+                          <ChevronRight className="w-5 h-5" />
+                        </button>
+
+                        <button
+                          onClick={goToLastPage}
+                          disabled={currentPage === totalPages}
+                          className={`p-2 rounded-lg transition-all ${
+                            currentPage === totalPages
+                              ? isDark
+                                ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
+                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : isDark
+                              ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                          }`}
+                        >
+                          <ChevronsRight className="w-5 h-5" />
                         </button>
                       </div>
                     </div>
@@ -452,9 +562,7 @@ const DailyStoreImagePage = () => {
                 <div className={`p-4 rounded-full mb-4 ${
                   isDark ? 'bg-slate-700' : 'bg-gray-100'
                 }`}>
-                  <svg className={`w-12 h-12 ${isDark ? 'text-slate-400' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
+                  <ImageIcon className={`w-12 h-12 ${isDark ? 'text-slate-400' : 'text-gray-400'}`} />
                 </div>
                 <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-slate-200' : 'text-gray-800'}`}>
                   No Images Yet
@@ -479,18 +587,20 @@ const DailyStoreImagePage = () => {
               onClick={() => setSelectedImage(null)}
               className="absolute -top-12 right-0 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="w-6 h-6" />
             </button>
             <img
-              src={`http://localhost:5000${selectedImage.img.startsWith('/') ? selectedImage.img : '/' + selectedImage.img}`}
+              src={`http://localhost:5000${normalizeImagePath(selectedImage.img)}`}
               alt="Daily Store"
               className="w-full h-auto rounded-2xl shadow-2xl"
+              onError={handleImageError}
             />
             <div className="mt-4 bg-white/10 backdrop-blur-md rounded-xl p-4">
               <p className="text-white text-sm">
                 Uploaded: {new Date(selectedImage.createdAt).toLocaleString()}
+              </p>
+              <p className="text-white text-sm">
+                File: {selectedImage.originalName}
               </p>
             </div>
           </div>

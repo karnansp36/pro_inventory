@@ -3,6 +3,7 @@ import dailyStoreImageService from '../../services/dailyStoreImageService';
 
 const initialState = {
   dailyStoreImages: [],
+  totalItems: 0,
   isLoading: false,
   isSuccess: false,
   isError: false,
@@ -25,12 +26,12 @@ export const uploadDailyStoreImage = createAsyncThunk(
   }
 );
 
-// Get daily store images by branch
+// Get daily store images by branch with pagination
 export const getDailyStoreImagesByBranch = createAsyncThunk(
   'dailyStoreImages/getByBranch',
-  async (branchId, thunkAPI) => {
+  async ({ branchId, page = 1, limit = 10 }, thunkAPI) => {
     try {
-      return await dailyStoreImageService.getDailyStoreImagesByBranch(branchId);
+      return await dailyStoreImageService.getDailyStoreImagesByBranch(branchId, page, limit);
     } catch (error) {
       const message =
         (error.response && error.response.data && error.response.data.message) ||
@@ -41,12 +42,12 @@ export const getDailyStoreImagesByBranch = createAsyncThunk(
   }
 );
 
-// Get all daily store images
+// Get all daily store images with pagination
 export const getAllDailyStoreImages = createAsyncThunk(
   'dailyStoreImages/getAll',
-  async (_, thunkAPI) => {
+  async ({ page = 1, limit = 10 } = {}, thunkAPI) => {
     try {
-      return await dailyStoreImageService.getAllDailyStoreImages();
+      return await dailyStoreImageService.getAllDailyStoreImages(page, limit);
     } catch (error) {
       const message =
         (error.response && error.response.data && error.response.data.message) ||
@@ -57,12 +58,12 @@ export const getAllDailyStoreImages = createAsyncThunk(
   }
 );
 
-// Get daily store images for the logged-in branch owner
+// Get daily store images for the logged-in branch owner with pagination
 export const getDailyStoreImagesForBranchOwner = createAsyncThunk(
   'dailyStoreImages/getForBranchOwner',
-  async (branchOwnerId, thunkAPI) => {
+  async ({ page = 1, limit = 10 } = {}, thunkAPI) => {
     try {
-      return await dailyStoreImageService.getDailyStoreImagesForBranchOwner(branchOwnerId);
+      return await dailyStoreImageService.getDailyStoreImagesForBranchOwner(page, limit);
     } catch (error) {
       const message =
         (error.response && error.response.data && error.response.data.message) ||
@@ -77,56 +78,93 @@ export const dailyStoreImageSlice = createSlice({
   name: 'dailyStoreImages',
   initialState,
   reducers: {
-    reset: (state) => initialState,
+    reset: (state) => {
+      state.dailyStoreImages = [];
+      state.totalItems = 0;
+      state.isLoading = false;
+      state.isSuccess = false;
+      state.isError = false;
+      state.message = '';
+    },
+    clearError: (state) => {
+      state.isError = false;
+      state.message = '';
+    },
   },
   extraReducers: (builder) => {
     builder
+      // uploadDailyStoreImage
       .addCase(uploadDailyStoreImage.pending, (state) => {
         state.isLoading = true;
       })
       .addCase(uploadDailyStoreImage.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.dailyStoreImages.push(action.payload.data);
+        state.dailyStoreImages.unshift(action.payload);
+        state.totalItems += 1;
       })
       .addCase(uploadDailyStoreImage.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;
       })
+      
+      // getDailyStoreImagesByBranch
       .addCase(getDailyStoreImagesByBranch.pending, (state) => {
         state.isLoading = true;
       })
       .addCase(getDailyStoreImagesByBranch.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.dailyStoreImages = action.payload.data;
+        if (action.payload.images) {
+          state.dailyStoreImages = action.payload.images;
+          state.totalItems = action.payload.totalItems || 0;
+        } else {
+          state.dailyStoreImages = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+        }
       })
       .addCase(getDailyStoreImagesByBranch.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;
       })
+      
+      // getAllDailyStoreImages
       .addCase(getAllDailyStoreImages.pending, (state) => {
         state.isLoading = true;
       })
       .addCase(getAllDailyStoreImages.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.dailyStoreImages = action.payload.data;
+        if (action.payload.images) {
+          state.dailyStoreImages = action.payload.images;
+          state.totalItems = action.payload.totalItems || 0;
+        } else {
+          state.dailyStoreImages = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+        }
       })
       .addCase(getAllDailyStoreImages.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;
       })
+      
+      // getDailyStoreImagesForBranchOwner
       .addCase(getDailyStoreImagesForBranchOwner.pending, (state) => {
         state.isLoading = true;
       })
       .addCase(getDailyStoreImagesForBranchOwner.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.dailyStoreImages = action.payload.data;
+        if (action.payload.images) {
+          state.dailyStoreImages = action.payload.images;
+          state.totalItems = action.payload.totalItems || 0;
+        } else {
+          state.dailyStoreImages = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+        }
       })
       .addCase(getDailyStoreImagesForBranchOwner.rejected, (state, action) => {
         state.isLoading = false;
@@ -136,5 +174,5 @@ export const dailyStoreImageSlice = createSlice({
   },
 });
 
-export const { reset } = dailyStoreImageSlice.actions;
+export const { reset, clearError } = dailyStoreImageSlice.actions;
 export default dailyStoreImageSlice.reducer;

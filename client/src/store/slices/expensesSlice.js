@@ -1,18 +1,13 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../../services/api';
+import expensesService from '../../services/expensesService';
 
 export const getExpenses = createAsyncThunk(
   'expenses/getAll',
-  async (managerId, { rejectWithValue }) => {
+  async ({ page = 1, limit = 10 } = {}, { rejectWithValue }) => {
     try {
-      let url = '/expenses';
-      if (managerId) {
-        url = `/expenses/branch/${managerId}`;
-      }
-      const response = await api.get(url);
-      return response.data;
+      return await expensesService.getExpenses(page, limit);
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch expenses' });
     }
   }
 );
@@ -21,23 +16,20 @@ export const createExpense = createAsyncThunk(
   'expenses/create',
   async (expenseData, { rejectWithValue }) => {
     try {
-      const response = await api.post('/expenses', expenseData);
-      return response.data;
+      return await expensesService.createExpense(expenseData);
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || { message: 'Failed to create expense' });
     }
   }
 );
-
 
 export const updateExpense = createAsyncThunk(
   'expenses/update',
   async ({ id, data }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`/expenses/${id}`, data);
-      return response.data;
+      return await expensesService.updateExpense(id, data);
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || { message: 'Failed to update expense' });
     }
   }
 );
@@ -46,52 +38,43 @@ export const deleteExpense = createAsyncThunk(
   'expenses/delete',
   async (expenseId, { rejectWithValue }) => {
     try {
-      await api.delete(`/expenses/${expenseId}`);
+      await expensesService.deleteExpense(expenseId);
       return expenseId;
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || { message: 'Failed to delete expense' });
     }
   }
 );
 
 export const getExpensesByBranch = createAsyncThunk(
   'expenses/getExpensesByBranch',
-  async (branchId, { rejectWithValue }) => {
+  async ({ branchId, page = 1, limit = 10 }, { rejectWithValue }) => {
     try {
-     
-      const response = await api.get(`/expenses/branch-owner/${branchId}`);
-      return response.data;
+      return await expensesService.getExpensesByBranch(branchId, page, limit);
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch expenses by branch' });
     }
   }
 );
 
 export const getExpensesByManager = createAsyncThunk(
   'expenses/getExpensesByManager',
-  async ({ managerId, filters }, { rejectWithValue }) => {
+  async ({ managerId, page = 1, limit = 10, filters = {} }, { rejectWithValue }) => {
     try {
-      let url = `/expenses/manager/${managerId}`;
-      if (filters && filters.branchId) {
-        url += `?branchId=${filters.branchId}`;
-      }
-      const response = await api.get(url);
-      return response.data;
+      return await expensesService.getExpensesByManager(managerId, page, limit, filters);
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch expenses by manager' });
     }
   }
 );
 
 export const getExpensesByBranchOwners = createAsyncThunk(
   'expenses/getExpensesByBranchOwners',
-  async (branchOwnerIds, { rejectWithValue }) => {
+  async ({ branchOwnerIds, page = 1, limit = 10 }, { rejectWithValue }) => {
     try {
-      const query = branchOwnerIds.map(id => `branchOwnerIds=${id}`).join('&');
-      const response = await api.get(`/expenses/branch-owners?${query}`);
-      return response.data;
+      return await expensesService.getExpensesByBranchOwners(branchOwnerIds, page, limit);
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch expenses by branch owners' });
     }
   }
 );
@@ -100,89 +83,142 @@ const expensesSlice = createSlice({
   name: 'expenses',
   initialState: {
     expenses: [],
+    totalItems: 0,
     loading: false,
     error: null,
   },
-  reducers: {},
+  reducers: {
+    clearError: (state) => {
+      state.error = null;
+    },
+    clearExpenses: (state) => {
+      state.expenses = [];
+      state.totalItems = 0;
+    }
+  },
   extraReducers: (builder) => {
     builder
+      // getExpenses
       .addCase(getExpenses.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(getExpenses.fulfilled, (state, action) => {
         state.loading = false;
-        state.expenses = action.payload;
+        if (action.payload.expenses) {
+          state.expenses = action.payload.expenses;
+          state.totalItems = action.payload.totalItems || 0;
+        } else {
+          state.expenses = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+        }
       })
       .addCase(getExpenses.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch expenses';
       })
-      .addCase(getExpensesByManager.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(getExpensesByManager.fulfilled, (state, action) => {
-        state.loading = false;
-        state.expenses = action.payload;
-      })
-      .addCase(getExpensesByManager.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload?.message || 'Failed to fetch expenses';
-      })
+      
+      // createExpense
       .addCase(createExpense.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(createExpense.fulfilled, (state, action) => {
         state.loading = false;
-        state.expenses.push(action.payload);
+        state.expenses.unshift(action.payload);
+        state.totalItems++;
       })
       .addCase(createExpense.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to create expense';
       })
+      
+      // updateExpense
       .addCase(updateExpense.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(updateExpense.fulfilled, (state, action) => {
         state.loading = false;
-        state.expenses = state.expenses.map((expense) =>
-          expense._id === action.payload._id ? action.payload : expense
-        );
+        const index = state.expenses.findIndex(expense => expense._id === action.payload._id);
+        if (index !== -1) {
+          state.expenses[index] = action.payload;
+        }
       })
       .addCase(updateExpense.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to update expense';
       })
+      
+      // deleteExpense
+      .addCase(deleteExpense.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(deleteExpense.fulfilled, (state, action) => {
         state.loading = false;
         state.expenses = state.expenses.filter((expense) => expense._id !== action.payload);
+        state.totalItems--;
       })
       .addCase(deleteExpense.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to delete expense';
       })
+      
+      // getExpensesByBranch
       .addCase(getExpensesByBranch.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(getExpensesByBranch.fulfilled, (state, action) => {
         state.loading = false;
-        state.expenses = action.payload;
+        if (action.payload.expenses) {
+          state.expenses = action.payload.expenses;
+          state.totalItems = action.payload.totalItems || 0;
+        } else {
+          state.expenses = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+        }
       })
       .addCase(getExpensesByBranch.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch expenses by branch';
       })
+      
+      // getExpensesByManager
+      .addCase(getExpensesByManager.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getExpensesByManager.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload.expenses) {
+          state.expenses = action.payload.expenses;
+          state.totalItems = action.payload.totalItems || 0;
+        } else {
+          state.expenses = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+        }
+      })
+      .addCase(getExpensesByManager.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch expenses by manager';
+      })
+      
+      // getExpensesByBranchOwners
       .addCase(getExpensesByBranchOwners.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(getExpensesByBranchOwners.fulfilled, (state, action) => {
         state.loading = false;
-        state.expenses = action.payload;
+        if (action.payload.expenses) {
+          state.expenses = action.payload.expenses;
+          state.totalItems = action.payload.totalItems || 0;
+        } else {
+          state.expenses = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+        }
       })
       .addCase(getExpensesByBranchOwners.rejected, (state, action) => {
         state.loading = false;
@@ -191,4 +227,5 @@ const expensesSlice = createSlice({
   },
 });
 
+export const { clearError, clearExpenses } = expensesSlice.actions;
 export default expensesSlice.reducer;
