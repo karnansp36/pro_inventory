@@ -1,6 +1,13 @@
 import express from 'express';
 const router = express.Router();
-import { getSales, createSales, deleteSales, updateSales, getSalesByBranchOwnerId, getSalesByManagerId } from '../controllers/salesController.js';
+import { 
+  getSales, 
+  createSales, 
+  deleteSales, 
+  updateSales, 
+  getSalesByBranchOwnerId, 
+  getSalesByManagerId 
+} from '../controllers/salesController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 router.route('/')
@@ -13,7 +20,6 @@ router.route('/:id')
 
 router.route('/branch/:branchOwnerId')
   .get(protect, authorizeRoles('Admin', 'BranchOwner', 'BrandOwner', 'Manager'), getSalesByBranchOwnerId);
-
 
 router.route('/manager/:managerId')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getSalesByManagerId);

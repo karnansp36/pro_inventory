@@ -1,14 +1,13 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../../services/api';
+import salesService from '../../services/salesService'; // Import the service, not api directly
 
 export const getSales = createAsyncThunk(
   'sales/getAll',
-  async (_, { rejectWithValue }) => {
+  async ({ page = 1, limit = 10 } = {}, { rejectWithValue }) => {
     try {
-      const response = await api.get('/sales');
-      return response.data;
+      return await salesService.getSales(page, limit);
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch sales' });
     }
   }
 );
@@ -17,10 +16,9 @@ export const createSale = createAsyncThunk(
   'sales/create',
   async (saleData, { rejectWithValue }) => {
     try {
-      const response = await api.post('/sales', saleData);
-      return response.data;
+      return await salesService.createSale(saleData);
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || { message: 'Failed to create sale' });
     }
   }
 );
@@ -29,10 +27,10 @@ export const deleteSale = createAsyncThunk(
   'sales/delete',
   async (saleId, { rejectWithValue }) => {
     try {
-      await api.delete(`/sales/${saleId}`);
+      await salesService.deleteSale(saleId);
       return saleId;
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || { message: 'Failed to delete sale' });
     }
   }
 );
@@ -41,39 +39,31 @@ export const updateSale = createAsyncThunk(
   'sales/update',
   async ({ id, saleData }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`/sales/${id}`, saleData);
-      return response.data;
+      return await salesService.updateSale(id, saleData);
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || { message: 'Failed to update sale' });
     }
   }
 );
 
 export const getSalesByBranch = createAsyncThunk(
   'sales/getSalesByBranch',
-  async (branchOwnerId, { rejectWithValue }) => {
+  async ({ branchId, page = 1, limit = 10 }, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/sales/branch/${branchOwnerId}`);
-      return response.data;
+      return await salesService.getSalesByBranch(branchId, page, limit);
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch sales by branch' });
     }
   }
 );
 
-
 export const getSalesByManager = createAsyncThunk(
   'sales/getSalesByManager',
-  async ({ managerId, filters }, { rejectWithValue }) => {
+  async ({ managerId, page = 1, limit = 10 }, { rejectWithValue }) => {
     try {
-      let url = `/sales?managerId=${managerId}`;
-      if (filters && filters.branchId) {
-        url += `&branchId=${filters.branchId}`;
-      }
-      const response = await api.get(url);
-      return response.data;
+      return await salesService.getSalesByManager(managerId, page, limit);
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch sales by manager' });
     }
   }
 );
@@ -82,48 +72,74 @@ const salesSlice = createSlice({
   name: 'sales',
   initialState: {
     sales: [],
-    totalItems: 0, // Add totalItems to initial state
+    totalItems: 0,
     loading: false,
     error: null,
   },
-  reducers: {},
+  reducers: {
+    clearError: (state) => {
+      state.error = null;
+    },
+    clearSales: (state) => {
+      state.sales = [];
+      state.totalItems = 0;
+    }
+  },
   extraReducers: (builder) => {
     builder
+      // getSales
       .addCase(getSales.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(getSales.fulfilled, (state, action) => {
         state.loading = false;
-        state.sales = Array.isArray(action.payload) ? action.payload : [];
-        state.totalItems = action.payload.totalItems || action.payload.length; // Update totalItems
+        // Handle paginated response
+        if (action.payload.sales) {
+          state.sales = action.payload.sales;
+          state.totalItems = action.payload.totalItems || 0;
+        } else {
+          // Fallback for non-paginated response
+          state.sales = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+        }
       })
       .addCase(getSales.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch sales';
       })
+      
+      // createSale
       .addCase(createSale.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(createSale.fulfilled, (state, action) => {
         state.loading = false;
-        state.sales.push(action.payload);
-        state.totalItems++; // Increment totalItems on new sale
+        state.sales.unshift(action.payload); // Add to beginning for newest first
+        state.totalItems++;
       })
       .addCase(createSale.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to create sale';
       })
+      
+      // deleteSale
+      .addCase(deleteSale.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(deleteSale.fulfilled, (state, action) => {
         state.loading = false;
         state.sales = state.sales.filter((sale) => sale._id !== action.payload);
-        state.totalItems--; // Decrement totalItems on sale deletion
+        state.totalItems--;
       })
       .addCase(deleteSale.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to delete sale';
       })
+      
+      // updateSale
       .addCase(updateSale.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -139,33 +155,52 @@ const salesSlice = createSlice({
         state.loading = false;
         state.error = action.payload?.message || 'Failed to update sale';
       })
-      .addCase(getSalesByBranch.pending, (state) => { // Add pending case for getSalesByBranch
+      
+      // getSalesByBranch
+      .addCase(getSalesByBranch.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(getSalesByBranch.fulfilled, (state, action) => { // Add fulfilled case for getSalesByBranch
+      .addCase(getSalesByBranch.fulfilled, (state, action) => {
         state.loading = false;
-        state.sales = Array.isArray(action.payload.sales) ? action.payload.sales : [];
-        state.totalItems = action.payload.totalItems || 0;
+        // Handle paginated response format
+        if (action.payload.sales) {
+          state.sales = action.payload.sales;
+          state.totalItems = action.payload.totalItems || 0;
+        } else {
+          // Fallback for non-paginated response
+          state.sales = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+        }
       })
-      .addCase(getSalesByBranch.rejected, (state, action) => { // Add rejected case for getSalesByBranch
+      .addCase(getSalesByBranch.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch sales by branch';
       })
+      
+      // getSalesByManager
       .addCase(getSalesByManager.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(getSalesByManager.fulfilled, (state, action) => {
         state.loading = false;
-        state.sales = Array.isArray(action.payload) ? action.payload : [];
-        state.totalItems = action.payload.totalItems || action.payload.length; // Update totalItems
+        // Handle paginated response format
+        if (action.payload.sales) {
+          state.sales = action.payload.sales;
+          state.totalItems = action.payload.totalItems || 0;
+        } else {
+          // Fallback for non-paginated response
+          state.sales = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+        }
       })
       .addCase(getSalesByManager.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload?.message || 'Failed to fetch sales';
+        state.error = action.payload?.message || 'Failed to fetch sales by manager';
       });
   },
 });
 
+export const { clearError, clearSales } = salesSlice.actions;
 export default salesSlice.reducer;

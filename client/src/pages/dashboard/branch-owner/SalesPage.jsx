@@ -12,7 +12,7 @@ const SalesPage = () => {
   const location = useLocation();
   const { branchOwnerId } = location.state || {};
   const dispatch = useDispatch();
-  const { sales, loading, error } = useSelector((state) => state.sales);
+  const { sales, totalItems, loading, error } = useSelector((state) => state.sales);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [refreshTable, setRefreshTable] = useState(0);
@@ -20,7 +20,7 @@ const SalesPage = () => {
 
   useEffect(() => {
     if (branchOwnerId) {
-      dispatch(getSalesByBranch(branchOwnerId));
+      dispatch(getSalesByBranch({ branchId: branchOwnerId, page: 1, limit: 10 }));
     }
   }, [branchOwnerId, dispatch, refreshTable]);
 

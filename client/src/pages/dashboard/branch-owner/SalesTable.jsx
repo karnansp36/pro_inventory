@@ -22,16 +22,16 @@ import {
 
 const SalesTable = ({ branchOwnerId }) => {
   const dispatch = useDispatch();
-  const { sales, loading, error } = useSelector((state) => state.sales);
+  const { sales, totalItems, loading, error } = useSelector((state) => state.sales);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const { theme } = useTheme();
 
   useEffect(() => {
     if (branchOwnerId) {
-      dispatch(getSalesByBranch(branchOwnerId));
+      dispatch(getSalesByBranch({ branchId: branchOwnerId, page: currentPage, limit: itemsPerPage }));
     }
-  }, [dispatch, branchOwnerId]);
+  }, [dispatch, branchOwnerId, currentPage, itemsPerPage]);
 
   useEffect(() => {
     if (error) {
@@ -39,11 +39,10 @@ const SalesTable = ({ branchOwnerId }) => {
     }
   }, [error]);
 
-  // Pagination calculations
-  const totalPages = Math.ceil(sales.length / itemsPerPage);
+  // Server-side pagination calculations
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentSales = sales.slice(startIndex, endIndex);
 
   const getTotalSales = () => {
     return sales.reduce((sum, sale) => sum + (sale.amount || 0), 0);
@@ -101,7 +100,7 @@ const SalesTable = ({ branchOwnerId }) => {
     return colors[theme][method] || colors[theme].Cash;
   };
 
-  if (loading) {
+  if (loading && sales.length === 0) {
     return (
       <div className={`rounded-xl p-8 transition-all duration-300 ${
         theme === 'dark'
@@ -152,7 +151,7 @@ const SalesTable = ({ branchOwnerId }) => {
               <p className={`text-xs ${
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
               }`}>
-                {sales.length} transaction{sales.length !== 1 ? 's' : ''}
+                {totalItems} transaction{totalItems !== 1 ? 's' : ''}
               </p>
             </div>
           </div>
@@ -242,7 +241,7 @@ const SalesTable = ({ branchOwnerId }) => {
                 <p className={`text-lg font-bold ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  {sales.length}
+                  {totalItems}
                 </p>
               </div>
             </div>
@@ -323,7 +322,7 @@ const SalesTable = ({ branchOwnerId }) => {
           <tbody className={`divide-y ${
             theme === 'dark' ? 'divide-slate-700/50' : 'divide-gray-200'
           }`}>
-            {currentSales.length === 0 ? (
+            {sales.length === 0 ? (
               <tr>
                 <td colSpan="4" className="px-6 py-12">
                   <div className="flex flex-col items-center justify-center">
@@ -344,9 +343,9 @@ const SalesTable = ({ branchOwnerId }) => {
                 </td>
               </tr>
             ) : (
-              currentSales.map((sale, i) => (
+              sales.map((sale, i) => (
                 <tr 
-                  key={i} 
+                  key={sale._id || i} 
                   className={`transition-colors ${
                     theme === 'dark'
                       ? 'hover:bg-slate-700/30'
@@ -410,8 +409,8 @@ const SalesTable = ({ branchOwnerId }) => {
               theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
             }`}>
               Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-              <span className="font-medium">{Math.min(endIndex, sales.length)}</span> of{' '}
-              <span className="font-medium">{sales.length}</span> entries
+              <span className="font-medium">{Math.min(endIndex, totalItems)}</span> of{' '}
+              <span className="font-medium">{totalItems}</span> entries
             </div>
             
             <select
