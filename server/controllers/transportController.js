@@ -168,13 +168,138 @@ const deleteTransport = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Transport removed' });
 });
 
-export {
-  getTransports,
-  createTransport,
-  confirmReceivedTransport,
-  deleteTransport,
-  getTransportsByBranchOwnerId,
-};
+// @desc    Get transport details by manager ID with pagination and filters
+// @route   GET /api/transport/manager/:managerId
+// @access  Private (Admin, BrandOwner, Manager)
+const getTransportsByManagerId = asyncHandler(async (req, res) => {
+  const { managerId } = req.params;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+  const { status, search, branchId, dateFilter, startDate, endDate } = req.query;
+
+  console.log(`getTransportsByManagerId: managerId = ${managerId}, page = ${page}, limit = ${limit}`);
+
+  // Find the manager
+  const manager = await User.findById(managerId);
+
+  if (!manager) {
+    res.status(404);
+    throw new Error('Manager not found');
+  }
+
+  // Get assigned branch owners from the manager's assignedBranchOwners array
+  const branchOwnerIds = manager.assignedBranchOwners;
+
+  if (!branchOwnerIds || branchOwnerIds.length === 0) {
+    return res.status(200).json({
+      transports: [],
+      totalItems: 0,
+      currentPage: page,
+      totalPages: 0,
+    });
+  }
+
+  // Get stock requests for those branch owners
+  let stockRequestQuery = { branchOwner: { $in: branchOwnerIds } };
+  
+  // Apply branch filter if provided
+  if (branchId) {
+    stockRequestQuery.branchOwner = branchId;
+  }
+
+  const stockRequests = await StockRequest.find(stockRequestQuery);
+  const stockRequestIds = stockRequests.map(request => request._id);
+
+  // Build transport query
+  let transportQuery = { stockRequest: { $in: stockRequestIds } };
+
+  // Apply status filter
+  if (status && status !== 'all') {
+    if (status === 'completed') {
+      transportQuery.$expr = { $eq: ['$receivedQuantity', '$quantity'] };
+    } else if (status === 'pending') {
+      transportQuery.receivedQuantity = { $in: [0, null, undefined] };
+    } else if (status === 'partial') {
+      transportQuery.$and = [
+        { receivedQuantity: { $gt: 0 } },
+        { $expr: { $lt: ['$receivedQuantity', '$quantity'] } }
+      ];
+    }
+  }
+
+  // Apply search filter
+  if (search) {
+    const stockRequestIdsWithSearch = await StockRequest.find({
+      ...stockRequestQuery,
+      productName: { $regex: search, $options: 'i' }
+    }).select('_id');
+    
+    const searchStockRequestIds = stockRequestIdsWithSearch.map(req => req._id);
+    transportQuery.stockRequest = { $in: searchStockRequestIds };
+  }
+
+  // Apply date filter
+  if (dateFilter && dateFilter !== 'all') {
+    const now = new Date();
+    let startDateFilter = new Date();
+    let endDateFilter = new Date();
+
+    switch (dateFilter) {
+      case 'today':
+        startDateFilter.setHours(0, 0, 0, 0);
+        endDateFilter.setHours(23, 59, 59, 999);
+        break;
+      case 'week':
+        startDateFilter.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        startDateFilter.setMonth(now.getMonth() - 1);
+        break;
+      case 'custom':
+        if (startDate && endDate) {
+          startDateFilter = new Date(startDate);
+          endDateFilter = new Date(endDate);
+          endDateFilter.setHours(23, 59, 59, 999);
+        }
+        break;
+      default:
+        break;
+    }
+
+    if (dateFilter !== 'all') {
+      transportQuery.createdAt = {
+        $gte: startDateFilter,
+        $lte: endDateFilter
+      };
+    }
+  }
+
+  // Fetch the transports with pagination
+  const transports = await Transport.find(transportQuery)
+    .populate({
+      path: 'stockRequest',
+      select: 'productName quantity branchOwner',
+      populate: {
+        path: 'branchOwner',
+        select: 'name email',
+      },
+    })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip(skip);
+
+  const totalItems = await Transport.countDocuments(transportQuery);
+
+  console.log(`getTransportsByManagerId: transports count = ${transports.length}, totalItems = ${totalItems}`);
+
+  res.status(200).json({
+    transports,
+    totalItems,
+    currentPage: page,
+    totalPages: Math.ceil(totalItems / limit),
+  });
+});
 
 // @desc    Get transport details by branch owner ID with pagination
 // @route   GET /api/transport/branch/:branchOwnerId
@@ -256,7 +381,7 @@ const getTransportsByBranchOwnerId = asyncHandler(async (req, res) => {
         select: 'name email',
       },
     })
-    .sort({ createdAt: -1 }) // Sort by latest first
+    .sort({ createdAt: -1 })
     .limit(limit)
     .skip(skip);
 
@@ -269,3 +394,12 @@ const getTransportsByBranchOwnerId = asyncHandler(async (req, res) => {
     totalPages: Math.ceil(totalItems / limit),
   });
 });
+
+export {
+  getTransports,
+  createTransport,
+  confirmReceivedTransport,
+  deleteTransport,
+  getTransportsByBranchOwnerId,
+  getTransportsByManagerId,
+};

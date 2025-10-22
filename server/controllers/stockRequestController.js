@@ -146,36 +146,67 @@ export {
   getStockRequestsByBranchId,
   getStockRequestsByManagerId,
 }
-// @desc    Get stock requests by manager ID
+
+// @desc    Get stock requests by manager ID with pagination
 // @route   GET /api/stockrequests/manager/:managerId
 // @access  Private (Admin, BrandOwner, Manager)
 const getStockRequestsByManagerId = asyncHandler(async (req, res) => {
   const { managerId } = req.params;
-  console.log(`getStockRequestsByManagerId: managerId = ${managerId}`);
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  console.log('getStockRequestsByManagerId: Received managerId:', managerId);
 
   // Find the manager
   const manager = await User.findById(managerId);
 
   if (!manager) {
+    console.log('getStockRequestsByManagerId: Manager not found for ID:', managerId);
     res.status(404);
     throw new Error('Manager not found');
   }
+  console.log('getStockRequestsByManagerId: Manager found:', manager.name, 'ID:', manager._id);
 
   // Get assigned branch owners from the manager's assignedBranchOwners array
   const branchOwnerIds = manager.assignedBranchOwners;
+  console.log('getStockRequestsByManagerId: Manager assignedBranchOwners:', branchOwnerIds);
 
   if (!branchOwnerIds || branchOwnerIds.length === 0) {
-    return res.status(200).json([]); // no branches assigned
+    console.log('getStockRequestsByManagerId: No branch owners assigned to this manager. Returning empty array.');
+    return res.status(200).json({
+      stockRequests: [],
+      totalItems: 0,
+      currentPage: page,
+      totalPages: 0,
+    });
   }
 
   // Fetch the stock requests for those branch owners
   const stockRequests = await StockRequest.find({
     branchOwner: { $in: branchOwnerIds },
-  }).populate('branchOwner', 'name email');
-  console.log(`getStockRequestsByManagerId: stockRequests = ${JSON.stringify(stockRequests)}`);
+  })
+    .populate('branchOwner', 'name email')
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip(skip);
 
-  res.status(200).json(stockRequests);
+  const totalItems = await StockRequest.countDocuments({
+    branchOwner: { $in: branchOwnerIds },
+  });
+
+  console.log('getStockRequestsByManagerId: Querying stock requests for branchOwner IDs:', branchOwnerIds);
+  console.log('getStockRequestsByManagerId: Fetched stock requests count:', stockRequests.length);
+  console.log('getStockRequestsByManagerId: Total items:', totalItems);
+
+  res.status(200).json({
+    stockRequests,
+    totalItems,
+    currentPage: page,
+    totalPages: Math.ceil(totalItems / limit),
+  });
 });
+
 
 // @desc    Get stock requests by branch owner ID
 // @route   GET /api/stockrequests/branch/:branchOwnerId
