@@ -1,63 +1,57 @@
 import api from './api';
 
+const TRANSPORT_URL = '/transport';
+
+// Get all transports
+const getTransports = async () => {
+  const response = await api.get(TRANSPORT_URL);
+  return response.data;
+};
+
+// Get transports by branch owner ID with pagination
+const getTransportsByBranch = async (branchOwnerId, page = 1, limit = 10) => {
+  const response = await api.get(`${TRANSPORT_URL}/branch/${branchOwnerId}?page=${page}&limit=${limit}`);
+  return response.data;
+};
+
+// Get transports by manager ID with pagination (matching stockRequest pattern)
+const getTransportsByManager = async (managerId, page = 1, limit = 10) => {
+  const response = await api.get(`${TRANSPORT_URL}/manager/${managerId}?page=${page}&limit=${limit}`);
+  return response.data;
+};
+
+// Create new transport
+const createTransport = async (transportData) => {
+  const response = await api.post(TRANSPORT_URL, transportData);
+  return response.data;
+};
+
+// Update transport
+const updateTransport = async (id, transportData) => {
+  const response = await api.put(`${TRANSPORT_URL}/${id}`, transportData);
+  return response.data;
+};
+
+// Receive/confirm transport
+const receiveTransport = async (id, receivedQuantity) => {
+  const response = await api.put(`${TRANSPORT_URL}/${id}/receive`, { receivedQuantity });
+  return response.data;
+};
+
+// Delete transport
+const deleteTransport = async (id) => {
+  const response = await api.delete(`${TRANSPORT_URL}/${id}`);
+  return response.data;
+};
+
 const transportService = {
-  getTransports: async () => {
-    const response = await api.get('/transport');
-    return response.data;
-  },
-
-  getTransportsByBranch: async (branchOwnerId, page = 1, limit = 10) => {
-    const response = await api.get(`/transport/branch/${branchOwnerId}?page=${page}&limit=${limit}`);
-    return response.data;
-  },
-
-  // Updated to support pagination and filters
-  getTransportsByManager: async (managerId, page = 1, limit = 10, filters = {}) => {
-    let url = `/transport/manager/${managerId}?page=${page}&limit=${limit}`;
-    
-    // Add filters to query params
-    if (filters.status && filters.status !== 'all') {
-      url += `&status=${filters.status}`;
-    }
-    if (filters.searchTerm) {
-      url += `&search=${filters.searchTerm}`;
-    }
-    if (filters.branchId) {
-      url += `&branchId=${filters.branchId}`;
-    }
-    if (filters.dateFilter && filters.dateFilter.type !== 'all') {
-      url += `&dateFilter=${filters.dateFilter.type}`;
-      if (filters.dateFilter.startDate) {
-        url += `&startDate=${filters.dateFilter.startDate}`;
-      }
-      if (filters.dateFilter.endDate) {
-        url += `&endDate=${filters.dateFilter.endDate}`;
-      }
-    }
-
-    const response = await api.get(url);
-    return response.data;
-  },
-
-  createTransport: async (transportData) => {
-    const response = await api.post('/transport', transportData);
-    return response.data;
-  },
-
-  deleteTransport: async (id) => {
-    const response = await api.delete(`/transport/${id}`);
-    return response.data;
-  },
-
-  updateTransport: async (id, transportData) => {
-    const response = await api.put(`/transport/${id}`, transportData);
-    return response.data;
-  },
-
-  receiveTransport: async (id, receivedQuantity) => {
-    const response = await api.put(`/transport/${id}/receive`, { receivedQuantity });
-    return response.data;
-  }
+  getTransports,
+  getTransportsByBranch,
+  getTransportsByManager,
+  createTransport,
+  updateTransport,
+  receiveTransport,
+  deleteTransport
 };
 
 export default transportService;

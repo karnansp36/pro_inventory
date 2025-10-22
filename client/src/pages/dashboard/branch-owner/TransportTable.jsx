@@ -1,8 +1,8 @@
-// TransportTable.jsx - Fixed complete component
+// components/branch-owner/TransportTable.jsx
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTheme } from '../../../context/ThemeContext';
-import { getTransportsByBranch } from '../../../store/slices/transportSlice';
+import { getTransportsByBranch, getTransportsByManager } from '../../../store/slices/transportSlice';
 import { toast } from 'react-toastify';
 import {
   Search,
@@ -17,14 +17,32 @@ import {
   Truck,
   Package,
   CheckCircle,
-  Clock
+  Clock,
+  Loader2
 } from 'lucide-react';
 
-const TransportTable = ({ branchOwnerId }) => {
+const TransportTable = ({ 
+  branchOwnerId,
+  // Manager view props
+  transportsData = null,
+  totalItems: propTotalItems = 0,
+  isManagerView = false,
+  filters: propFilters = {},
+  currentPage: propCurrentPage = 1,
+  itemsPerPage: propItemsPerPage = 10,
+  onPageChange = null,
+  onItemsPerPageChange = null,
+  loading: propLoading = false
+}) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const dispatch = useDispatch();
-  const { transport: transports, totalItems, loading, error } = useSelector((state) => state.transport);
+  const { 
+    transport: reduxTransports, 
+    totalItems: reduxTotalItems, 
+    loading: reduxLoading, 
+    error 
+  } = useSelector((state) => state.transport);
   
   // State management
   const [currentPage, setCurrentPage] = useState(1);
@@ -40,80 +58,187 @@ const TransportTable = ({ branchOwnerId }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('all');
 
-  // Filter transports based on search and filters
-  const filteredTransports = transports.filter(transport => {
-    // Search filter
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = 
-        transport.stockRequest?.productName?.toLowerCase().includes(searchLower) ||
-        transport.from?.toLowerCase().includes(searchLower) ||
-        transport.to?.toLowerCase().includes(searchLower) ||
-        transport.quantity?.toString().includes(searchTerm) ||
-        transport.receivedQuantity?.toString().includes(searchTerm);
-      if (!matchesSearch) return false;
-    }
+  // Use props if provided (manager view), otherwise use Redux state (branch owner view)
+  const transports = isManagerView ? (transportsData || []) : reduxTransports;
+  const totalItems = isManagerView ? propTotalItems : reduxTotalItems;
+  const loading = isManagerView ? propLoading : reduxLoading;
 
-    // Status filter
-    if (statusFilter !== 'all') {
-      const isDelivered = transport.receivedQuantity !== undefined && transport.receivedQuantity !== null;
-      if (statusFilter === 'delivered' && !isDelivered) return false;
-      if (statusFilter === 'in-transit' && isDelivered) return false;
+  // Sync with prop changes for manager view
+  useEffect(() => {
+    if (isManagerView) {
+      setCurrentPage(propCurrentPage);
+      setItemsPerPage(propItemsPerPage);
     }
+  }, [propCurrentPage, propItemsPerPage, isManagerView]);
 
-    // Location filter
-    if (locationFilter !== 'all') {
-      if (locationFilter === 'from' && !transport.from?.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-      if (locationFilter === 'to' && !transport.to?.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-    }
-
-    // Date filter
-    if (dateFilter.type !== 'all') {
-      const transportDate = new Date(transport.createdAt);
-      const today = new Date();
+  // For branch owner view: fetch data when filters/pagination change
+  useEffect(() => {
+    if (branchOwnerId && !isManagerView) {
+      const filters = {
+        searchTerm,
+        dateFilter,
+        statusFilter,
+        locationFilter
+      };
       
-      switch (dateFilter.type) {
-        case 'today':
-          return transportDate.toDateString() === today.toDateString();
-        case 'week':
-          const weekAgo = new Date(today);
-          weekAgo.setDate(today.getDate() - 7);
-          return transportDate >= weekAgo && transportDate <= today;
-        case 'month':
-          const monthAgo = new Date(today);
-          monthAgo.setMonth(today.getMonth() - 1);
-          return transportDate >= monthAgo && transportDate <= today;
-        case 'custom':
-          if (dateFilter.startDate && dateFilter.endDate) {
-            const start = new Date(dateFilter.startDate);
-            const end = new Date(dateFilter.endDate);
-            end.setHours(23, 59, 59, 999);
-            return transportDate >= start && transportDate <= end;
-          }
-          return true;
-        default:
-          return true;
-      }
+      dispatch(getTransportsByBranch({ 
+        branchId: branchOwnerId, 
+        page: currentPage, 
+        limit: itemsPerPage,
+        filters 
+      }));
     }
+  }, [dispatch, branchOwnerId, currentPage, itemsPerPage, searchTerm, dateFilter, statusFilter, locationFilter, isManagerView]);
 
-    return true;
-  });
+  // For manager view: fetch data when filters/pagination change
+  useEffect(() => {
+    if (isManagerView && branchOwnerId) {
+      const filters = {
+        searchTerm,
+        dateFilter,
+        statusFilter,
+        locationFilter
+      };
+      dispatch(getTransportsByManager({
+        managerId: branchOwnerId,
+        page: currentPage,
+        limit: itemsPerPage,
+        filters: filters
+      }));
+    }
+  }, [dispatch, branchOwnerId, currentPage, itemsPerPage, searchTerm, dateFilter, statusFilter, locationFilter, isManagerView]);
 
   useEffect(() => {
-    if (branchOwnerId) {
-      dispatch(getTransportsByBranch({ branchId: branchOwnerId, page: currentPage, limit: itemsPerPage }));
+    if (error) {
+      toast.error(error);
     }
-  }, [dispatch, branchOwnerId, currentPage, itemsPerPage]);
+  }, [error]);
 
-  // CSV Export Function
+  // Server-side pagination - use transports directly as they're already paginated
+  const currentItems = transports;
+
+  // Pagination calculations
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + transports.length, totalItems);
+
+  const handlePageChange = (pageNumber) => {
+    if (isManagerView && onPageChange) {
+      onPageChange(pageNumber);
+    } else {
+      setCurrentPage(pageNumber);
+    }
+  };
+
+  const handleItemsPerPageChange = (value) => {
+    if (isManagerView && onItemsPerPageChange) {
+      onItemsPerPageChange(value);
+    } else {
+      setItemsPerPage(value);
+      setCurrentPage(1);
+    }
+  };
+
+  const goToFirstPage = () => {
+    const newPage = 1;
+    if (isManagerView && onPageChange) {
+      onPageChange(newPage);
+    } else {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const goToLastPage = () => {
+    const newPage = totalPages;
+    if (isManagerView && onPageChange) {
+      onPageChange(newPage);
+    } else {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    const newPage = Math.max(1, currentPage - 1);
+    if (isManagerView && onPageChange) {
+      onPageChange(newPage);
+    } else {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const goToNextPage = () => {
+    const newPage = Math.min(totalPages, currentPage + 1);
+    if (isManagerView && onPageChange) {
+      onPageChange(newPage);
+    } else {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  };
+
+  const getStatusStyles = (transport) => {
+    const isDelivered = transport.receivedQuantity !== undefined && transport.receivedQuantity !== null;
+    const lightStyles = {
+      delivered: 'bg-green-100 text-green-800 border-green-200',
+      inTransit: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    };
+    const darkStyles = {
+      delivered: 'bg-green-900/30 text-green-300 border-green-700',
+      inTransit: 'bg-yellow-900/30 text-yellow-300 border-yellow-700',
+    };
+    const styles = isDark ? darkStyles : lightStyles;
+    return isDelivered ? styles.delivered : styles.inTransit;
+  };
+
+  const getStatusText = (transport) => {
+    if (transport.receivedQuantity !== undefined && transport.receivedQuantity !== null) {
+      return 'Delivered';
+    }
+    return 'In Transit';
+  };
+
+  const getStatusIcon = (transport) => {
+    if (transport.receivedQuantity !== undefined && transport.receivedQuantity !== null) {
+      return <CheckCircle className="w-3 h-3" />;
+    }
+    return <Clock className="w-3 h-3" />;
+  };
+
+  // CSV Export Function - exports current page data
   const downloadCSV = () => {
-    if (filteredTransports.length === 0) {
+    if (transports.length === 0) {
       toast.error('No data to export');
       return;
     }
 
     try {
-      // Enhanced CSV formatting with proper escaping
       const escapeCSV = (field) => {
         if (field === null || field === undefined) return '""';
         const stringField = String(field);
@@ -123,7 +248,6 @@ const TransportTable = ({ branchOwnerId }) => {
         return stringField;
       };
 
-      // CSV headers
       const headers = [
         'Date',
         'Product Name',
@@ -137,8 +261,7 @@ const TransportTable = ({ branchOwnerId }) => {
         'Created At'
       ];
 
-      // Convert transports data to CSV rows
-      const csvRows = filteredTransports.map(transport => [
+      const csvRows = transports.map(transport => [
         escapeCSV(new Date(transport.createdAt).toLocaleDateString('en-US')),
         escapeCSV(transport.stockRequest?.productName || 'Unknown'),
         escapeCSV(transport.from || 'N/A'),
@@ -151,50 +274,46 @@ const TransportTable = ({ branchOwnerId }) => {
         escapeCSV(new Date(transport.createdAt).toISOString())
       ]);
 
-      // Build CSV content
       let csvContent = [headers.join(',')];
       csvContent = csvContent.concat(csvRows.map(row => row.join(',')));
 
-      // Add summary section if there are filters applied
-      if (dateFilter.type !== 'all' || searchTerm || statusFilter !== 'all' || locationFilter !== 'all') {
-        csvContent.push('');
-        csvContent.push('Summary');
-        csvContent.push(`Total Records,${filteredTransports.length}`);
-        csvContent.push(`Delivered,${filteredTransports.filter(t => t.receivedQuantity !== undefined && t.receivedQuantity !== null).length}`);
-        csvContent.push(`In Transit,${filteredTransports.filter(t => t.receivedQuantity === undefined || t.receivedQuantity === null).length}`);
-        csvContent.push(`Total Sent Quantity,${filteredTransports.reduce((sum, t) => sum + (t.quantity || 0), 0)}`);
-        csvContent.push(`Total Received Quantity,${filteredTransports.reduce((sum, t) => sum + (t.receivedQuantity || 0), 0)}`);
-        
-        if (dateFilter.type !== 'all') {
-          csvContent.push(`Date Filter,${dateFilter.type}`);
-          if (dateFilter.type === 'custom' && dateFilter.startDate && dateFilter.endDate) {
-            csvContent.push(`Start Date,${dateFilter.startDate}`);
-            csvContent.push(`End Date,${dateFilter.endDate}`);
-          }
+      // Add summary
+      csvContent.push('');
+      csvContent.push('Summary');
+      csvContent.push(`Total Records (Current Page),${transports.length}`);
+      csvContent.push(`Delivered (Current Page),${(transports || []).filter(t => t.receivedQuantity !== undefined && t.receivedQuantity !== null).length}`);
+      csvContent.push(`In Transit (Current Page),${(transports || []).filter(t => t.receivedQuantity === undefined || t.receivedQuantity === null).length}`);
+      csvContent.push(`Total Records (All Pages),${totalItems}`);
+      csvContent.push(`Page,${currentPage} of ${totalPages}`);
+      
+      if (!isManagerView && dateFilter.type !== 'all') {
+        csvContent.push(`Date Filter,${dateFilter.type}`);
+        if (dateFilter.type === 'custom' && dateFilter.startDate && dateFilter.endDate) {
+          csvContent.push(`Start Date,${dateFilter.startDate}`);
+          csvContent.push(`End Date,${dateFilter.endDate}`);
         }
-        
-        if (statusFilter !== 'all') {
-          csvContent.push(`Status Filter,${statusFilter}`);
-        }
-        
-        if (locationFilter !== 'all') {
-          csvContent.push(`Location Filter,${locationFilter}`);
-        }
-        
-        if (searchTerm) {
-          csvContent.push(`Search Term,${searchTerm}`);
-        }
-        
-        csvContent.push(`Export Date,${new Date().toLocaleDateString('en-US')}`);
       }
+      
+      if (!isManagerView && statusFilter !== 'all') {
+        csvContent.push(`Status Filter,${statusFilter}`);
+      }
+      
+      if (!isManagerView && locationFilter !== 'all') {
+        csvContent.push(`Location Filter,${locationFilter}`);
+      }
+      
+      if (!isManagerView && searchTerm) {
+        csvContent.push(`Search Term,${searchTerm}`);
+      }
+      
+      csvContent.push(`Export Date,${new Date().toLocaleDateString('en-US')}`);
 
-      // Create blob and download
       const blob = new Blob([csvContent.join('\n')], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       
       const date = new Date().toISOString().split('T')[0];
-      const filename = `transport-records-${branchOwnerId || 'branch'}-${date}.csv`;
+      const filename = `transport-records-${branchOwnerId || 'branch'}-page${currentPage}-${date}.csv`;
       
       link.setAttribute('href', url);
       link.setAttribute('download', filename);
@@ -214,8 +333,10 @@ const TransportTable = ({ branchOwnerId }) => {
     }
   };
 
-  // Apply quick date filter
+  // Apply quick date filter (branch owner view only)
   const applyQuickDateFilter = (type) => {
+    if (isManagerView) return;
+
     const today = new Date();
     let startDate = new Date();
     
@@ -242,55 +363,19 @@ const TransportTable = ({ branchOwnerId }) => {
       startDate: startDate.toISOString().split('T')[0],
       endDate: today.toISOString().split('T')[0]
     });
+    setCurrentPage(1);
   };
 
-  // Clear all filters
+  // Clear all filters (branch owner view only)
   const clearFilters = () => {
+    if (isManagerView) return;
+    
     setSearchTerm('');
     setDateFilter({ type: 'all', startDate: '', endDate: '' });
     setStatusFilter('all');
     setLocationFilter('all');
     setShowFilters(false);
-  };
-
-  // Pagination calculations
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredTransports.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredTransports.length / itemsPerPage);
-
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
-  };
-
-  const handleItemsPerPageChange = (value) => {
-    setItemsPerPage(value);
     setCurrentPage(1);
-  };
-
-  const getStatusColor = (transport) => {
-    if (transport.receivedQuantity !== undefined && transport.receivedQuantity !== null) {
-      return isDark 
-        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-        : 'bg-emerald-100 text-emerald-700 border-emerald-200';
-    }
-    return isDark
-      ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-      : 'bg-amber-100 text-amber-700 border-amber-200';
-  };
-
-  const getStatusText = (transport) => {
-    if (transport.receivedQuantity !== undefined && transport.receivedQuantity !== null) {
-      return 'Delivered';
-    }
-    return 'In Transit';
-  };
-
-  const getStatusIcon = (transport) => {
-    if (transport.receivedQuantity !== undefined && transport.receivedQuantity !== null) {
-      return <CheckCircle className="w-3 h-3" />;
-    }
-    return <Clock className="w-3 h-3" />;
   };
 
   const dateFilters = [
@@ -304,23 +389,26 @@ const TransportTable = ({ branchOwnerId }) => {
   const exportFormats = [
     { 
       key: 'csv', 
-      label: 'CSV', 
+      label: 'CSV (Current Page)', 
       color: 'bg-blue-500 hover:bg-blue-600',
       handler: downloadCSV
     }
   ];
 
-  if (loading) {
+  if (loading && transports.length === 0) {
     return (
-      <div className={`rounded-2xl p-8 ${
-        isDark ? 'bg-slate-800 border border-slate-700' : 'bg-white'
-      } shadow-xl`}>
+      <div className={`rounded-xl p-8 transition-all duration-300 ${
+        isDark
+          ? 'bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm'
+          : 'bg-white border border-gray-200 shadow-lg'
+      }`}>
         <div className="flex flex-col items-center justify-center py-12">
-          <div className="relative">
-            <div className="w-16 h-16 border-4 border-emerald-200 rounded-full"></div>
-            <div className="w-16 h-16 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin absolute top-0"></div>
-          </div>
-          <p className={`mt-4 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>
+          <Loader2 className={`w-12 h-12 animate-spin mb-4 ${
+            isDark ? 'text-blue-400' : 'text-blue-600'
+          }`} />
+          <p className={`text-sm ${
+            isDark ? 'text-gray-400' : 'text-gray-600'
+          }`}>
             Loading transport records...
           </p>
         </div>
@@ -328,99 +416,102 @@ const TransportTable = ({ branchOwnerId }) => {
     );
   }
 
-  if (error) {
-    return (
-      <div className={`rounded-2xl p-6 ${
-        isDark ? 'bg-slate-800 border border-slate-700' : 'bg-white'
-      } shadow-xl`}>
-        <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
-          <svg className="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p className="text-red-700 dark:text-red-300 font-medium">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className={`rounded-2xl overflow-hidden ${
-      isDark ? 'bg-slate-800 border border-slate-700' : 'bg-white'
-    } shadow-xl`}>
-      {/* Table Header */}
+    <div className={`rounded-xl overflow-hidden transition-all duration-300 ${
+      isDark
+        ? 'bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm'
+        : 'bg-white border border-gray-200 shadow-lg'
+    }`}>
+      {/* Header */}
       <div className={`px-6 py-4 border-b ${
-        isDark ? 'border-slate-700 bg-slate-800/50' : 'border-gray-200 bg-gray-50'
+        isDark ? 'border-slate-700/50' : 'border-gray-200'
       }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${
-              isDark ? 'bg-blue-500/20' : 'bg-blue-100'
+              isDark
+                ? 'bg-blue-500/20 border border-blue-500/30'
+                : 'bg-blue-50 border border-blue-200'
             }`}>
-              <Truck className={`w-5 h-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+              <Truck className={`w-5 h-5 ${
+                isDark ? 'text-blue-400' : 'text-blue-600'
+              }`} />
             </div>
             <div>
-              <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                Transport Receipts
+              <h2 className={`text-lg font-semibold ${
+                isDark ? 'text-white' : 'text-gray-900'
+              }`}>
+                {isManagerView ? 'Transport Overview' : 'Transport History'}
               </h2>
-              <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                {filteredTransports.length} of {totalItems} record{totalItems !== 1 ? 's' : ''}
-                {(dateFilter.type !== 'all' || statusFilter !== 'all' || locationFilter !== 'all' || searchTerm) && ' (filtered)'}
+              <p className={`text-xs ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Showing {transports.length} of {totalItems} transport{totalItems !== 1 ? 's' : ''}
+                {!isManagerView && (dateFilter.type !== 'all' || statusFilter !== 'all' || locationFilter !== 'all' || searchTerm) && ' (filtered)'}
+                {isManagerView && ' (read-only)'}
               </p>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
-            {/* Search */}
-            <div className="relative">
-              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
-                isDark ? 'text-gray-400' : 'text-gray-500'
-              }`} />
-              <input
-                type="text"
-                placeholder="Search transports..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={`pl-10 pr-4 py-2 rounded-lg border transition-colors text-sm ${
-                  isDark
-                    ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400 focus:border-blue-500'
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-blue-500'
-                } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
-              />
-            </div>
+            {/* Search - Only for branch owner view */}
+            {!isManagerView && (
+              <div className="relative">
+                <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                  isDark ? 'text-gray-400' : 'text-gray-500'
+                }`} />
+                <input
+                  type="text"
+                  placeholder="Search transports..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className={`pl-10 pr-4 py-2 rounded-lg border transition-colors text-sm ${
+                    isDark
+                      ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400 focus:border-blue-500'
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-blue-500'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                />
+              </div>
+            )}
 
-            {/* Filter Button */}
-            <button 
-              onClick={() => setShowFilters(!showFilters)}
-              className={`p-2 rounded-lg transition-colors ${
-                showFilters
-                  ? isDark
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-blue-500 text-white'
-                  : isDark
-                  ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
-                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <Filter className="w-4 h-4" />
-            </button>
+            {/* Filter Button - Only for branch owner view */}
+            {!isManagerView && (
+              <button 
+                onClick={() => setShowFilters(!showFilters)}
+                className={`p-2 rounded-lg transition-colors ${
+                  showFilters
+                    ? isDark
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-blue-500 text-white'
+                    : isDark
+                    ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
+                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+              </button>
+            )}
 
             {/* Export Button with Dropdown */}
             <div className="relative">
               <button 
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                disabled={filteredTransports.length === 0}
+                disabled={transports.length === 0}
                 className={`p-2 rounded-lg transition-colors ${
                   isDark
                     ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
                     : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-                } ${filteredTransports.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${transports.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <Download className="w-4 h-4" />
               </button>
 
               {/* Export Dropdown Menu */}
               {showExportMenu && (
-                <div className={`absolute right-0 top-full mt-1 w-48 rounded-lg shadow-lg border z-50 ${
+                <div className={`absolute right-0 top-full mt-1 w-56 rounded-lg shadow-lg border z-50 ${
                   isDark
                     ? 'bg-slate-800 border-slate-700'
                     : 'bg-white border-gray-200'
@@ -435,7 +526,7 @@ const TransportTable = ({ branchOwnerId }) => {
                       <button
                         key={format.key}
                         onClick={format.handler}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-white font-medium transition-all mb-1 last:mb-0 ${format.color}`}
+                        className={`w-full flex items-center justify-center gap-3 px-3 py-2 rounded text-sm text-white font-medium transition-all mb-1 last:mb-0 ${format.color}`}
                       >
                         {format.label}
                       </button>
@@ -447,8 +538,8 @@ const TransportTable = ({ branchOwnerId }) => {
           </div>
         </div>
 
-        {/* Filters Panel */}
-        {showFilters && (
+        {/* Filters Panel - Only for branch owner view */}
+        {showFilters && !isManagerView && (
           <div className={`mt-4 p-4 rounded-lg border ${
             isDark
               ? 'bg-slate-700/50 border-slate-600'
@@ -475,7 +566,7 @@ const TransportTable = ({ branchOwnerId }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Status Filter */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <label className={`text-sm font-medium ${
                   isDark ? 'text-gray-300' : 'text-gray-700'
                 }`}>
@@ -483,7 +574,10 @@ const TransportTable = ({ branchOwnerId }) => {
                 </label>
                 <select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className={`w-full px-3 py-2 rounded border text-sm ${
                     isDark
                       ? 'bg-slate-600 border-slate-500 text-white'
@@ -497,15 +591,18 @@ const TransportTable = ({ branchOwnerId }) => {
               </div>
 
               {/* Location Filter */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <label className={`text-sm font-medium ${
                   isDark ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  Location Type
+                  Location
                 </label>
                 <select
                   value={locationFilter}
-                  onChange={(e) => setLocationFilter(e.target.value)}
+                  onChange={(e) => {
+                    setLocationFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className={`w-full px-3 py-2 rounded border text-sm ${
                     isDark
                       ? 'bg-slate-600 border-slate-500 text-white'
@@ -519,7 +616,7 @@ const TransportTable = ({ branchOwnerId }) => {
               </div>
 
               {/* Date Filters */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <label className={`text-sm font-medium ${
                   isDark ? 'text-gray-300' : 'text-gray-700'
                 }`}>
@@ -592,72 +689,221 @@ const TransportTable = ({ branchOwnerId }) => {
         )}
       </div>
 
-      {/* Table Content */}
+      {/* Stats Cards */}
+      <div className={`px-6 py-4 border-b ${
+        isDark ? 'border-slate-700/50' : 'border-gray-200'
+      }`}>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className={`p-4 rounded-lg ${
+            isDark
+              ? 'bg-slate-900/50 border border-slate-700/50'
+              : 'bg-gradient-to-br from-gray-50 to-white border border-gray-200'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${
+                isDark
+                  ? 'bg-blue-500/20'
+                  : 'bg-blue-100'
+              }`}>
+                <Truck className={`w-4 h-4 ${
+                  isDark ? 'text-blue-400' : 'text-blue-600'
+                }`} />
+              </div>
+              <div>
+                <p className={`text-xs ${
+                  isDark ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  Total Transports (Page)
+                </p>
+                <p className={`text-lg font-bold ${
+                  isDark ? 'text-blue-400' : 'text-blue-600'
+                }`}>
+                  {transports.length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className={`p-4 rounded-lg ${
+            isDark
+              ? 'bg-slate-900/50 border border-slate-700/50'
+              : 'bg-gradient-to-br from-gray-50 to-white border border-gray-200'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${
+                isDark
+                  ? 'bg-green-500/20'
+                  : 'bg-green-100'
+              }`}>
+                <CheckCircle className={`w-4 h-4 ${
+                  isDark ? 'text-green-400' : 'text-green-600'
+                }`} />
+              </div>
+              <div>
+                <p className={`text-xs ${
+                  isDark ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  Delivered
+                </p>
+                <p className={`text-lg font-bold ${
+                  isDark ? 'text-white' : 'text-gray-900'
+                }`}>
+                  {(transports || []).filter(t => t.receivedQuantity !== undefined && t.receivedQuantity !== null).length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className={`p-4 rounded-lg ${
+            isDark
+              ? 'bg-slate-900/50 border border-slate-700/50'
+              : 'bg-gradient-to-br from-gray-50 to-white border border-gray-200'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${
+                isDark
+                  ? 'bg-yellow-500/20'
+                  : 'bg-yellow-100'
+              }`}>
+                <Clock className={`w-4 h-4 ${
+                  isDark ? 'text-yellow-400' : 'text-yellow-600'
+                }`} />
+              </div>
+              <div>
+                <p className={`text-xs ${
+                  isDark ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  In Transit
+                </p>
+                <p className={`text-lg font-bold ${
+                  isDark ? 'text-white' : 'text-gray-900'
+                }`}>
+                  {(transports || []).filter(t => t.receivedQuantity === undefined || t.receivedQuantity === null).length}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
       <div className="overflow-x-auto">
-        {filteredTransports.length > 0 ? (
-          <table className="w-full">
-            <thead>
-              <tr className={isDark ? 'bg-slate-700/50' : 'bg-gray-100'}>
-                <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
-                  isDark ? 'text-slate-300' : 'text-gray-600'
+        <table className="w-full">
+          <thead>
+            <tr className={`${
+              isDark
+                ? 'bg-slate-900/50 border-b border-slate-700/50'
+                : 'bg-gray-50 border-b border-gray-200'
+            }`}>
+              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Date
+                </div>
+              </th>
+              {isManagerView && (
+                <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                  isDark ? 'text-gray-400' : 'text-gray-600'
                 }`}>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Date
+                  Branch
+                </th>
+              )}
+              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Product
+              </th>
+              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                From
+              </th>
+              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                To
+              </th>
+              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Sent Qty
+              </th>
+              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Received Qty
+              </th>
+              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Status
+              </th>
+            </tr>
+          </thead>
+          <tbody className={`divide-y ${
+            isDark ? 'divide-slate-700/50' : 'divide-gray-200'
+          }`}>
+            {currentItems.length === 0 ? (
+              <tr>
+                <td colSpan={isManagerView ? 8 : 7} className="px-6 py-12">
+                  <div className="flex flex-col items-center justify-center">
+                    <Truck className={`w-12 h-12 mb-3 ${
+                      isDark ? 'text-gray-600' : 'text-gray-400'
+                    }`} />
+                    <p className={`text-sm font-medium ${
+                      isDark ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                      No transport records found
+                    </p>
+                    <p className={`text-xs mt-1 ${
+                      isDark ? 'text-gray-500' : 'text-gray-500'
+                    }`}>
+                      {!isManagerView && (dateFilter.type !== 'all' || statusFilter !== 'all' || locationFilter !== 'all' || searchTerm)
+                        ? 'Try adjusting your filters'
+                        : 'Transport records will appear here'}
+                    </p>
                   </div>
-                </th>
-                <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
-                  isDark ? 'text-slate-300' : 'text-gray-600'
-                }`}>
-                  Product
-                </th>
-                <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
-                  isDark ? 'text-slate-300' : 'text-gray-600'
-                }`}>
-                  From
-                </th>
-                <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
-                  isDark ? 'text-slate-300' : 'text-gray-600'
-                }`}>
-                  To
-                </th>
-                <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
-                  isDark ? 'text-slate-300' : 'text-gray-600'
-                }`}>
-                  Sent Qty
-                </th>
-                <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
-                  isDark ? 'text-slate-300' : 'text-gray-600'
-                }`}>
-                  Received Qty
-                </th>
-                <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
-                  isDark ? 'text-slate-300' : 'text-gray-600'
-                }`}>
-                  Status
-                </th>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-              {currentItems.map((transport, i) => (
-                <tr 
-                  key={transport._id || i}
-                  className={`transition-colors duration-150 ${
-                    isDark 
-                      ? 'hover:bg-slate-700/50' 
+            ) : (
+              currentItems.map((transport) => (
+                <tr
+                  key={transport._id}
+                  className={`transition-colors ${
+                    isDark
+                      ? 'hover:bg-slate-700/30'
                       : 'hover:bg-gray-50'
                   }`}
                 >
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                    isDark ? 'text-slate-300' : 'text-gray-900'
+                  <td className={`px-6 py-4 whitespace-nowrap ${
+                    isDark ? 'text-gray-300' : 'text-gray-900'
                   }`}>
                     <div className="flex items-center gap-2">
-                      <Calendar className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-gray-400'}`} />
-                      {new Date(transport.createdAt).toLocaleDateString()}
+                      <div className={`w-2 h-2 rounded-full ${
+                        isDark ? 'bg-blue-400' : 'bg-blue-500'
+                      }`} />
+                      <span className="text-sm font-medium">
+                        {new Date(transport.createdAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </span>
                     </div>
                   </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                    isDark ? 'text-white' : 'text-gray-900'
+                  {isManagerView && (
+                    <td className={`px-6 py-4 whitespace-nowrap ${
+                      isDark ? 'text-gray-300' : 'text-gray-900'
+                    }`}>
+                      <span className="text-sm font-medium">
+                        {transport.stockRequest?.branchOwner?.name || transport.branchId || 'N/A'}
+                      </span>
+                    </td>
+                  )}
+                  <td className={`px-6 py-4 whitespace-nowrap ${
+                    isDark ? 'text-gray-200' : 'text-gray-900'
                   }`}>
                     <div className="flex items-center gap-2">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
@@ -665,191 +911,187 @@ const TransportTable = ({ branchOwnerId }) => {
                       }`}>
                         <Package className="w-4 h-4" />
                       </div>
-                      {transport.stockRequest?.productName || 'N/A'}
+                      <span className="font-medium">{transport.stockRequest?.productName || 'N/A'}</span>
                     </div>
                   </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                    isDark ? 'text-white' : 'text-gray-900'
+                  <td className={`px-6 py-4 whitespace-nowrap ${
+                    isDark ? 'text-gray-300' : 'text-gray-900'
                   }`}>
-                    {transport.from}
+                    <span className="text-sm font-medium">{transport.from || 'N/A'}</span>
                   </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                    isDark ? 'text-white' : 'text-gray-900'
+                  <td className={`px-6 py-4 whitespace-nowrap ${
+                    isDark ? 'text-gray-300' : 'text-gray-900'
                   }`}>
-                    {transport.to}
+                    <span className="text-sm font-medium">{transport.to || 'N/A'}</span>
                   </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                    isDark ? 'text-slate-300' : 'text-gray-700'
+                  <td className={`px-6 py-4 whitespace-nowrap ${
+                    isDark ? 'text-gray-300' : 'text-gray-900'
                   }`}>
-                    <span className={`font-semibold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
-                      {transport.quantity}
-                    </span>
+                    <span className="font-semibold">{transport.quantity}</span>
+                    <span className={`text-xs ml-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>units</span>
                   </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                    isDark ? 'text-slate-300' : 'text-gray-700'
+                  <td className={`px-6 py-4 whitespace-nowrap ${
+                    isDark ? 'text-gray-300' : 'text-gray-900'
                   }`}>
-                    {transport.receivedQuantity ? (
-                      <span className={`font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                        {transport.receivedQuantity}
-                      </span>
+                    {transport.receivedQuantity !== undefined && transport.receivedQuantity !== null ? (
+                      <span className="font-semibold">{transport.receivedQuantity}</span>
                     ) : (
-                      <span className={isDark ? 'text-slate-500' : 'text-gray-400'}>-</span>
+                      <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>-</span>
+                    )}
+                    {transport.receivedQuantity !== undefined && transport.receivedQuantity !== null && (
+                      <span className={`text-xs ml-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>units</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border ${
-                      getStatusColor(transport)
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${
+                      getStatusStyles(transport)
                     }`}>
                       {getStatusIcon(transport)}
                       {getStatusText(transport)}
                     </span>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-16 px-4">
-            <div className={`p-4 rounded-full mb-4 ${
-              isDark ? 'bg-slate-700' : 'bg-gray-100'
-            }`}>
-              <Truck className={`w-12 h-12 ${isDark ? 'text-slate-400' : 'text-gray-400'}`} />
-            </div>
-            <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-slate-200' : 'text-gray-800'}`}>
-              {transports.length === 0 ? 'No Transport Records' : 'No Matching Transports Found'}
-            </h3>
-            <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
-              {transports.length === 0 ? 'There are no transport records to display at this time.' : 'Try adjusting your filters to find transport records.'}
-            </p>
-          </div>
-        )}
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
       {/* Pagination Footer */}
-      {filteredTransports.length > 0 && (
-        <div className={`px-6 py-4 border-t ${
-          isDark ? 'border-slate-700 bg-slate-800/50' : 'border-gray-200 bg-gray-50'
+      {currentItems.length > 0 && (
+        <div className={`px-6 py-4 border-t flex flex-col sm:flex-row items-center justify-between gap-4 ${
+          isDark
+            ? 'border-slate-700/50 bg-slate-900/30'
+            : 'border-gray-200 bg-gray-50'
         }`}>
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            {/* Results info */}
-            <div className={`text-sm ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
-              Showing <span className="font-semibold">{indexOfFirstItem + 1}</span> to{' '}
-              <span className="font-semibold">{Math.min(indexOfLastItem, filteredTransports.length)}</span> of{' '}
-              <span className="font-semibold">{filteredTransports.length}</span> results
+          {/* Left side - Rows info and per page selector */}
+          <div className="flex items-center gap-4">
+            <div className={`text-sm ${
+              isDark ? 'text-gray-400' : 'text-gray-600'
+            }`}>
+              Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
+              <span className="font-medium">{endIndex}</span> of{' '}
+              <span className="font-medium">{totalItems}</span> entries
+            </div>
+            
+            <select
+              value={itemsPerPage}
+              onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+              className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
+                isDark
+                  ? 'bg-slate-800 border-slate-700 text-gray-300 focus:border-blue-500'
+                  : 'bg-white border-gray-300 text-gray-700 focus:border-blue-500'
+              } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+            >
+              <option value={5}>5 per page</option>
+              <option value={10}>10 per page</option>
+              <option value={25}>25 per page</option>
+              <option value={50}>50 per page</option>
+              <option value={100}>100 per page</option>
+            </select>
+          </div>
+
+          {/* Right side - Pagination controls */}
+          <div className="flex items-center gap-2">
+            {/* First page button */}
+            <button
+              onClick={goToFirstPage}
+              disabled={currentPage === 1}
+              className={`p-2 rounded-lg transition-all ${
+                currentPage === 1
+                  ? isDark
+                    ? 'text-gray-600 cursor-not-allowed'
+                    : 'text-gray-400 cursor-not-allowed'
+                  : isDark
+                    ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
+                    : 'text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <ChevronsLeft className="w-4 h-4" />
+            </button>
+
+            {/* Previous page button */}
+            <button
+              onClick={goToPreviousPage}
+              disabled={currentPage === 1}
+              className={`p-2 rounded-lg transition-all ${
+                currentPage === 1
+                  ? isDark
+                    ? 'text-gray-600 cursor-not-allowed'
+                    : 'text-gray-400 cursor-not-allowed'
+                  : isDark
+                    ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
+                    : 'text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            {/* Page numbers */}
+            <div className="flex items-center gap-1">
+              {getPageNumbers().map((page, index) => (
+                page === '...' ? (
+                  <span
+                    key={`ellipsis-${index}`}
+                    className={`px-3 py-1.5 text-sm ${
+                      isDark ? 'text-gray-500' : 'text-gray-400'
+                    }`}
+                  >
+                    ...
+                  </span>
+                ) : (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      currentPage === page
+                        ? isDark
+                          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                          : 'bg-blue-500 text-white shadow-sm'
+                        : isDark
+                          ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
+                          : 'text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                )
+              ))}
             </div>
 
-            {/* Pagination controls */}
-            <div className="flex items-center gap-2">
-              {/* First page button */}
-              <button
-                onClick={() => handlePageChange(1)}
-                disabled={currentPage === 1}
-                className={`p-2 rounded-lg transition-all ${
-                  currentPage === 1
-                    ? isDark
-                      ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
-                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : isDark
-                    ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
-              >
-                <ChevronsLeft className="w-5 h-5" />
-              </button>
+            {/* Next page button */}
+            <button
+              onClick={goToNextPage}
+              disabled={currentPage === totalPages}
+              className={`p-2 rounded-lg transition-all ${
+                currentPage === totalPages
+                  ? isDark
+                    ? 'text-gray-600 cursor-not-allowed'
+                    : 'text-gray-400 cursor-not-allowed'
+                  : isDark
+                    ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
+                    : 'text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
 
-              {/* Previous button */}
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className={`p-2 rounded-lg transition-all ${
-                  currentPage === 1
-                    ? isDark
-                      ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
-                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : isDark
-                    ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-
-              {/* Page numbers */}
-              <div className="flex items-center gap-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
-                  const showPage = 
-                    pageNum === 1 ||
-                    pageNum === totalPages ||
-                    (pageNum >= currentPage - 1 && pageNum <= currentPage + 1);
-                  
-                  const showEllipsis = 
-                    (pageNum === currentPage - 2 && currentPage > 3) ||
-                    (pageNum === currentPage + 2 && currentPage < totalPages - 2);
-
-                  if (showEllipsis) {
-                    return (
-                      <span key={`ellipsis-${pageNum}`} className={`px-3 py-2 ${isDark ? 'text-slate-400' : 'text-gray-400'}`}>
-                        ...
-                      </span>
-                    );
-                  }
-
-                  if (!showPage) return null;
-
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => handlePageChange(pageNum)}
-                      className={`min-w-[40px] px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                        currentPage === pageNum
-                          ? isDark
-                            ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30'
-                            : 'bg-emerald-600 text-white shadow-lg'
-                          : isDark
-                          ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                          : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Next button */}
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className={`p-2 rounded-lg transition-all ${
-                  currentPage === totalPages
-                    ? isDark
-                      ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
-                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : isDark
-                    ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-
-              {/* Last page button */}
-              <button
-                onClick={() => handlePageChange(totalPages)}
-                disabled={currentPage === totalPages}
-                className={`p-2 rounded-lg transition-all ${
-                  currentPage === totalPages
-                    ? isDark
-                      ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
-                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : isDark
-                    ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
-              >
-                <ChevronsRight className="w-5 h-5" />
-              </button>
-            </div>
+            {/* Last page button */}
+            <button
+              onClick={goToLastPage}
+              disabled={currentPage === totalPages}
+              className={`p-2 rounded-lg transition-all ${
+                currentPage === totalPages
+                  ? isDark
+                    ? 'text-gray-600 cursor-not-allowed'
+                    : 'text-gray-400 cursor-not-allowed'
+                  : isDark
+                    ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
+                    : 'text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <ChevronsRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}
