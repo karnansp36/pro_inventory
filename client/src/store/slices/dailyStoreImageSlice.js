@@ -1,3 +1,4 @@
+// ==================== dailyStoreImageSlice.js ====================
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import dailyStoreImageService from '../../services/dailyStoreImageService';
 
@@ -64,6 +65,22 @@ export const getDailyStoreImagesForBranchOwner = createAsyncThunk(
   async ({ page = 1, limit = 10 } = {}, thunkAPI) => {
     try {
       return await dailyStoreImageService.getDailyStoreImagesForBranchOwner(page, limit);
+    } catch (error) {
+      const message =
+        (error.response && error.response.data && error.response.data.message) ||
+        error.message ||
+        error.toString();
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+// Get daily store images by manager with pagination
+export const getDailyStoreImagesByManager = createAsyncThunk(
+  'dailyStoreImages/getByManager',
+  async ({ managerId, page = 1, limit = 10 }, thunkAPI) => {
+    try {
+      return await dailyStoreImageService.getDailyStoreImagesByManager(managerId, page, limit);
     } catch (error) {
       const message =
         (error.response && error.response.data && error.response.data.message) ||
@@ -167,6 +184,27 @@ export const dailyStoreImageSlice = createSlice({
         }
       })
       .addCase(getDailyStoreImagesForBranchOwner.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+      
+      // getDailyStoreImagesByManager
+      .addCase(getDailyStoreImagesByManager.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(getDailyStoreImagesByManager.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        if (action.payload.images) {
+          state.dailyStoreImages = action.payload.images;
+          state.totalItems = action.payload.totalItems || 0;
+        } else {
+          state.dailyStoreImages = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+        }
+      })
+      .addCase(getDailyStoreImagesByManager.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;

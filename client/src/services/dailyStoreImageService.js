@@ -1,3 +1,4 @@
+// ==================== dailyStoreImageService.js ====================
 import api from './api';
 
 const DAILY_STORE_IMAGE_URL = '/daily-store-images';
@@ -11,8 +12,6 @@ const uploadDailyStoreImage = async (imageData) => {
   });
   return response.data;
 };
-
-
 
 // Get all daily store images with pagination (for admin/brand owner)
 const getAllDailyStoreImages = async (page = 1, limit = 10) => {
@@ -32,11 +31,18 @@ const getDailyStoreImagesByBranch = async (branchId, page = 1, limit = 10) => {
   return response.data;
 };
 
+// Get daily store images by manager ID with pagination
+const getDailyStoreImagesByManager = async (managerId, page = 1, limit = 10) => {
+  const response = await api.get(`${DAILY_STORE_IMAGE_URL}/manager/${managerId}?page=${page}&limit=${limit}`);
+  return response.data;
+};
+
 const dailyStoreImageService = {
   uploadDailyStoreImage,
   getDailyStoreImagesByBranch,
   getAllDailyStoreImages,
   getDailyStoreImagesForBranchOwner,
+  getDailyStoreImagesByManager,
 };
 
 export default dailyStoreImageService;

@@ -7,6 +7,7 @@ import {
   getDailyStoreImagesByBranch,
   getAllDailyStoreImages,
   getDailyStoreImagesForBranchOwner,
+  getDailyStoreImagesByManagerId
 } from '../controllers/dailyStoreImageController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 import { upload, compressImage } from '../middleware/uploadMiddleware.js';
@@ -57,5 +58,9 @@ router
 router
   .route('/my-images')
   .get(protect, authorizeRoles('BranchOwner'), getDailyStoreImagesForBranchOwner);
+
+// Add route for manager transports
+router.route('/manager/:managerId')
+  .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getDailyStoreImagesByManagerId);
 
 export default router;

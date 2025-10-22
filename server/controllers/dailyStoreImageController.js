@@ -200,9 +200,59 @@ const getAllDailyStoreImages = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get daily store images by manager ID with pagination
+// @route   GET /api/daily-store-images/manager/:managerId
+// @access  Private (Admin, BrandOwner, Manager)
+const getDailyStoreImagesByManagerId = asyncHandler(async (req, res) => {
+  const { managerId } = req.params;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  // Find the manager
+  const manager = await User.findById(managerId);
+
+  if (!manager) {
+    res.status(404);
+    throw new Error('Manager not found');
+  }
+
+  const branchOwnerIds = manager.assignedBranchOwners;
+
+  if (!branchOwnerIds || branchOwnerIds.length === 0) {
+    return res.status(200).json({
+      images: [],
+      totalItems: 0,
+      currentPage: page,
+      totalPages: 0,
+    });
+  }
+
+  // Fetch the daily store images for the branch owners
+  const images = await DailyStoreImage.find({
+    branchOwner: { $in: branchOwnerIds },
+  })
+    .populate('branchOwner', 'name email branchName')
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip(skip);
+
+  const totalItems = await DailyStoreImage.countDocuments({
+    branchOwner: { $in: branchOwnerIds },
+  });
+
+  res.status(200).json({
+    images,
+    totalItems,
+    currentPage: page,
+    totalPages: Math.ceil(totalItems / limit),
+  });
+});
+
 export {
   getAllDailyStoreImages,
   getDailyStoreImagesByBranch,
   getDailyStoreImagesForBranchOwner,
+  getDailyStoreImagesByManagerId,
   uploadDailyStoreImage,
 };
