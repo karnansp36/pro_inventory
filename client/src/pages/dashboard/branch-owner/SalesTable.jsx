@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { useDispatch, useSelector } from 'react-redux';
-import { getSalesByBranch } from '../../../store/slices/salesSlice';
+import { getSalesByBranch, getSalesByManager } from '../../../store/slices/salesSlice';
 import { useTheme } from '../../../context/ThemeContext';
 import {
   Calendar,
@@ -22,71 +22,78 @@ import {
   Calendar as CalendarIcon
 } from 'lucide-react';
 
-const SalesTable = ({ branchOwnerId }) => {
+const SalesTable = ({ 
+  branchOwnerId, 
+  // Manager view props
+  salesData = null,
+  totalItems: propTotalItems = 0,
+  isManagerView = false,
+  filters: propFilters = {},
+  currentPage: propCurrentPage = 1,
+  itemsPerPage: propItemsPerPage = 10,
+  onPageChange = null,
+  onItemsPerPageChange = null,
+  loading: propLoading = false
+}) => {
   const dispatch = useDispatch();
-  const { sales, totalItems, loading, error } = useSelector((state) => state.sales);
+  const { sales: reduxSales, totalItems: reduxTotalItems, loading: reduxLoading, error } = useSelector((state) => state.sales);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showFilters, setShowFilters] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState({
-    type: 'all', // 'all', 'today', 'week', 'month', 'custom'
+    type: 'all',
     startDate: '',
     endDate: ''
   });
   const { theme } = useTheme();
 
-  // Filter sales based on search and date filters
-  const filteredSales = sales.filter(sale => {
-    // Search filter
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch =
-        sale.paymentMethod?.toLowerCase().includes(searchLower) ||
-        sale.productName?.toLowerCase().includes(searchLower) ||
-        sale.amount?.toString().includes(searchTerm) ||
-        new Date(sale.date).toLocaleDateString().toLowerCase().includes(searchLower);
-      if (!matchesSearch) return false;
-    }
+  // Use props if provided (manager view), otherwise use Redux state (branch owner view)
+  const sales = isManagerView ? (salesData || []) : reduxSales;
+  const totalItems = isManagerView ? propTotalItems : reduxTotalItems;
+  const loading = isManagerView ? propLoading : reduxLoading;
 
-    // Date filter
-    if (dateFilter.type !== 'all') {
-      const saleDate = new Date(sale.date);
-      const today = new Date();
-      
-      switch (dateFilter.type) {
-        case 'today':
-          return saleDate.toDateString() === today.toDateString();
-        case 'week':
-          const weekAgo = new Date(today);
-          weekAgo.setDate(today.getDate() - 7);
-          return saleDate >= weekAgo && saleDate <= today;
-        case 'month':
-          const monthAgo = new Date(today);
-          monthAgo.setMonth(today.getMonth() - 1);
-          return saleDate >= monthAgo && saleDate <= today;
-        case 'custom':
-          if (dateFilter.startDate && dateFilter.endDate) {
-            const start = new Date(dateFilter.startDate);
-            const end = new Date(dateFilter.endDate);
-            end.setHours(23, 59, 59, 999); // Include entire end date
-            return saleDate >= start && saleDate <= end;
-          }
-          return true;
-        default:
-          return true;
-      }
-    }
-
-    return true;
-  });
-
+  // Sync with prop changes for manager view
   useEffect(() => {
-    if (branchOwnerId) {
-      dispatch(getSalesByBranch({ branchId: branchOwnerId, page: currentPage, limit: itemsPerPage }));
+    if (isManagerView) {
+      setCurrentPage(propCurrentPage);
+      setItemsPerPage(propItemsPerPage);
     }
-  }, [dispatch, branchOwnerId, currentPage, itemsPerPage]);
+  }, [propCurrentPage, propItemsPerPage, isManagerView]);
+
+  // For branch owner view: fetch data when filters/pagination change
+  useEffect(() => {
+    if (branchOwnerId && !isManagerView) {
+      const filters = {
+        searchTerm,
+        dateFilter
+      };
+      
+      dispatch(getSalesByBranch({ 
+        branchId: branchOwnerId, 
+        page: currentPage, 
+        limit: itemsPerPage,
+        filters 
+      }));
+    }
+  }, [dispatch, branchOwnerId, currentPage, itemsPerPage, searchTerm, dateFilter, isManagerView]);
+
+  // For manager view: fetch data when filters/pagination change
+  useEffect(() => {
+    if (isManagerView && branchOwnerId) {
+      const filters = {
+        searchTerm,
+        dateFilter
+      };
+      dispatch(getSalesByManager({
+        managerId: branchOwnerId,
+        page: currentPage,
+        limit: itemsPerPage,
+        filters: filters
+      }));
+    }
+  }, [dispatch, branchOwnerId, currentPage, itemsPerPage, searchTerm, dateFilter, isManagerView]);
 
   useEffect(() => {
     if (error) {
@@ -94,19 +101,70 @@ const SalesTable = ({ branchOwnerId }) => {
     }
   }, [error]);
 
-  // Server-side pagination calculations
+  // Server-side pagination - use sales directly as they're already paginated
+  const currentSales = sales;
+
+  // Pagination calculations
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
+  const endIndex = Math.min(startIndex + sales.length, totalItems);
 
   const getTotalSales = () => {
-    return filteredSales.reduce((sum, sale) => sum + (sale.amount || 0), 0);
+    return sales.reduce((sum, sale) => sum + (sale.amount || 0), 0);
   };
 
-  const goToFirstPage = () => setCurrentPage(1);
-  const goToLastPage = () => setCurrentPage(totalPages);
-  const goToPreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
-  const goToNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
+  const goToFirstPage = () => {
+    const newPage = 1;
+    if (isManagerView && onPageChange) {
+      onPageChange(newPage);
+    } else {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const goToLastPage = () => {
+    const newPage = totalPages;
+    if (isManagerView && onPageChange) {
+      onPageChange(newPage);
+    } else {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    const newPage = Math.max(1, currentPage - 1);
+    if (isManagerView && onPageChange) {
+      onPageChange(newPage);
+    } else {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const goToNextPage = () => {
+    const newPage = Math.min(totalPages, currentPage + 1);
+    if (isManagerView && onPageChange) {
+      onPageChange(newPage);
+    } else {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handlePageChange = (page) => {
+    if (isManagerView && onPageChange) {
+      onPageChange(page);
+    } else {
+      setCurrentPage(page);
+    }
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    if (isManagerView && onItemsPerPageChange) {
+      onItemsPerPageChange(newItemsPerPage);
+    } else {
+      setItemsPerPage(newItemsPerPage);
+      setCurrentPage(1);
+    }
+  };
 
   const getPageNumbers = () => {
     const pages = [];
@@ -155,26 +213,23 @@ const SalesTable = ({ branchOwnerId }) => {
     return colors[theme][method] || colors[theme].Cash;
   };
 
-  // CSV Export Function
+  // CSV Export Function - exports current page data
   const downloadCSV = () => {
-    if (filteredSales.length === 0) {
+    if (sales.length === 0) {
       toast.error('No data to export');
       return;
     }
 
     try {
-      // Enhanced CSV formatting with proper escaping
       const escapeCSV = (field) => {
         if (field === null || field === undefined) return '""';
         const stringField = String(field);
-        // Escape quotes and wrap in quotes if contains comma, quote, or newline
         if (stringField.includes('"') || stringField.includes(',') || stringField.includes('\n')) {
           return `"${stringField.replace(/"/g, '""')}"`;
         }
         return stringField;
       };
 
-      // CSV headers
       const headers = [
         'Date',
         'Product Name',
@@ -185,8 +240,7 @@ const SalesTable = ({ branchOwnerId }) => {
         'Created At'
       ];
 
-      // Convert sales data to CSV rows
-      const csvRows = filteredSales.map(sale => [
+      const csvRows = sales.map(sale => [
         escapeCSV(new Date(sale.date).toLocaleDateString('en-US')),
         escapeCSV(sale.productName || 'N/A'),
         escapeCSV(sale.amount?.toFixed(2) || '0.00'),
@@ -196,41 +250,38 @@ const SalesTable = ({ branchOwnerId }) => {
         escapeCSV(new Date(sale.createdAt || sale.date).toISOString())
       ]);
 
-      // Build CSV content
       let csvContent = [headers.join(',')];
       csvContent = csvContent.concat(csvRows.map(row => row.join(',')));
 
-      // Add summary section if there are filters applied
-      if (dateFilter.type !== 'all' || searchTerm) {
-        csvContent.push(''); // Empty line
-        csvContent.push('Summary');
-        csvContent.push(`Total Records,${filteredSales.length}`);
-        csvContent.push(`Total Amount,$${getTotalSales().toFixed(2)}`);
-        csvContent.push(`Average Sale,$${filteredSales.length > 0 ? (getTotalSales() / filteredSales.length).toFixed(2) : '0.00'}`);
-        
-        if (dateFilter.type !== 'all') {
-          csvContent.push(`Date Filter,${dateFilter.type}`);
-          if (dateFilter.type === 'custom' && dateFilter.startDate && dateFilter.endDate) {
-            csvContent.push(`Start Date,${dateFilter.startDate}`);
-            csvContent.push(`End Date,${dateFilter.endDate}`);
-          }
+      // Add summary
+      csvContent.push('');
+      csvContent.push('Summary');
+      csvContent.push(`Total Records (Current Page),${sales.length}`);
+      csvContent.push(`Total Amount (Current Page),$${getTotalSales().toFixed(2)}`);
+      csvContent.push(`Average Sale,$${sales.length > 0 ? (getTotalSales() / sales.length).toFixed(2) : '0.00'}`);
+      csvContent.push(`Total Records (All Pages),${totalItems}`);
+      csvContent.push(`Page,${currentPage} of ${totalPages}`);
+      
+      if (!isManagerView && dateFilter.type !== 'all') {
+        csvContent.push(`Date Filter,${dateFilter.type}`);
+        if (dateFilter.type === 'custom' && dateFilter.startDate && dateFilter.endDate) {
+          csvContent.push(`Start Date,${dateFilter.startDate}`);
+          csvContent.push(`End Date,${dateFilter.endDate}`);
         }
-        
-        if (searchTerm) {
-          csvContent.push(`Search Term,${searchTerm}`);
-        }
-        
-        csvContent.push(`Export Date,${new Date().toLocaleDateString('en-US')}`);
       }
+      
+      if (!isManagerView && searchTerm) {
+        csvContent.push(`Search Term,${searchTerm}`);
+      }
+      
+      csvContent.push(`Export Date,${new Date().toLocaleDateString('en-US')}`);
 
-      // Create blob and download
       const blob = new Blob([csvContent.join('\n')], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       
-      // Create filename with date and branch info
       const date = new Date().toISOString().split('T')[0];
-      const filename = `sales-data-${branchOwnerId || 'branch'}-${date}.csv`;
+      const filename = `sales-data-${branchOwnerId || 'branch'}-page${currentPage}-${date}.csv`;
       
       link.setAttribute('href', url);
       link.setAttribute('download', filename);
@@ -240,7 +291,6 @@ const SalesTable = ({ branchOwnerId }) => {
       link.click();
       document.body.removeChild(link);
       
-      // Clean up URL object
       URL.revokeObjectURL(url);
       
       toast.success('CSV file downloaded successfully!');
@@ -251,8 +301,10 @@ const SalesTable = ({ branchOwnerId }) => {
     }
   };
 
-  // Apply quick date filter
+  // Apply quick date filter (branch owner view only)
   const applyQuickDateFilter = (type) => {
+    if (isManagerView) return;
+
     const today = new Date();
     let startDate = new Date();
     
@@ -279,13 +331,17 @@ const SalesTable = ({ branchOwnerId }) => {
       startDate: startDate.toISOString().split('T')[0],
       endDate: today.toISOString().split('T')[0]
     });
+    setCurrentPage(1);
   };
 
-  // Clear all filters
+  // Clear all filters (branch owner view only)
   const clearFilters = () => {
+    if (isManagerView) return;
+    
     setSearchTerm('');
     setDateFilter({ type: 'all', startDate: '', endDate: '' });
     setShowFilters(false);
+    setCurrentPage(1);
   };
 
   const dateFilters = [
@@ -299,7 +355,7 @@ const SalesTable = ({ branchOwnerId }) => {
   const exportFormats = [
     { 
       key: 'csv', 
-      label: 'CSV', 
+      label: 'CSV (Current Page)', 
       color: 'bg-blue-500 hover:bg-blue-600',
       handler: downloadCSV
     }
@@ -351,69 +407,77 @@ const SalesTable = ({ branchOwnerId }) => {
               <h2 className={`text-lg font-semibold ${
                 theme === 'dark' ? 'text-white' : 'text-gray-900'
               }`}>
-                Daily Sales
+                {isManagerView ? 'Sales Overview' : 'Daily Sales'}
               </h2>
               <p className={`text-xs ${
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
               }`}>
-                {filteredSales.length} of {totalItems} transaction{totalItems !== 1 ? 's' : ''}
-                {dateFilter.type !== 'all' && ' (filtered)'}
+                Showing {sales.length} of {totalItems} transaction{totalItems !== 1 ? 's' : ''}
+                {!isManagerView && (dateFilter.type !== 'all' || searchTerm) && ' (filtered)'}
+                {isManagerView && ' (read-only)'}
               </p>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
-            {/* Search */}
-            <div className="relative">
-              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-              }`} />
-              <input
-                type="text"
-                placeholder="Search sales..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={`pl-10 pr-4 py-2 rounded-lg border transition-colors text-sm ${
-                  theme === 'dark'
-                    ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400 focus:border-emerald-500'
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-emerald-500'
-                } focus:outline-none focus:ring-2 focus:ring-emerald-500/20`}
-              />
-            </div>
+            {/* Search - Only for branch owner view */}
+            {!isManagerView && (
+              <div className="relative">
+                <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                }`} />
+                <input
+                  type="text"
+                  placeholder="Search sales..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className={`pl-10 pr-4 py-2 rounded-lg border transition-colors text-sm ${
+                    theme === 'dark'
+                      ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400 focus:border-emerald-500'
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-emerald-500'
+                  } focus:outline-none focus:ring-2 focus:ring-emerald-500/20`}
+                />
+              </div>
+            )}
 
-            {/* Filter Button */}
-            <button 
-              onClick={() => setShowFilters(!showFilters)}
-              className={`p-2 rounded-lg transition-colors ${
-                showFilters
-                  ? theme === 'dark'
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-emerald-500 text-white'
-                  : theme === 'dark'
-                  ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
-                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <Filter className="w-4 h-4" />
-            </button>
+            {/* Filter Button - Only for branch owner view */}
+            {!isManagerView && (
+              <button 
+                onClick={() => setShowFilters(!showFilters)}
+                className={`p-2 rounded-lg transition-colors ${
+                  showFilters
+                    ? theme === 'dark'
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-emerald-500 text-white'
+                    : theme === 'dark'
+                    ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
+                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+              </button>
+            )}
 
             {/* Export Button with Dropdown */}
             <div className="relative">
               <button 
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                disabled={filteredSales.length === 0}
+                disabled={sales.length === 0}
                 className={`p-2 rounded-lg transition-colors ${
                   theme === 'dark'
                     ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
                     : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-                } ${filteredSales.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${sales.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <Download className="w-4 h-4" />
               </button>
 
               {/* Export Dropdown Menu */}
               {showExportMenu && (
-                <div className={`absolute right-0 top-full mt-1 w-48 rounded-lg shadow-lg border z-50 ${
+                <div className={`absolute right-0 top-full mt-1 w-56 rounded-lg shadow-lg border z-50 ${
                   theme === 'dark'
                     ? 'bg-slate-800 border-slate-700'
                     : 'bg-white border-gray-200'
@@ -428,7 +492,7 @@ const SalesTable = ({ branchOwnerId }) => {
                       <button
                         key={format.key}
                         onClick={format.handler}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-white font-medium transition-all mb-1 last:mb-0 ${format.color}`}
+                        className={`w-full flex items-center justify-center gap-3 px-3 py-2 rounded text-sm text-white font-medium transition-all mb-1 last:mb-0 ${format.color}`}
                       >
                         {format.label}
                       </button>
@@ -440,8 +504,8 @@ const SalesTable = ({ branchOwnerId }) => {
           </div>
         </div>
 
-        {/* Filters Panel */}
-        {showFilters && (
+        {/* Filters Panel - Only for branch owner view */}
+        {showFilters && !isManagerView && (
           <div className={`mt-4 p-4 rounded-lg border ${
             theme === 'dark'
               ? 'bg-slate-700/50 border-slate-600'
@@ -563,7 +627,7 @@ const SalesTable = ({ branchOwnerId }) => {
                 <p className={`text-xs ${
                   theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                 }`}>
-                  Total Sales
+                  Total Sales (Page)
                 </p>
                 <p className={`text-lg font-bold ${
                   theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
@@ -593,12 +657,12 @@ const SalesTable = ({ branchOwnerId }) => {
                 <p className={`text-xs ${
                   theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                 }`}>
-                  Transactions
+                  Transactions (Page)
                 </p>
                 <p className={`text-lg font-bold ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  {filteredSales.length}
+                  {sales.length}
                 </p>
               </div>
             </div>
@@ -628,7 +692,7 @@ const SalesTable = ({ branchOwnerId }) => {
                 <p className={`text-lg font-bold ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  ${filteredSales.length > 0 ? (getTotalSales() / filteredSales.length).toFixed(2) : '0.00'}
+                  ${sales.length > 0 ? (getTotalSales() / sales.length).toFixed(2) : '0.00'}
                 </p>
               </div>
             </div>
@@ -648,17 +712,7 @@ const SalesTable = ({ branchOwnerId }) => {
               <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
               }`}>
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="w-4 h-4" />
-                  Date
-                </div>
-              </th>
-              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                <div className="flex items-center gap-2">
-                  Product Name
-                </div>
+                Product Name
               </th>
               <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
@@ -686,9 +740,9 @@ const SalesTable = ({ branchOwnerId }) => {
           <tbody className={`divide-y ${
             theme === 'dark' ? 'divide-slate-700/50' : 'divide-gray-200'
           }`}>
-            {filteredSales.length === 0 ? (
+            {currentSales.length === 0 ? (
               <tr>
-                <td colSpan="5" className="px-6 py-12">
+                <td colSpan={isManagerView ? 6 : 5} className="px-6 py-12">
                   <div className="flex flex-col items-center justify-center">
                     <Receipt className={`w-12 h-12 mb-3 ${
                       theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
@@ -696,18 +750,20 @@ const SalesTable = ({ branchOwnerId }) => {
                     <p className={`text-sm font-medium ${
                       theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                     }`}>
-                      {sales.length === 0 ? 'No sales records found' : 'No matching sales found'}
+                      No sales records found
                     </p>
                     <p className={`text-xs mt-1 ${
                       theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
                     }`}>
-                      {sales.length === 0 ? 'Sales transactions will appear here' : 'Try adjusting your filters'}
+                      {!isManagerView && (dateFilter.type !== 'all' || searchTerm) 
+                        ? 'Try adjusting your filters' 
+                        : 'Sales transactions will appear here'}
                     </p>
                   </div>
                 </td>
               </tr>
             ) : (
-              filteredSales.map((sale, i) => (
+              currentSales.map((sale, i) => (
                 <tr
                   key={sale._id || i}
                   className={`transition-colors ${
@@ -732,6 +788,15 @@ const SalesTable = ({ branchOwnerId }) => {
                       </span>
                     </div>
                   </td>
+                  {isManagerView && (
+                    <td className={`px-6 py-4 whitespace-nowrap ${
+                      theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
+                    }`}>
+                      <span className="text-sm font-medium">
+                        {sale.branchOwner?.name || sale.branchId || 'N/A'}
+                      </span>
+                    </td>
+                  )}
                   <td className={`px-6 py-4 whitespace-nowrap ${
                     theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
                   }`}>
@@ -768,10 +833,10 @@ const SalesTable = ({ branchOwnerId }) => {
       </div>
 
       {/* Pagination Footer */}
-      {filteredSales.length > 0 && (
+      {currentSales.length > 0 && (
         <div className={`px-6 py-4 border-t flex flex-col sm:flex-row items-center justify-between gap-4 ${
-          theme === 'dark' 
-            ? 'border-slate-700/50 bg-slate-900/30' 
+          theme === 'dark'
+            ? 'border-slate-700/50 bg-slate-900/30'
             : 'border-gray-200 bg-gray-50'
         }`}>
           {/* Left side - Rows info and per page selector */}
@@ -779,17 +844,14 @@ const SalesTable = ({ branchOwnerId }) => {
             <div className={`text-sm ${
               theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
             }`}>
-              Showing <span className="font-medium">{Math.min(startIndex + 1, filteredSales.length)}</span> to{' '}
-              <span className="font-medium">{Math.min(endIndex, filteredSales.length)}</span> of{' '}
-              <span className="font-medium">{filteredSales.length}</span> entries
+              Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
+              <span className="font-medium">{endIndex}</span> of{' '}
+              <span className="font-medium">{totalItems}</span> entries
             </div>
             
             <select
               value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
+              onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
               className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
                 theme === 'dark'
                   ? 'bg-slate-800 border-slate-700 text-gray-300 focus:border-emerald-500'
@@ -855,7 +917,7 @@ const SalesTable = ({ branchOwnerId }) => {
                 ) : (
                   <button
                     key={page}
-                    onClick={() => setCurrentPage(page)}
+                    onClick={() => handlePageChange(page)}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       currentPage === page
                         ? theme === 'dark'

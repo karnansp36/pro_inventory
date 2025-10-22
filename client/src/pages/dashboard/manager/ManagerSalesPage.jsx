@@ -12,10 +12,16 @@ const ManagerSalesPage = () => {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const { users } = useSelector((state) => state.users);
-  const { sales, loading, error } = useSelector((state) => state.sales);
+  const { sales, totalItems, loading, error } = useSelector((state) => state.sales);
   const [selectedBranch, setSelectedBranch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateFilter, setDateFilter] = useState({
+    type: 'all',
+    startDate: '',
+    endDate: ''
+  });
 
   const handleItemsPerPageChange = (limit) => {
     setItemsPerPage(limit);
@@ -24,14 +30,23 @@ const ManagerSalesPage = () => {
 
   const filters = useMemo(() => ({
     branchId: selectedBranch,
-  }), [selectedBranch]);
+    searchTerm,
+    dateFilter
+  }), [selectedBranch, searchTerm, dateFilter]);
 
   useEffect(() => {
     const managerId = user._id;
-    dispatch(getSalesByManager({ managerId, filters }));
-    dispatch(getUsers());
-  }, [dispatch, filters, user._id]);
+    dispatch(getSalesByManager({ 
+      managerId, 
+      page: currentPage, 
+      limit: itemsPerPage,
+      filters 
+    }));
+  }, [dispatch, user._id, currentPage, itemsPerPage, filters]);
 
+  useEffect(() => {
+    dispatch(getUsers());
+  }, [dispatch]);
 
   const branchOwners = users.filter(user => user.role === 'BranchOwner');
 
@@ -44,6 +59,17 @@ const ManagerSalesPage = () => {
     setCurrentPage(page);
   };
 
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const clearFilters = () => {
+    setSelectedBranch('');
+    setSearchTerm('');
+    setDateFilter({ type: 'all', startDate: '', endDate: '' });
+    setCurrentPage(1);
+  };
 
   return (
     <div className="space-y-6">
@@ -77,37 +103,60 @@ const ManagerSalesPage = () => {
             ))}
           </select>
         </div>
-        {/* Add search input if needed */}
-        {/* <div className="flex items-center gap-2 w-full sm:w-auto">
+        
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <Search className={`w-5 h-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`} />
           <input
             type="text"
             placeholder="Search sales..."
+            value={searchTerm}
+            onChange={handleSearchChange}
             className={`flex-1 px-3 py-2 rounded-lg text-sm border transition-colors ${
               theme === 'dark'
                 ? 'bg-slate-900 border-slate-700 text-gray-300 focus:border-blue-500'
                 : 'bg-white border-gray-300 text-gray-700 focus:border-blue-500'
             } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
           />
-        </div> */}
+        </div>
+
+        {(selectedBranch || searchTerm || dateFilter.type !== 'all') && (
+          <button
+            onClick={clearFilters}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              theme === 'dark'
+                ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30'
+                : 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
+            }`}
+          >
+            Clear Filters
+          </button>
+        )}
       </div>
 
-
       <div className="lg:col-span-2">
-        {/* Pass sales data directly to SalesTable */}
         {loading ? (
-          <div>Loading...</div>
+          <div className={`rounded-xl p-8 text-center ${
+            theme === 'dark' ? 'bg-slate-800 text-white' : 'bg-white text-gray-800'
+          }`}>
+            Loading...
+          </div>
         ) : error ? (
-          <div>Error: {error}</div>
+          <div className={`rounded-xl p-8 text-center ${
+            theme === 'dark' ? 'bg-red-900/50 text-red-300' : 'bg-red-50 text-red-600'
+          }`}>
+            Error: {error}
+          </div>
         ) : (
           <SalesTable
             salesData={sales}
+            totalItems={totalItems}
             isManagerView={true}
             filters={filters}
             currentPage={currentPage}
             itemsPerPage={itemsPerPage}
             onPageChange={handlePageChange}
             onItemsPerPageChange={handleItemsPerPageChange}
+            loading={loading}
           />
         )}
       </div>

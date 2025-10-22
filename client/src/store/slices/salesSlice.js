@@ -48,9 +48,9 @@ export const updateSale = createAsyncThunk(
 
 export const getSalesByBranch = createAsyncThunk(
   'sales/getSalesByBranch',
-  async ({ branchId, page = 1, limit = 10 }, { rejectWithValue }) => {
+  async ({ branchId, page = 1, limit = 10, filters = {} }, { rejectWithValue }) => {
     try {
-      return await salesService.getSalesByBranch(branchId, page, limit);
+      return await salesService.getSalesByBranch(branchId, page, limit, filters);
     } catch (error) {
       return rejectWithValue(error.response?.data || { message: 'Failed to fetch sales by branch' });
     }
@@ -59,9 +59,9 @@ export const getSalesByBranch = createAsyncThunk(
 
 export const getSalesByManager = createAsyncThunk(
   'sales/getSalesByManager',
-  async ({ managerId, page = 1, limit = 10 }, { rejectWithValue }) => {
+  async ({ managerId, page = 1, limit = 10, filters = {} }, { rejectWithValue }) => {
     try {
-      return await salesService.getSalesByManager(managerId, page, limit);
+      return await salesService.getSalesByManager(managerId, page, limit, filters);
     } catch (error) {
       return rejectWithValue(error.response?.data || { message: 'Failed to fetch sales by manager' });
     }

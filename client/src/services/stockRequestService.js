@@ -42,9 +42,9 @@ const stockRequestService = {
     const response = await api.get(`/stockrequests/branch/${branchOwnerId}?page=${page}&limit=${limit}`);
     return response.data;
   },
-  getStockRequestsByManager: async (url) => {
-    const response = await api.get(url);
-    return response.data; // This should be the array directly
+  getStockRequestsByManager: async (managerId, page, limit) => {
+    const response = await api.get(`/stockrequests/manager/${managerId}?page=${page}&limit=${limit}`);
+    return response.data;
   }
 };
 

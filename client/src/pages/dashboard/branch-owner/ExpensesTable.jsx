@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { useDispatch, useSelector } from 'react-redux';
-import { getExpensesByBranch, deleteExpense } from '../../../store/slices/expensesSlice';
+import { 
+  getExpensesByBranch, 
+  deleteExpense, 
+  getExpensesByManager 
+} from '../../../store/slices/expensesSlice';
 import { useTheme } from '../../../context/ThemeContext';
 import {
   Calendar,
@@ -19,10 +23,11 @@ import {
   ChevronsRight,
   Trash2,
   AlertTriangle,
-  X
+  X,
+  Eye
 } from 'lucide-react';
 
-const ExpensesTable = ({ branchOwnerId }) => {
+const ExpensesTable = ({ branchOwnerId, isManagerView = false, managerId }) => {
   const dispatch = useDispatch();
   const { expenses, totalItems, loading, error } = useSelector((state) => state.expenses);
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,7 +39,7 @@ const ExpensesTable = ({ branchOwnerId }) => {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState({
-    type: 'all', // 'all', 'today', 'week', 'month', 'custom'
+    type: 'all',
     startDate: '',
     endDate: ''
   });
@@ -51,7 +56,8 @@ const ExpensesTable = ({ branchOwnerId }) => {
       const matchesSearch = 
         expense.description?.toLowerCase().includes(searchLower) ||
         expense.category?.toLowerCase().includes(searchLower) ||
-        expense.amount?.toString().includes(searchTerm);
+        expense.amount?.toString().includes(searchTerm) ||
+        expense.branchOwner?.name?.toLowerCase().includes(searchLower);
       if (!matchesSearch) return false;
     }
 
@@ -80,7 +86,7 @@ const ExpensesTable = ({ branchOwnerId }) => {
           if (dateFilter.startDate && dateFilter.endDate) {
             const start = new Date(dateFilter.startDate);
             const end = new Date(dateFilter.endDate);
-            end.setHours(23, 59, 59, 999); // Include entire end date
+            end.setHours(23, 59, 59, 999);
             return expenseDate >= start && expenseDate <= end;
           }
           return true;
@@ -93,10 +99,20 @@ const ExpensesTable = ({ branchOwnerId }) => {
   });
 
   useEffect(() => {
-    if (branchOwnerId) {
-      dispatch(getExpensesByBranch({ branchId: branchOwnerId, page: currentPage, limit: itemsPerPage }));
+    if (isManagerView && managerId) {
+      dispatch(getExpensesByManager({ 
+        managerId, 
+        page: currentPage, 
+        limit: itemsPerPage 
+      }));
+    } else if (branchOwnerId) {
+      dispatch(getExpensesByBranch({ 
+        branchId: branchOwnerId, 
+        page: currentPage, 
+        limit: itemsPerPage 
+      }));
     }
-  }, [dispatch, branchOwnerId, currentPage, itemsPerPage]);
+  }, [dispatch, branchOwnerId, managerId, currentPage, itemsPerPage, isManagerView]);
 
   useEffect(() => {
     if (error) {
@@ -127,7 +143,19 @@ const ExpensesTable = ({ branchOwnerId }) => {
       if (expenses.length === 1 && currentPage > 1) {
         setCurrentPage(currentPage - 1);
       } else {
-        dispatch(getExpensesByBranch({ branchId: branchOwnerId, page: currentPage, limit: itemsPerPage }));
+        if (isManagerView && managerId) {
+          dispatch(getExpensesByManager({ 
+            managerId, 
+            page: currentPage, 
+            limit: itemsPerPage 
+          }));
+        } else if (branchOwnerId) {
+          dispatch(getExpensesByBranch({ 
+            branchId: branchOwnerId, 
+            page: currentPage, 
+            limit: itemsPerPage 
+          }));
+        }
       }
     } catch (error) {
       toast.error('Failed to delete expense');
@@ -185,46 +213,44 @@ const ExpensesTable = ({ branchOwnerId }) => {
     }
 
     try {
-      // Enhanced CSV formatting with proper escaping
       const escapeCSV = (field) => {
         if (field === null || field === undefined) return '""';
         const stringField = String(field);
-        // Escape quotes and wrap in quotes if contains comma, quote, or newline
         if (stringField.includes('"') || stringField.includes(',') || stringField.includes('\n')) {
           return `"${stringField.replace(/"/g, '""')}"`;
         }
         return stringField;
       };
 
-      // CSV headers
-      const headers = [
-        'Date',
-        'Category',
-        'Description',
-        'Amount (₹)',
-        'Transaction ID',
-        'Branch ID',
-        'Created At'
-      ];
+      // Enhanced headers for manager view
+      const headers = isManagerView 
+        ? ['Date', 'Branch', 'Category', 'Description', 'Amount (₹)', 'Transaction ID', 'Created At']
+        : ['Date', 'Category', 'Description', 'Amount (₹)', 'Transaction ID', 'Created At'];
 
-      // Convert expenses data to CSV rows
-      const csvRows = filteredExpenses.map(expense => [
-        escapeCSV(expense.date ? new Date(expense.date).toLocaleDateString('en-US') : 'N/A'),
-        escapeCSV(expense.category || 'Unknown'),
-        escapeCSV(expense.description || 'No description'),
-        escapeCSV(expense.amount?.toFixed(2) || '0.00'),
-        escapeCSV(expense._id || 'N/A'),
-        escapeCSV(expense.branchId || branchOwnerId || 'N/A'),
-        escapeCSV(new Date(expense.createdAt || expense.date).toISOString())
-      ]);
+      const csvRows = filteredExpenses.map(expense => {
+        const baseRow = [
+          escapeCSV(expense.date ? new Date(expense.date).toLocaleDateString('en-US') : 'N/A'),
+          escapeCSV(expense.category || 'Unknown'),
+          escapeCSV(expense.description || 'No description'),
+          escapeCSV(expense.amount?.toFixed(2) || '0.00'),
+          escapeCSV(expense._id || 'N/A'),
+          escapeCSV(new Date(expense.createdAt || expense.date).toISOString())
+        ];
+        
+        if (isManagerView) {
+          // Insert branch name after date for manager view
+          baseRow.splice(1, 0, escapeCSV(expense.branchOwner?.name || 'Unknown Branch'));
+        }
+        
+        return baseRow;
+      });
 
-      // Build CSV content
       let csvContent = [headers.join(',')];
       csvContent = csvContent.concat(csvRows.map(row => row.join(',')));
 
-      // Add summary section if there are filters applied
+      // Add summary section
       if (dateFilter.type !== 'all' || searchTerm || categoryFilter !== 'all') {
-        csvContent.push(''); // Empty line
+        csvContent.push('');
         csvContent.push('Summary');
         csvContent.push(`Total Records,${filteredExpenses.length}`);
         csvContent.push(`Total Amount,₹${getTotalExpenses().toFixed(2)}`);
@@ -247,16 +273,17 @@ const ExpensesTable = ({ branchOwnerId }) => {
         }
         
         csvContent.push(`Export Date,${new Date().toLocaleDateString('en-US')}`);
+        csvContent.push(`View Type,${isManagerView ? 'Manager View' : 'Branch Owner View'}`);
       }
 
-      // Create blob and download
       const blob = new Blob([csvContent.join('\n')], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       
-      // Create filename with date and branch info
       const date = new Date().toISOString().split('T')[0];
-      const filename = `expenses-data-${branchOwnerId || 'branch'}-${date}.csv`;
+      const filename = isManagerView 
+        ? `manager-expenses-${managerId || 'manager'}-${date}.csv`
+        : `expenses-data-${branchOwnerId || 'branch'}-${date}.csv`;
       
       link.setAttribute('href', url);
       link.setAttribute('download', filename);
@@ -266,7 +293,6 @@ const ExpensesTable = ({ branchOwnerId }) => {
       link.click();
       document.body.removeChild(link);
       
-      // Clean up URL object
       URL.revokeObjectURL(url);
       
       toast.success('CSV file downloaded successfully!');
@@ -374,7 +400,7 @@ const ExpensesTable = ({ branchOwnerId }) => {
       }`}>
         <div className="flex flex-col items-center justify-center py-12">
           <Loader2 className={`w-12 h-12 animate-spin mb-4 ${
-            theme === 'dark' ? 'text-rose-400' : 'text-rose-600'
+            theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
           }`} />
           <p className={`text-sm ${
             theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
@@ -400,24 +426,25 @@ const ExpensesTable = ({ branchOwnerId }) => {
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${
               theme === 'dark'
-                ? 'bg-rose-500/20 border border-rose-500/30'
-                : 'bg-rose-50 border border-rose-200'
+                ? 'bg-blue-500/20 border border-blue-500/30'
+                : 'bg-blue-50 border border-blue-200'
             }`}>
               <CreditCard className={`w-5 h-5 ${
-                theme === 'dark' ? 'text-rose-400' : 'text-rose-600'
+                theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
               }`} />
             </div>
             <div>
               <h2 className={`text-lg font-semibold ${
                 theme === 'dark' ? 'text-white' : 'text-gray-900'
               }`}>
-                Expenses Overview
+                {isManagerView ? 'All Branch Expenses' : 'Expenses Overview'}
               </h2>
               <p className={`text-xs ${
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
               }`}>
                 {filteredExpenses.length} of {totalItems} expense{totalItems !== 1 ? 's' : ''}
                 {(dateFilter.type !== 'all' || categoryFilter !== 'all' || searchTerm) && ' (filtered)'}
+                {isManagerView && ' across all assigned branches'}
               </p>
             </div>
           </div>
@@ -430,14 +457,14 @@ const ExpensesTable = ({ branchOwnerId }) => {
               }`} />
               <input
                 type="text"
-                placeholder="Search expenses..."
+                placeholder={isManagerView ? "Search expenses across branches..." : "Search expenses..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className={`pl-10 pr-4 py-2 rounded-lg border transition-colors text-sm ${
                   theme === 'dark'
-                    ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400 focus:border-rose-500'
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-rose-500'
-                } focus:outline-none focus:ring-2 focus:ring-rose-500/20`}
+                    ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400 focus:border-blue-500'
+                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-blue-500'
+                } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
               />
             </div>
 
@@ -447,8 +474,8 @@ const ExpensesTable = ({ branchOwnerId }) => {
               className={`p-2 rounded-lg transition-colors ${
                 showFilters
                   ? theme === 'dark'
-                    ? 'bg-rose-500 text-white'
-                    : 'bg-rose-500 text-white'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-blue-500 text-white'
                   : theme === 'dark'
                   ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
                   : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
@@ -569,8 +596,8 @@ const ExpensesTable = ({ branchOwnerId }) => {
                       className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
                         dateFilter.type === filter.key
                           ? theme === 'dark'
-                            ? 'bg-rose-500 text-white'
-                            : 'bg-rose-500 text-white'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-blue-500 text-white'
                           : theme === 'dark'
                           ? 'bg-slate-600 text-gray-300 hover:bg-slate-500'
                           : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -639,11 +666,11 @@ const ExpensesTable = ({ branchOwnerId }) => {
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${
                 theme === 'dark'
-                  ? 'bg-rose-500/20'
-                  : 'bg-rose-100'
+                  ? 'bg-blue-500/20'
+                  : 'bg-blue-100'
               }`}>
                 <DollarSign className={`w-4 h-4 ${
-                  theme === 'dark' ? 'text-rose-400' : 'text-rose-600'
+                  theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
                 }`} />
               </div>
               <div>
@@ -653,7 +680,7 @@ const ExpensesTable = ({ branchOwnerId }) => {
                   Total Expenses
                 </p>
                 <p className={`text-lg font-bold ${
-                  theme === 'dark' ? 'text-rose-400' : 'text-rose-600'
+                  theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
                 }`}>
                   ₹{getTotalExpenses().toLocaleString('en-IN')}
                 </p>
@@ -669,11 +696,11 @@ const ExpensesTable = ({ branchOwnerId }) => {
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${
                 theme === 'dark'
-                  ? 'bg-blue-500/20'
-                  : 'bg-blue-100'
+                  ? 'bg-green-500/20'
+                  : 'bg-green-100'
               }`}>
                 <TrendingUp className={`w-4 h-4 ${
-                  theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                  theme === 'dark' ? 'text-green-400' : 'text-green-600'
                 }`} />
               </div>
               <div>
@@ -740,6 +767,13 @@ const ExpensesTable = ({ branchOwnerId }) => {
                   Date
                 </div>
               </th>
+              {isManagerView && (
+                <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  Branch
+                </th>
+              )}
               <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
               }`}>
@@ -770,7 +804,7 @@ const ExpensesTable = ({ branchOwnerId }) => {
           }`}>
             {filteredExpenses.length === 0 ? (
               <tr>
-                <td colSpan="5" className="px-6 py-12">
+                <td colSpan={isManagerView ? 6 : 5} className="px-6 py-12">
                   <div className="flex flex-col items-center justify-center">
                     <Receipt className={`w-12 h-12 mb-3 ${
                       theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
@@ -783,7 +817,10 @@ const ExpensesTable = ({ branchOwnerId }) => {
                     <p className={`text-xs mt-1 ${
                       theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
                     }`}>
-                      {expenses.length === 0 ? 'Expense transactions will appear here' : 'Try adjusting your filters'}
+                      {expenses.length === 0 
+                        ? (isManagerView ? 'Expense transactions from assigned branches will appear here' : 'Expense transactions will appear here')
+                        : 'Try adjusting your filters'
+                      }
                     </p>
                   </div>
                 </td>
@@ -801,62 +838,81 @@ const ExpensesTable = ({ branchOwnerId }) => {
                   <td className={`px-6 py-4 whitespace-nowrap ${
                     theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
                   }`}>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${
-                        theme === 'dark' ? 'bg-rose-400' : 'bg-rose-500'
-                      }`} />
-                      <span className="text-sm font-medium">
-                        {expense.date ? new Date(expense.date).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        }) : 'N/A'}
-                      </span>
-                    </div>
-                    <div className={`text-xs mt-1 ${
-                      theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
-                    }`}>
-                      {expense.date ? new Date(expense.date).toLocaleDateString('en-US', { weekday: 'short' }) : 'N/A'}
+                    <div className="text-sm">
+                      {expense.date ? new Date(expense.date).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      }) : 'N/A'}
                     </div>
                   </td>
+                  
+                  {isManagerView && (
+                    <td className={`px-6 py-4 whitespace-nowrap ${
+                      theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
+                    }`}>
+                      <div className="text-sm font-medium">
+                        {expense.branchOwner?.name || 'Unknown Branch'}
+                      </div>
+                    </td>
+                  )}
+                  
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border ${
+                    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-medium ${
                       getCategoryColor(expense.category)
                     }`}>
-                      <span className="text-base">{getCategoryIcon(expense.category)}</span>
-                      {expense.category}
-                    </span>
+                      <span>{getCategoryIcon(expense.category)}</span>
+                      {expense.category || 'Other'}
+                    </div>
                   </td>
+                  
                   <td className={`px-6 py-4 ${
                     theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
                   }`}>
-                    <div className="max-w-md">
-                      <p className="text-sm line-clamp-2">
-                        {expense.description || 'No description'}
-                      </p>
+                    <div className="text-sm max-w-xs truncate">
+                      {expense.description || 'No description'}
                     </div>
                   </td>
+                  
                   <td className={`px-6 py-4 whitespace-nowrap text-right ${
-                    theme === 'dark' ? 'text-rose-400' : 'text-rose-600'
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
                   }`}>
-                    <div className="text-base font-bold">
-                      ₹{expense.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <div className="text-sm font-semibold">
+                      ₹{expense.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <button
-                      onClick={() => {
-                        setSelectedExpense(expense);
-                        setShowDeleteConfirm(true);
-                      }}
-                      className={`p-2 rounded-lg transition-colors ${
-                        theme === 'dark'
-                          ? 'text-red-400 hover:bg-red-500/20 hover:text-red-300'
-                          : 'text-red-500 hover:bg-red-50 hover:text-red-700'
-                      }`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => setSelectedExpense(expense)}
+                        className={`p-1.5 rounded transition-colors ${
+                          theme === 'dark'
+                            ? 'hover:bg-slate-600 text-gray-400 hover:text-white'
+                            : 'hover:bg-gray-200 text-gray-600 hover:text-gray-900'
+                        }`}
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      
+                      {!isManagerView && (
+                        <button
+                          onClick={() => {
+                            setSelectedExpense(expense);
+                            setShowDeleteConfirm(true);
+                          }}
+                          className={`p-1.5 rounded transition-colors ${
+                            theme === 'dark'
+                              ? 'hover:bg-red-500/20 text-red-400 hover:text-red-300'
+                              : 'hover:bg-red-100 text-red-600 hover:text-red-700'
+                          }`}
+                          title="Delete Expense"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
@@ -865,154 +921,171 @@ const ExpensesTable = ({ branchOwnerId }) => {
         </table>
       </div>
 
-      {/* Pagination Footer */}
+      {/* Pagination */}
       {filteredExpenses.length > 0 && (
-        <div className={`px-6 py-4 border-t flex flex-col sm:flex-row items-center justify-between gap-4 ${
-          theme === 'dark' 
-            ? 'border-slate-700/50 bg-slate-900/30' 
-            : 'border-gray-200 bg-gray-50'
+        <div className={`px-6 py-4 border-t ${
+          theme === 'dark' ? 'border-slate-700/50' : 'border-gray-200'
         }`}>
-          {/* Left side - Rows info and per page selector */}
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            {/* Items per page selector */}
+            <div className="flex items-center gap-2">
+              <span className={`text-sm ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Show
+              </span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className={`px-2 py-1 rounded border text-sm ${
+                  theme === 'dark'
+                    ? 'bg-slate-700 border-slate-600 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+              <span className={`text-sm ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                per page
+              </span>
+            </div>
+
+            {/* Page info */}
             <div className={`text-sm ${
               theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
             }`}>
-              Showing <span className="font-medium">{Math.min(startIndex + 1, filteredExpenses.length)}</span> to{' '}
-              <span className="font-medium">{Math.min(endIndex, filteredExpenses.length)}</span> of{' '}
-              <span className="font-medium">{filteredExpenses.length}</span> entries
+              Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} entries
             </div>
-            
-            <select
-              value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
-                theme === 'dark'
-                  ? 'bg-slate-800 border-slate-700 text-gray-300 focus:border-rose-500'
-                  : 'bg-white border-gray-300 text-gray-700 focus:border-rose-500'
-              } focus:outline-none focus:ring-2 focus:ring-rose-500/20`}
-            >
-              <option value="5">5 per page</option>
-              <option value="10">10 per page</option>
-              <option value="25">25 per page</option>
-              <option value="50">50 per page</option>
-            </select>
-          </div>
 
-          {/* Right side - Pagination controls */}
-          <div className="flex items-center gap-2">
-            {/* First Page */}
-            <button
-              onClick={goToFirstPage}
-              disabled={currentPage === 1}
-              className={`p-2 rounded-lg transition-colors ${
-                currentPage === 1
-                  ? theme === 'dark'
-                    ? 'text-gray-600 cursor-not-allowed'
-                    : 'text-gray-400 cursor-not-allowed'
-                  : theme === 'dark'
-                  ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
-                  : 'text-gray-600 hover:bg-gray-200 hover:text-gray-900'
-              }`}
-            >
-              <ChevronsLeft className="w-4 h-4" />
-            </button>
-
-            {/* Previous Page */}
-            <button
-              onClick={goToPreviousPage}
-              disabled={currentPage === 1}
-              className={`p-2 rounded-lg transition-colors ${
-                currentPage === 1
-                  ? theme === 'dark'
-                    ? 'text-gray-600 cursor-not-allowed'
-                    : 'text-gray-400 cursor-not-allowed'
-                  : theme === 'dark'
-                  ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
-                  : 'text-gray-600 hover:bg-gray-200 hover:text-gray-900'
-              }`}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-
-            {/* Page Numbers */}
+            {/* Pagination controls */}
             <div className="flex items-center gap-1">
+              {/* First Page */}
+              <button
+                onClick={goToFirstPage}
+                disabled={currentPage === 1}
+                className={`p-2 rounded ${
+                  currentPage === 1
+                    ? theme === 'dark'
+                      ? 'text-gray-600 cursor-not-allowed'
+                      : 'text-gray-400 cursor-not-allowed'
+                    : theme === 'dark'
+                    ? 'text-gray-400 hover:text-white hover:bg-slate-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+              >
+                <ChevronsLeft className="w-4 h-4" />
+              </button>
+
+              {/* Previous Page */}
+              <button
+                onClick={goToPreviousPage}
+                disabled={currentPage === 1}
+                className={`p-2 rounded ${
+                  currentPage === 1
+                    ? theme === 'dark'
+                      ? 'text-gray-600 cursor-not-allowed'
+                      : 'text-gray-400 cursor-not-allowed'
+                    : theme === 'dark'
+                    ? 'text-gray-400 hover:text-white hover:bg-slate-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {/* Page Numbers */}
               {getPageNumbers().map((page, index) => (
                 <button
                   key={index}
                   onClick={() => typeof page === 'number' && setCurrentPage(page)}
-                  disabled={page === '...'}
-                  className={`min-w-[40px] h-10 px-3 rounded-lg text-sm font-medium transition-colors ${
-                    page === currentPage
-                      ? theme === 'dark'
-                        ? 'bg-rose-500 text-white'
-                        : 'bg-rose-600 text-white'
+                  disabled={typeof page !== 'number'}
+                  className={`min-w-[2.5rem] px-2 py-1.5 rounded text-sm font-medium ${
+                    typeof page === 'number'
+                      ? currentPage === page
+                        ? theme === 'dark'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-blue-500 text-white'
+                        : theme === 'dark'
+                        ? 'text-gray-400 hover:text-white hover:bg-slate-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
                       : theme === 'dark'
-                      ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
-                      : 'text-gray-600 hover:bg-gray-200 hover:text-gray-900'
-                  } ${page === '...' ? 'cursor-default' : ''}`}
+                      ? 'text-gray-600 cursor-default'
+                      : 'text-gray-400 cursor-default'
+                  }`}
                 >
                   {page}
                 </button>
               ))}
+
+              {/* Next Page */}
+              <button
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+                className={`p-2 rounded ${
+                  currentPage === totalPages
+                    ? theme === 'dark'
+                      ? 'text-gray-600 cursor-not-allowed'
+                      : 'text-gray-400 cursor-not-allowed'
+                    : theme === 'dark'
+                    ? 'text-gray-400 hover:text-white hover:bg-slate-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              {/* Last Page */}
+              <button
+                onClick={goToLastPage}
+                disabled={currentPage === totalPages}
+                className={`p-2 rounded ${
+                  currentPage === totalPages
+                    ? theme === 'dark'
+                      ? 'text-gray-600 cursor-not-allowed'
+                      : 'text-gray-400 cursor-not-allowed'
+                    : theme === 'dark'
+                    ? 'text-gray-400 hover:text-white hover:bg-slate-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+              >
+                <ChevronsRight className="w-4 h-4" />
+              </button>
             </div>
+          </div>
+        </div>
+      )}
 
-            {/* Next Page */}
-            <button
-              onClick={goToNextPage}
-              disabled={currentPage === totalPages}
-              className={`p-2 rounded-lg transition-colors ${
-                currentPage === totalPages
-                  ? theme === 'dark'
-                    ? 'text-gray-600 cursor-not-allowed'
-                    : 'text-gray-400 cursor-not-allowed'
-                  : theme === 'dark'
-                  ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
-                  : 'text-gray-600 hover:bg-gray-200 hover:text-gray-900'
-              }`}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-
-            {/* Last Page */}
-            <button
-              onClick={goToLastPage}
-              disabled={currentPage === totalPages}
-              className={`p-2 rounded-lg transition-colors ${
-                currentPage === totalPages
-                  ? theme === 'dark'
-                    ? 'text-gray-600 cursor-not-allowed'
-                    : 'text-gray-400 cursor-not-allowed'
-                  : theme === 'dark'
-                  ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
-                  : 'text-gray-600 hover:bg-gray-200 hover:text-gray-900'
-              }`}
-            >
-              <ChevronsRight className="w-4 h-4" />
-            </button>
+      {/* Loading Overlay */}
+      {loading && expenses.length > 0 && (
+        <div className={`absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-xl ${
+          theme === 'dark' ? 'bg-slate-900/80' : 'bg-white/80'
+        }`}>
+          <div className="flex items-center gap-3 p-4 rounded-lg bg-black/50 text-white">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-sm">Refreshing data...</span>
           </div>
         </div>
       )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className={`max-w-md w-full rounded-2xl p-6 ${
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className={`mx-4 max-w-md w-full rounded-xl p-6 ${
             theme === 'dark'
               ? 'bg-slate-800 border border-slate-700'
-              : 'bg-white border border-gray-200 shadow-xl'
+              : 'bg-white border border-gray-200'
           }`}>
             <div className="flex items-center gap-3 mb-4">
-              <div className={`p-2 rounded-full ${
-                theme === 'dark'
-                  ? 'bg-red-500/20'
-                  : 'bg-red-100'
-              }`}>
-                <AlertTriangle className={`w-6 h-6 ${
-                  theme === 'dark' ? 'text-red-400' : 'text-red-600'
-                }`} />
+              <div className="p-2 rounded-lg bg-red-500/20">
+                <AlertTriangle className="w-6 h-6 text-red-500" />
               </div>
               <div>
                 <h3 className={`text-lg font-semibold ${
@@ -1027,24 +1100,39 @@ const ExpensesTable = ({ branchOwnerId }) => {
                 </p>
               </div>
             </div>
-            
-            <p className={`mb-6 ${
-              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+
+            <div className={`p-4 rounded-lg mb-6 ${
+              theme === 'dark' ? 'bg-slate-700/50' : 'bg-gray-100'
             }`}>
-              Are you sure you want to delete this expense record? This will permanently remove the expense data.
-            </p>
-            
+              <p className={`text-sm ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+              }`}>
+                Are you sure you want to delete this expense?
+              </p>
+              {selectedExpense && (
+                <div className={`mt-2 p-3 rounded border ${
+                  theme === 'dark' ? 'border-slate-600' : 'border-gray-300'
+                }`}>
+                  <p className="text-sm font-medium">
+                    {selectedExpense.description || 'No description'}
+                  </p>
+                  <p className="text-sm">
+                    ₹{selectedExpense.amount?.toFixed(2)} • {selectedExpense.category} • {new Date(selectedExpense.date).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => {
                   setShowDeleteConfirm(false);
                   setSelectedExpense(null);
                 }}
-                disabled={deleteLoading}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   theme === 'dark'
-                    ? 'text-gray-300 hover:bg-slate-700'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
                 Cancel
@@ -1052,20 +1140,10 @@ const ExpensesTable = ({ branchOwnerId }) => {
               <button
                 onClick={handleDelete}
                 disabled={deleteLoading}
-                className={`px-4 py-2 rounded-lg font-medium text-white transition-colors ${
-                  deleteLoading
-                    ? 'bg-red-400 cursor-not-allowed'
-                    : 'bg-red-600 hover:bg-red-700'
-                }`}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {deleteLoading ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Deleting...
-                  </div>
-                ) : (
-                  'Delete Expense'
-                )}
+                {deleteLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {deleteLoading ? 'Deleting...' : 'Delete Expense'}
               </button>
             </div>
           </div>

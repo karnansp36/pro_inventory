@@ -80,13 +80,11 @@ export const getStockRequestsByBranch = createAsyncThunk(
 
 export const getStockRequestsByManager = createAsyncThunk(
   "stockRequests/getStockRequestsByManager",
-  async ({ managerId, filters }, { rejectWithValue }) => {
+  async ({ managerId, page = 1, limit = 10 }, { rejectWithValue }) => {
     try {
-      let url = `/stockrequests/manager/${managerId}`;
-      if (filters && filters.branchId) {
-        url += `?branchId=${filters.branchId}`;
-      }
-      const response = await stockRequestService.getStockRequestsByManager(url);
+      const response = await stockRequestService.getStockRequestsByManager(
+        managerId, page, limit
+      );
       return response;
     } catch (error) {
       return rejectWithValue(error.response.data);
@@ -98,11 +96,15 @@ const stockRequestsSlice = createSlice({
   name: "stockRequests",
   initialState: {
     stockRequests: [],
-    totalItems: 0, // Add totalItems to initial state
+    totalItems: 0,
     loading: false,
     error: null,
   },
-  reducers: {},
+  reducers: {
+    clearError: (state) => {
+      state.error = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(getStockRequests.pending, (state) => {
@@ -112,7 +114,7 @@ const stockRequestsSlice = createSlice({
       .addCase(getStockRequests.fulfilled, (state, action) => {
         state.loading = false;
         state.stockRequests = action.payload;
-        state.totalItems = action.payload.totalItems || action.payload.length; // Update totalItems
+        state.totalItems = action.payload.totalItems || action.payload.length;
       })
       .addCase(getStockRequests.rejected, (state, action) => {
         state.loading = false;
@@ -126,7 +128,7 @@ const stockRequestsSlice = createSlice({
       .addCase(createStockRequest.fulfilled, (state, action) => {
         state.loading = false;
         state.stockRequests.push(action.payload);
-        state.totalItems++; // Increment totalItems on new request
+        state.totalItems++;
       })
       .addCase(createStockRequest.rejected, (state, action) => {
         state.loading = false;
@@ -176,7 +178,7 @@ const stockRequestsSlice = createSlice({
         state.stockRequests = state.stockRequests.filter(
           (request) => request._id !== action.payload
         );
-        state.totalItems--; // Decrement totalItems on request deletion
+        state.totalItems--;
       })
       .addCase(deleteStockRequest.rejected, (state, action) => {
         state.loading = false;
@@ -196,28 +198,23 @@ const stockRequestsSlice = createSlice({
         state.loading = false;
         state.error =
           action.payload?.message || "Failed to fetch stock requests by branch";
-      });
-    // In stockRequestsSlice.js - fix the extraReducers for getStockRequestsByManager
-    builder
+      })
       .addCase(getStockRequestsByManager.pending, (state) => {
         state.loading = true;
         state.error = null;
-        state.stockRequests = []; // Clear previous data
       })
       .addCase(getStockRequestsByManager.fulfilled, (state, action) => {
         state.loading = false;
-        // Ensure we're extracting the array correctly
-        state.stockRequests = action.payload?.data || action.payload || [];
-        state.totalItems = action.payload.totalItems || action.payload.length; // Update totalItems
+        state.stockRequests = Array.isArray(action.payload.stockRequests) ? action.payload.stockRequests : [];
+        state.totalItems = action.payload.totalItems || action.payload.stockRequests?.length || 0;
       })
       .addCase(getStockRequestsByManager.rejected, (state, action) => {
         state.loading = false;
         state.error =
-          action.payload?.message ||
-          "Failed to fetch stock requests by manager";
-        state.stockRequests = []; // Clear on error
+          action.payload?.message || "Failed to fetch stock requests by manager";
       });
   },
 });
 
+export const { clearError } = stockRequestsSlice.actions;
 export default stockRequestsSlice.reducer;

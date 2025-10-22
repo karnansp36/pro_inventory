@@ -59,6 +59,19 @@ export const getTransportsByBranch = createAsyncThunk(
   }
 );
 
+// Updated get transports by manager thunk with pagination and filters
+export const getTransportsByManager = createAsyncThunk(
+  'transport/getTransportsByManager',
+  async ({ managerId, page = 1, limit = 10, filters = {} }, { rejectWithValue }) => {
+    try {
+      const response = await transportService.getTransportsByManager(managerId, page, limit, filters);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch transports by manager' });
+    }
+  }
+);
+
 // Add receive transport thunk
 export const receiveTransport = createAsyncThunk(
   'transport/receive',
@@ -76,16 +89,63 @@ const transportSlice = createSlice({
   initialState: {
     transport: [],
     totalItems: 0,
+    currentPage: 1,
+    totalPages: 0,
     loading: false,
     error: null,
+    filters: {
+      status: 'all',
+      searchTerm: '',
+      dateFilter: {
+        type: 'all',
+        startDate: '',
+        endDate: ''
+      }
+    }
   },
   reducers: {
     clearError: (state) => {
       state.error = null;
+    },
+    clearTransports: (state) => {
+      state.transport = [];
+      state.totalItems = 0;
+    },
+    setFilters: (state, action) => {
+      state.filters = { ...state.filters, ...action.payload };
+    },
+    clearFilters: (state) => {
+      state.filters = {
+        status: 'all',
+        searchTerm: '',
+        dateFilter: {
+          type: 'all',
+          startDate: '',
+          endDate: ''
+        }
+      };
     }
   },
   extraReducers: (builder) => {
     builder
+      // getTransportsByManager
+      .addCase(getTransportsByManager.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getTransportsByManager.fulfilled, (state, action) => {
+        state.loading = false;
+        state.transport = action.payload.transports || action.payload.data || action.payload || [];
+        state.totalItems = action.payload.totalItems || 0;
+        state.currentPage = action.payload.currentPage || 1;
+        state.totalPages = action.payload.totalPages || 1;
+      })
+      .addCase(getTransportsByManager.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch transports by manager';
+        state.transport = [];
+      })
+      
       // getTransportsByBranch
       .addCase(getTransportsByBranch.pending, (state) => {
         state.loading = true;
@@ -93,14 +153,16 @@ const transportSlice = createSlice({
       })
       .addCase(getTransportsByBranch.fulfilled, (state, action) => {
         state.loading = false;
-        // Handle paginated response format
         if (action.payload.transports) {
           state.transport = action.payload.transports;
           state.totalItems = action.payload.totalItems || 0;
+          state.currentPage = action.payload.currentPage || 1;
+          state.totalPages = action.payload.totalPages || 1;
         } else {
-          // Fallback for non-paginated response
           state.transport = Array.isArray(action.payload) ? action.payload : [];
           state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+          state.currentPage = 1;
+          state.totalPages = 1;
         }
       })
       .addCase(getTransportsByBranch.rejected, (state, action) => {
@@ -117,6 +179,8 @@ const transportSlice = createSlice({
         state.loading = false;
         state.transport = action.payload;
         state.totalItems = action.payload.length;
+        state.currentPage = 1;
+        state.totalPages = 1;
       })
       .addCase(getTransports.rejected, (state, action) => {
         state.loading = false;
@@ -130,7 +194,7 @@ const transportSlice = createSlice({
       })
       .addCase(createTransport.fulfilled, (state, action) => {
         state.loading = false;
-        state.transport.push(action.payload);
+        state.transport.unshift(action.payload);
         state.totalItems++;
       })
       .addCase(createTransport.rejected, (state, action) => {
@@ -189,5 +253,5 @@ const transportSlice = createSlice({
   },
 });
 
-export const { clearError } = transportSlice.actions;
+export const { clearError, clearTransports, setFilters, clearFilters } = transportSlice.actions;
 export default transportSlice.reducer;
