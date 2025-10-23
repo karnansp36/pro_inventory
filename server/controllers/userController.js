@@ -118,22 +118,57 @@ const getMe = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const getUsers = asyncHandler(async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
     let query = {};
+    const { search, role, status } = req.query;
+
+    // Role-based filtering for Manager
     if (req.user.role === 'Manager') {
-      query = { _id: { $in: req.user.assignedBranchOwners } };
+      query._id = { $in: req.user.assignedBranchOwners };
     }
+
+    // Apply search filter
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    // Apply role filter
+    if (role && role !== 'all') {
+      query.role = role;
+    }
+
+    // Apply status filter (assuming 'active' or 'inactive' based on a field, e.g., 'isActive')
+    // For now, assuming all users are active as per UserManagement.jsx CSV export
+    // if (status && status !== 'all') {
+    //   query.isActive = status === 'active';
+    // }
+
+    const totalItems = await User.countDocuments(query);
     const users = await User.find(query)
       .select('-password')
       .populate({ path: 'assignedManager', select: 'name email' })
       .populate({ path: 'assignedBrandOwner', select: 'name email' })
       .populate({ path: 'assignedManagers', select: 'name email assignedBranchOwners' })
       .populate({ path: 'assignedBranchOwners', select: 'name email' })
-      .exec(); // Add .exec() to explicitly return a promise
+      .limit(limit)
+      .skip(skip)
+      .exec();
 
-    res.json(users);
+    res.json({
+      users,
+      totalItems,
+      currentPage: page,
+      totalPages: Math.ceil(totalItems / limit),
+    });
   } catch (error) {
-    console.error("Error populating users:", error);
-    res.status(500).json({ message: "Error fetching users with populated fields", error: error.message });
+    console.error("Error fetching users with pagination:", error);
+    res.status(500).json({ message: "Error fetching users with pagination", error: error.message });
   }
 });
 
@@ -325,6 +360,10 @@ const generateRefreshToken = (id) => {
 // @access  Private (Admin, BrandOwner)
 const getUsersByRole = asyncHandler(async (req, res) => {
   const { role } = req.params;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
   const user = await User.findById(req.user.id);
 
   if (!user) {
@@ -356,8 +395,18 @@ const getUsersByRole = asyncHandler(async (req, res) => {
     }
   }
 
-  const users = await User.find(query).select('-password');
-  res.json(users);
+  const totalItems = await User.countDocuments(query);
+  const users = await User.find(query)
+    .select('-password')
+    .limit(limit)
+    .skip(skip);
+
+  res.json({
+    users,
+    totalItems,
+    currentPage: page,
+    totalPages: Math.ceil(totalItems / limit),
+  });
 });
 
 // @desc    Assign Manager to Brand Owner or Branch Owner to Manager

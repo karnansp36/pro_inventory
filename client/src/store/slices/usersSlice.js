@@ -1,94 +1,69 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../../services/api';
+import userService from '../../services/userService';
 
-// Create user (Admin only)
+export const getUsers = createAsyncThunk(
+  'users/getAll',
+  async ({ page = 1, limit = 10, filters = {} } = {}, { rejectWithValue }) => {
+    try {
+      return await userService.getUsers(page, limit, filters);
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch users' });
+    }
+  }
+);
+
+export const getUserById = createAsyncThunk(
+  'users/getById',
+  async (id, { rejectWithValue }) => {
+    try {
+      return await userService.getUserById(id);
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch user' });
+    }
+  }
+);
+
 export const createUser = createAsyncThunk(
   'users/create',
   async (userData, { rejectWithValue }) => {
     try {
-      // Admin creates users via protected endpoint
-      const config = userData instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {};
-      const response = await api.post('/users', userData, config);
-      return response.data;
+      return await userService.createUser(userData);
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || { message: 'Failed to create user' });
     }
   }
 );
 
-// Update user (Admin only)
 export const updateUser = createAsyncThunk(
   'users/update',
   async ({ id, userData }, { rejectWithValue }) => {
     try {
-      const config = userData instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {};
-      const response = await api.put(`/users/${id}`, userData, config);
-      return response.data;
+      return await userService.updateUser(id, userData);
     } catch (error) {
-      return rejectWithValue(error.response.data);
-    }
-  }
-);
-
-// Get users by role (Admin, BrandOwner)
-export const getUsersByRole = createAsyncThunk(
-  'users/getByRole',
-  async (role, { rejectWithValue }) => {
-    try {
-      const response = await api.get(`/users/role/${role}`);
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.response.data);
-    }
-  }
-);
-
-// Assign user (Admin, BrandOwner)
-export const assignUser = createAsyncThunk(
-  'users/assign',
-  async ({ id, assignmentData }, { rejectWithValue }) => {
-    try {
-      const response = await api.put(`/users/${id}/assign`, assignmentData);
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.response.data);
-    }
-  }
-);
-
-// Get user hierarchy (Admin, BrandOwner, Manager)
-export const getUserHierarchy = createAsyncThunk(
-  'users/getHierarchy',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await api.get('/users/hierarchy');
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.response.data);
-    }
-  }
-);
-
-export const getUsers = createAsyncThunk(
-  'users/getAll',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await api.get('/users');
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || { message: 'Failed to update user' });
     }
   }
 );
 
 export const deleteUser = createAsyncThunk(
   'users/delete',
-  async (userId, { rejectWithValue }) => {
+  async (id, { rejectWithValue }) => {
     try {
-      await api.delete(`/users/${userId}`);
-      return userId;
+      await userService.deleteUser(id);
+      return id;
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || { message: 'Failed to delete user' });
+    }
+  }
+);
+
+export const getUsersByRole = createAsyncThunk(
+  'users/getByRole',
+  async ({ role, page = 1, limit = 10 } = {}, { rejectWithValue }) => {
+    try {
+      return await userService.getUsersByRole(role, page, limit);
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch users by role' });
     }
   }
 );
@@ -97,95 +72,116 @@ const usersSlice = createSlice({
   name: 'users',
   initialState: {
     users: [],
-    userHierarchy: [], // New field for hierarchy
+    currentUser: null,
     usersByRole: {},
+    totalItems: 0,
     loading: false,
     error: null,
   },
-  reducers: {},
+  reducers: {
+    clearError: (state) => {
+      state.error = null;
+    },
+    clearUsers: (state) => {
+      state.users = [];
+      state.totalItems = 0;
+    },
+    clearCurrentUser: (state) => {
+      state.currentUser = null;
+    }
+  },
   extraReducers: (builder) => {
     builder
+      // Get Users
       .addCase(getUsers.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(getUsers.fulfilled, (state, action) => {
         state.loading = false;
-        state.users = action.payload;
+        state.users = action.payload.users;
+        state.totalItems = action.payload.totalItems;
       })
       .addCase(getUsers.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch users';
       })
-          .addCase(createUser.fulfilled, (state, action) => {
-            state.loading = false;
-            // push created user
-            state.users.push(action.payload);
-          })
+      // Get User By ID
+      .addCase(getUserById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getUserById.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentUser = action.payload;
+      })
+      .addCase(getUserById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch user';
+      })
+      // Create User
+      .addCase(createUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createUser.fulfilled, (state, action) => {
+        state.loading = false;
+        state.users.unshift(action.payload);
+        state.totalItems++;
+      })
       .addCase(createUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to create user';
       })
+      // Update User
+      .addCase(updateUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(updateUser.fulfilled, (state, action) => {
         state.loading = false;
-        const idx = state.users.findIndex(u => u._id === action.payload._id);
-        if (idx !== -1) state.users[idx] = action.payload;
+        const index = state.users.findIndex(user => user._id === action.payload._id);
+        if (index !== -1) {
+          state.users[index] = action.payload;
+        }
+        if (state.currentUser && state.currentUser._id === action.payload._id) {
+          state.currentUser = action.payload;
+        }
       })
       .addCase(updateUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to update user';
       })
+      // Delete User
+      .addCase(deleteUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(deleteUser.fulfilled, (state, action) => {
         state.loading = false;
         state.users = state.users.filter((user) => user._id !== action.payload);
+        state.totalItems--;
       })
       .addCase(deleteUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to delete user';
       })
+      // Get Users By Role
       .addCase(getUsersByRole.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(getUsersByRole.fulfilled, (state, action) => {
         state.loading = false;
-        // store role-specific results without overwriting the global users list
-        const role = action.meta?.arg || 'unknown';
-        state.usersByRole = {
-          ...state.usersByRole,
-          [role]: action.payload,
-        };
+        const role = action.meta?.arg?.role || 'unknown';
+        state.usersByRole[role] = action.payload.users;
       })
       .addCase(getUsersByRole.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch users by role';
-      })
-      .addCase(assignUser.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(assignUser.fulfilled, (state, action) => {
-        state.loading = false;
-        const idx = state.users.findIndex(u => u._id === action.payload.user._id);
-        if (idx !== -1) state.users[idx] = action.payload.user;
-      })
-      .addCase(assignUser.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload?.message || 'Failed to assign user';
-      })
-      .addCase(getUserHierarchy.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(getUserHierarchy.fulfilled, (state, action) => {
-        state.loading = false;
-        state.userHierarchy = action.payload; // Assuming a new state field for hierarchy
-      })
-      .addCase(getUserHierarchy.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload?.message || 'Failed to fetch user hierarchy';
       });
-  },
+  }
 });
 
+export const { clearError, clearUsers, clearCurrentUser } = usersSlice.actions;
 export default usersSlice.reducer;

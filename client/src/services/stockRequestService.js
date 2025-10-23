@@ -2,12 +2,22 @@ import api from './api';
 
 const STOCK_REQUEST_URL = '/stockrequests';
 
-// Get all stock requests
-const getStockRequests = async () => {
-  const response = await api.get(STOCK_REQUEST_URL);
+// Get all stock requests with pagination and filters
+const getStockRequests = async (page = 1, limit = 10, filters = {}) => {
+  let url = `${STOCK_REQUEST_URL}?page=${page}&limit=${limit}`;
+
+  // Add filters to the URL
+  if (filters) {
+    Object.keys(filters).forEach(key => {
+      if (filters[key] && filters[key] !== 'all') {
+        url += `&${key}=${filters[key]}`;
+      }
+    });
+  }
+
+  const response = await api.get(url);
   return response.data;
 };
-
 // Create new stock request
 const createStockRequest = async (requestData) => {
   const response = await api.post(STOCK_REQUEST_URL, requestData);

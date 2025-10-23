@@ -15,13 +15,16 @@ export const approveStockRequest = createAsyncThunk(
   }
 );
 
+// Updated getStockRequests with pagination and filters
 export const getStockRequests = createAsyncThunk(
   "stockRequests/getAll",
-  async (_, { rejectWithValue }) => {
+  async ({ page = 1, limit = 10, filters = {} } = {}, { rejectWithValue }) => {
     try {
-      return await stockRequestService.getStockRequests();
+      return await stockRequestService.getStockRequests(page, limit, filters);
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(
+        error.response?.data || { message: "Failed to fetch stock requests" }
+      );
     }
   }
 );
@@ -32,7 +35,9 @@ export const createStockRequest = createAsyncThunk(
     try {
       return await stockRequestService.createStockRequest(requestData);
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(
+        error.response?.data || { message: "Failed to create stock request" }
+      );
     }
   }
 );
@@ -64,34 +69,41 @@ export const deleteStockRequest = createAsyncThunk(
   }
 );
 
+// Updated getStockRequestsByBranch with filters
 export const getStockRequestsByBranch = createAsyncThunk(
   "stockRequests/getStockRequestsByBranch",
-  async ({ branchId, page = 1, limit = 10 }, { rejectWithValue }) => {
+  async ({ branchId, page = 1, limit = 10, filters = {} }, { rejectWithValue }) => {
     try {
       const response = await stockRequestService.getStockRequestsByBranch(
-        branchId, page, limit
+        branchId, page, limit, filters
       );
       return response;
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(
+        error.response?.data || { message: "Failed to fetch stock requests by branch" }
+      );
     }
   }
 );
 
+// Updated getStockRequestsByManager with filters
 export const getStockRequestsByManager = createAsyncThunk(
   "stockRequests/getStockRequestsByManager",
-  async ({ managerId, page = 1, limit = 10 }, { rejectWithValue }) => {
+  async ({ managerId, page = 1, limit = 10, filters = {} }, { rejectWithValue }) => {
     try {
       const response = await stockRequestService.getStockRequestsByManager(
-        managerId, page, limit
+        managerId, page, limit, filters
       );
       return response;
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(
+        error.response?.data || { message: "Failed to fetch stock requests by manager" }
+      );
     }
   }
 );
-// New thunk for getting stock requests by brand owner
+
+// Updated getStockRequestsByBrandOwner with filters
 export const getStockRequestsByBrandOwner = createAsyncThunk(
   "stockRequests/getStockRequestsByBrandOwner",
   async ({ brandOwnerId, page = 1, limit = 10, filters = {} }, { rejectWithValue }) => {
@@ -107,6 +119,7 @@ export const getStockRequestsByBrandOwner = createAsyncThunk(
     }
   }
 );
+
 const stockRequestsSlice = createSlice({
   name: "stockRequests",
   initialState: {
@@ -114,42 +127,79 @@ const stockRequestsSlice = createSlice({
     totalItems: 0,
     loading: false,
     error: null,
+    currentPage: 1,
+    itemsPerPage: 10,
+    filters: {
+      searchTerm: '',
+      statusFilter: 'all',
+      priorityFilter: 'all',
+      dateFilter: { type: 'all', startDate: '', endDate: '' }
+    }
   },
   reducers: {
     clearError: (state) => {
       state.error = null;
     },
+    setCurrentPage: (state, action) => {
+      state.currentPage = action.payload;
+    },
+    setItemsPerPage: (state, action) => {
+      state.itemsPerPage = action.payload;
+      state.currentPage = 1; // Reset to first page when items per page changes
+    },
+    setFilters: (state, action) => {
+      state.filters = { ...state.filters, ...action.payload };
+      state.currentPage = 1; // Reset to first page when filters change
+    },
+    clearFilters: (state) => {
+      state.filters = {
+        searchTerm: '',
+        statusFilter: 'all',
+        priorityFilter: 'all',
+        dateFilter: { type: 'all', startDate: '', endDate: '' }
+      };
+      state.currentPage = 1;
+    }
   },
   extraReducers: (builder) => {
     builder
+      // getStockRequests
       .addCase(getStockRequests.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(getStockRequests.fulfilled, (state, action) => {
         state.loading = false;
-        state.stockRequests = action.payload;
-        state.totalItems = action.payload.totalItems || action.payload.length;
+        if (action.payload?.stockRequests) {
+          state.stockRequests = action.payload.stockRequests;
+          state.totalItems = action.payload.totalItems || 0;
+          state.currentPage = action.payload.currentPage || 1;
+        } else {
+          state.stockRequests = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+        }
       })
       .addCase(getStockRequests.rejected, (state, action) => {
         state.loading = false;
-        state.error =
-          action.payload?.message || "Failed to fetch stock requests";
+        state.error = action.payload?.message || "Failed to fetch stock requests";
       })
+      
+      // createStockRequest
       .addCase(createStockRequest.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(createStockRequest.fulfilled, (state, action) => {
         state.loading = false;
-        state.stockRequests.push(action.payload);
+        state.stockRequests.unshift(action.payload); // Add to beginning
         state.totalItems++;
       })
       .addCase(createStockRequest.rejected, (state, action) => {
         state.loading = false;
-        state.error =
-          action.payload?.message || "Failed to create stock request";
+        state.error = action.payload?.message || "Failed to create stock request";
       })
+      
+      // approveStockRequest
       .addCase(approveStockRequest.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -164,9 +214,10 @@ const stockRequestsSlice = createSlice({
       })
       .addCase(approveStockRequest.rejected, (state, action) => {
         state.loading = false;
-        state.error =
-          action.payload?.message || "Failed to approve stock request";
+        state.error = action.payload?.message || "Failed to approve stock request";
       })
+      
+      // updateStockRequest
       .addCase(updateStockRequest.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -181,9 +232,10 @@ const stockRequestsSlice = createSlice({
       })
       .addCase(updateStockRequest.rejected, (state, action) => {
         state.loading = false;
-        state.error =
-          action.payload?.message || "Failed to update stock request";
+        state.error = action.payload?.message || "Failed to update stock request";
       })
+      
+      // deleteStockRequest
       .addCase(deleteStockRequest.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -193,13 +245,14 @@ const stockRequestsSlice = createSlice({
         state.stockRequests = state.stockRequests.filter(
           (request) => request._id !== action.payload
         );
-        state.totalItems--;
+        state.totalItems = Math.max(0, state.totalItems - 1);
       })
       .addCase(deleteStockRequest.rejected, (state, action) => {
         state.loading = false;
-        state.error =
-          action.payload?.message || "Failed to delete stock request";
+        state.error = action.payload?.message || "Failed to delete stock request";
       })
+      
+      // getStockRequestsByBranch
       .addCase(getStockRequestsByBranch.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -207,13 +260,15 @@ const stockRequestsSlice = createSlice({
       .addCase(getStockRequestsByBranch.fulfilled, (state, action) => {
         state.loading = false;
         state.stockRequests = Array.isArray(action.payload.stockRequests) ? action.payload.stockRequests : [];
-        state.totalItems = action.payload.totalItems || action.payload.stockRequests?.length || 0;
+        state.totalItems = action.payload.totalItems || 0;
+        state.currentPage = action.payload.currentPage || 1;
       })
       .addCase(getStockRequestsByBranch.rejected, (state, action) => {
         state.loading = false;
-        state.error =
-          action.payload?.message || "Failed to fetch stock requests by branch";
+        state.error = action.payload?.message || "Failed to fetch stock requests by branch";
       })
+      
+      // getStockRequestsByManager
       .addCase(getStockRequestsByManager.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -221,13 +276,15 @@ const stockRequestsSlice = createSlice({
       .addCase(getStockRequestsByManager.fulfilled, (state, action) => {
         state.loading = false;
         state.stockRequests = Array.isArray(action.payload.stockRequests) ? action.payload.stockRequests : [];
-        state.totalItems = action.payload.totalItems || action.payload.stockRequests?.length || 0;
+        state.totalItems = action.payload.totalItems || 0;
+        state.currentPage = action.payload.currentPage || 1;
       })
       .addCase(getStockRequestsByManager.rejected, (state, action) => {
         state.loading = false;
-        state.error =
-          action.payload?.message || "Failed to fetch stock requests by manager";
+        state.error = action.payload?.message || "Failed to fetch stock requests by manager";
       })
+      
+      // getStockRequestsByBrandOwner
       .addCase(getStockRequestsByBrandOwner.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -237,6 +294,7 @@ const stockRequestsSlice = createSlice({
         if (action.payload?.stockRequests) {
           state.stockRequests = action.payload.stockRequests;
           state.totalItems = action.payload.totalItems || 0;
+          state.currentPage = action.payload.currentPage || 1;
         } else {
           state.stockRequests = Array.isArray(action.payload) ? action.payload : [];
           state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
@@ -244,11 +302,17 @@ const stockRequestsSlice = createSlice({
       })
       .addCase(getStockRequestsByBrandOwner.rejected, (state, action) => {
         state.loading = false;
-        state.error =
-          action.payload?.message || "Failed to fetch stock requests by brand owner";
+        state.error = action.payload?.message || "Failed to fetch stock requests by brand owner";
       });
   },
 });
 
-export const { clearError } = stockRequestsSlice.actions;
+export const { 
+  clearError, 
+  setCurrentPage, 
+  setItemsPerPage, 
+  setFilters, 
+  clearFilters 
+} = stockRequestsSlice.actions;
+
 export default stockRequestsSlice.reducer;

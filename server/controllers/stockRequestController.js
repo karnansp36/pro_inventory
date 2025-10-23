@@ -5,35 +5,67 @@ import User from '../models/User.js';
 // @desc    Get all stock requests
 // @route   GET /api/stockrequests
 // @access  Private (Admin, BrandOwner, Manager, BranchOwner)
+// In stockRequestController.js - update getStockRequests function
 const getStockRequests = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+  const { status, priority, search } = req.query;
 
   if (!user) {
     res.status(401);
     throw new Error('User not found');
   }
 
-  let stockRequests;
+  let query = {};
+  
+  // Build query based on user role and filters
   if (user.role === 'Admin') {
-    stockRequests = await StockRequest.find({}).populate('branchOwner', 'name email');
+    // Admin can see all requests
   } else if (user.role === 'BrandOwner') {
-    const branchOwners = await User.find({ assignedManager: user._id, role: 'BranchOwner' });
+    const branchOwners = await User.find({ assignedBrandOwner: user._id, role: 'BranchOwner' });
     const branchOwnerIds = branchOwners.map(owner => owner._id);
-    stockRequests = await StockRequest.find({ branchOwner: { $in: branchOwnerIds } }).populate('branchOwner', 'name email');
+    query.branchOwner = { $in: branchOwnerIds };
   } else if (user.role === 'Manager') {
     const branchOwners = await User.find({ assignedManager: user._id, role: 'BranchOwner' });
     const branchOwnerIds = branchOwners.map(owner => owner._id);
-    stockRequests = await StockRequest.find({ branchOwner: { $in: branchOwnerIds } }).populate('branchOwner', 'name email');
+    query.branchOwner = { $in: branchOwnerIds };
   } else if (user.role === 'BranchOwner') {
-    stockRequests = await StockRequest.find({ branchOwner: req.user.id }).populate('branchOwner', 'name email');
+    query.branchOwner = req.user.id;
   } else {
     res.status(403);
     throw new Error('Not authorized to view stock requests');
   }
 
-  res.status(200).json(stockRequests);
-});
+  // Apply filters
+  if (status && status !== 'all') {
+    query.approved = status === 'approved';
+  }
 
+  if (priority && priority !== 'all') {
+    query.priority = priority;
+  }
+
+  if (search) {
+    query.productName = { $regex: search, $options: 'i' };
+  }
+
+  const stockRequests = await StockRequest.find(query)
+    .populate('branchOwner', 'name email')
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip(skip);
+
+  const totalItems = await StockRequest.countDocuments(query);
+
+  res.status(200).json({
+    stockRequests,
+    totalItems,
+    currentPage: page,
+    totalPages: Math.ceil(totalItems / limit),
+  });
+});
 // @desc    Create new stock request (BranchOwner only)
 // @route   POST /api/stockrequests
 // @access  Private (BranchOwner)

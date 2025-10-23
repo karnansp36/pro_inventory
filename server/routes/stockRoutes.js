@@ -4,7 +4,7 @@ import { getStockRequests, createStockRequest, approveStockRequest, deleteStockR
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 router.route('/')
-  .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getStockRequests)
+  .get(protect, authorizeRoles('Admin'), getStockRequests)
   .post(express.json(), protect, authorizeRoles('Admin', 'BranchOwner'), createStockRequest);
 
 router.route('/:id/approve')

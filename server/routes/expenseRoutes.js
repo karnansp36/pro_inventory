@@ -6,7 +6,7 @@ import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 
 router.route('/')
-  .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getExpenses)
+  .get(protect, authorizeRoles('Admin'), getExpenses)
   .post(express.json(), protect, authorizeRoles('Admin', 'BrandOwner', 'BranchOwner'), createExpense);
 
 router.route('/:id')

@@ -2,9 +2,20 @@ import api from './api';
 
 const TRANSPORT_URL = '/transport';
 
-// Get all transports
-const getTransports = async () => {
-  const response = await api.get(TRANSPORT_URL);
+// Get all transports with pagination and filters
+const getTransports = async (page = 1, limit = 10, filters = {}) => {
+  let url = `${TRANSPORT_URL}?page=${page}&limit=${limit}`;
+
+  // Add filters to the URL
+  if (filters) {
+    Object.keys(filters).forEach(key => {
+      if (filters[key] && filters[key] !== 'all') { // Only add filter if it has a value and not 'all'
+        url += `&${key}=${filters[key]}`;
+      }
+    });
+  }
+
+  const response = await api.get(url);
   return response.data;
 };
 
@@ -43,7 +54,6 @@ const deleteTransport = async (id) => {
   const response = await api.delete(`${TRANSPORT_URL}/${id}`);
   return response.data;
 };
-
 
 // Get transports by brand owner ID with pagination and filters
 const getTransportsByBrandOwner = async (brandOwnerId, page = 1, limit = 10, filters = {}) => {

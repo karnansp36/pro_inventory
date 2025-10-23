@@ -3,7 +3,7 @@ import Transport from '../models/Transport.js';
 import StockRequest from '../models/StockRequest.js';
 import User from '../models/User.js';
 
-// @desc    Get all transport details
+// @desc    Get all transport details with pagination and filters
 // @route   GET /api/transport
 // @access  Private (Admin, BrandOwner, Manager, BranchOwner)
 const getTransports = asyncHandler(async (req, res) => {
@@ -14,59 +14,149 @@ const getTransports = asyncHandler(async (req, res) => {
     throw new Error('User not found');
   }
 
-  let transports;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+  const { status, search, dateFilter, startDate, endDate, branchId, managerId } = req.query;
+
+  let transportQuery = {};
+
+  // Apply role-based filtering
   if (user.role === 'Admin') {
-    transports = await Transport.find({}).populate({
-      path: 'stockRequest',
-      select: 'productName quantity branchOwner',
-      populate: {
-        path: 'branchOwner',
-        select: 'name email',
-      },
-    });
+    // Admin can see all transports
   } else if (user.role === 'BrandOwner') {
-    const branchOwners = await User.find({ assignedManager: user._id, role: 'BranchOwner' });
+    const branchOwners = await User.find({ assignedBrandOwner: user._id, role: 'BranchOwner' });
     const branchOwnerIds = branchOwners.map(owner => owner._id);
     const stockRequests = await StockRequest.find({ branchOwner: { $in: branchOwnerIds } });
     const stockRequestIds = stockRequests.map(request => request._id);
-    transports = await Transport.find({ stockRequest: { $in: stockRequestIds } }).populate({
-      path: 'stockRequest',
-      select: 'productName quantity branchOwner',
-      populate: {
-        path: 'branchOwner',
-        select: 'name email',
-      },
-    });
+    transportQuery.stockRequest = { $in: stockRequestIds };
   } else if (user.role === 'Manager') {
     const branchOwners = await User.find({ assignedManager: user._id, role: 'BranchOwner' });
     const branchOwnerIds = branchOwners.map(owner => owner._id);
     const stockRequests = await StockRequest.find({ branchOwner: { $in: branchOwnerIds } });
     const stockRequestIds = stockRequests.map(request => request._id);
-    transports = await Transport.find({ stockRequest: { $in: stockRequestIds } }).populate({
-      path: 'stockRequest',
-      select: 'productName quantity branchOwner',
-      populate: {
-        path: 'branchOwner',
-        select: 'name email',
-      },
-    });
+    transportQuery.stockRequest = { $in: stockRequestIds };
   } else if (user.role === 'BranchOwner') {
     const stockRequests = await StockRequest.find({ branchOwner: req.user.id });
     const stockRequestIds = stockRequests.map(request => request._id);
-    transports = await Transport.find({ stockRequest: { $in: stockRequestIds } }).populate({
-      path: 'stockRequest',
-      select: 'productName quantity branchOwner',
-      populate: {
-        path: 'branchOwner',
-        select: 'name email',
-      },
-    });
+    transportQuery.stockRequest = { $in: stockRequestIds };
   } else {
     res.status(403);
     throw new Error('Not authorized to view transport details');
   }
 
-  res.status(200).json(transports);
+  // Apply branch filter if provided and user has permission
+  if (branchId) {
+    if (user.role === 'Admin' || user.role === 'BrandOwner' || user.role === 'Manager') {
+      const stockRequests = await StockRequest.find({ branchOwner: branchId });
+      const stockRequestIds = stockRequests.map(request => request._id);
+      transportQuery.stockRequest = { $in: stockRequestIds };
+    }
+  }
+
+  // Apply manager filter if provided and user has permission
+  if (managerId && (user.role === 'Admin' || user.role === 'BrandOwner')) {
+    const branchOwners = await User.find({ assignedManager: managerId, role: 'BranchOwner' });
+    const branchOwnerIds = branchOwners.map(owner => owner._id);
+    const stockRequests = await StockRequest.find({ branchOwner: { $in: branchOwnerIds } });
+    const stockRequestIds = stockRequests.map(request => request._id);
+    transportQuery.stockRequest = { $in: stockRequestIds };
+  }
+
+  // Apply status filter
+  if (status && status !== 'all') {
+    if (status === 'completed') {
+      transportQuery.$expr = { $eq: ['$receivedQuantity', '$quantity'] };
+    } else if (status === 'pending') {
+      transportQuery.receivedQuantity = { $in: [0, null, undefined] };
+    } else if (status === 'partial') {
+      transportQuery.$and = [
+        { receivedQuantity: { $gt: 0 } },
+        { $expr: { $lt: ['$receivedQuantity', '$quantity'] } }
+      ];
+    }
+  }
+
+  // Apply search filter
+  if (search) {
+    const stockRequestIdsWithSearch = await StockRequest.find({
+      productName: { $regex: search, $options: 'i' }
+    }).select('_id');
+    
+    const searchStockRequestIds = stockRequestIdsWithSearch.map(req => req._id);
+    
+    if (transportQuery.stockRequest) {
+      // Combine with existing stockRequest filter
+      transportQuery.stockRequest.$in = transportQuery.stockRequest.$in.filter(id => 
+        searchStockRequestIds.includes(id.toString())
+      );
+    } else {
+      transportQuery.stockRequest = { $in: searchStockRequestIds };
+    }
+  }
+
+  // Apply date filter
+  if (dateFilter && dateFilter !== 'all') {
+    const now = new Date();
+    let startDateFilter = new Date();
+    let endDateFilter = new Date();
+
+    switch (dateFilter) {
+      case 'today':
+        startDateFilter.setHours(0, 0, 0, 0);
+        endDateFilter.setHours(23, 59, 59, 999);
+        break;
+      case 'week':
+        startDateFilter.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        startDateFilter.setMonth(now.getMonth() - 1);
+        break;
+      case 'custom':
+        if (startDate && endDate) {
+          startDateFilter = new Date(startDate);
+          endDateFilter = new Date(endDate);
+          endDateFilter.setHours(23, 59, 59, 999);
+        }
+        break;
+      default:
+        break;
+    }
+
+    if (dateFilter !== 'all') {
+      transportQuery.createdAt = {
+        $gte: startDateFilter,
+        $lte: endDateFilter
+      };
+    }
+  }
+
+  // Fetch the transports with pagination
+  const transports = await Transport.find(transportQuery)
+    .populate({
+      path: 'stockRequest',
+      select: 'productName quantity branchOwner',
+      populate: {
+        path: 'branchOwner',
+        select: 'name email',
+        populate: {
+          path: 'assignedManager',
+          select: 'name email'
+        }
+      },
+    })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip(skip);
+
+  const totalItems = await Transport.countDocuments(transportQuery);
+
+  res.status(200).json({
+    transports,
+    totalItems,
+    currentPage: page,
+    totalPages: Math.ceil(totalItems / limit),
+  });
 });
 
 // @desc    Create new transport details (BrandOwner only)

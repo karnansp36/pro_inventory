@@ -44,7 +44,7 @@ router
   )
   .get(
     protect,
-    authorizeRoles('Admin', 'BrandOwner', 'Manager'),
+    authorizeRoles('Admin'),
     getAllDailyStoreImages
   );
 

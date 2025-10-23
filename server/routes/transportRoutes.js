@@ -12,7 +12,7 @@ import {
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 router.route('/')
-  .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getTransports)
+  .get(protect, authorizeRoles('Admin'), getTransports)
   .post(express.json(), protect, authorizeRoles('Admin', 'BrandOwner'), createTransport);
 
 router.route('/:id/receive')

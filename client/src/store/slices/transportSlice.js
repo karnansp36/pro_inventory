@@ -13,12 +13,13 @@ export const createTransport = createAsyncThunk(
   }
 );
 
-// Get all transports
+// Get all transports with pagination and filters
 export const getTransports = createAsyncThunk(
   'transport/getAll',
-  async (_, { rejectWithValue }) => {
+  async ({ page = 1, limit = 10, filters = {} } = {}, { rejectWithValue }) => {
     try {
-      return await transportService.getTransports();
+      const response = await transportService.getTransports(page, limit, filters);
+      return response;
     } catch (error) {
       return rejectWithValue(error.response?.data || { message: 'Failed to fetch transports' });
     }
@@ -62,6 +63,7 @@ export const getTransportsByBranch = createAsyncThunk(
     }
   }
 );
+
 // Get transports by brand owner with pagination and filters
 export const getTransportsByBrandOwner = createAsyncThunk(
   'transport/getTransportsByBrandOwner',
@@ -105,12 +107,20 @@ const transportSlice = createSlice({
   initialState: {
     transport: [],
     totalItems: 0,
+    currentPage: 1,
+    totalPages: 1,
     loading: false,
     error: null,
   },
   reducers: {
     clearError: (state) => {
       state.error = null;
+    },
+    resetTransports: (state) => {
+      state.transport = [];
+      state.totalItems = 0;
+      state.currentPage = 1;
+      state.totalPages = 1;
     },
   },
   extraReducers: (builder) => {
@@ -122,8 +132,17 @@ const transportSlice = createSlice({
       })
       .addCase(getTransports.fulfilled, (state, action) => {
         state.loading = false;
-        state.transport = action.payload;
-        state.totalItems = action.payload.totalItems || action.payload.length;
+        if (action.payload?.transports) {
+          state.transport = action.payload.transports;
+          state.totalItems = action.payload.totalItems || 0;
+          state.currentPage = action.payload.currentPage || 1;
+          state.totalPages = action.payload.totalPages || 1;
+        } else {
+          state.transport = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+          state.currentPage = 1;
+          state.totalPages = 1;
+        }
       })
       .addCase(getTransports.rejected, (state, action) => {
         state.loading = false;
@@ -207,6 +226,8 @@ const transportSlice = createSlice({
         state.loading = false;
         state.transport = Array.isArray(action.payload.transports) ? action.payload.transports : [];
         state.totalItems = action.payload.totalItems || action.payload.transports?.length || 0;
+        state.currentPage = action.payload.currentPage || 1;
+        state.totalPages = action.payload.totalPages || 1;
       })
       .addCase(getTransportsByBranch.rejected, (state, action) => {
         state.loading = false;
@@ -222,11 +243,15 @@ const transportSlice = createSlice({
         state.loading = false;
         state.transport = Array.isArray(action.payload.transports) ? action.payload.transports : [];
         state.totalItems = action.payload.totalItems || action.payload.transports?.length || 0;
+        state.currentPage = action.payload.currentPage || 1;
+        state.totalPages = action.payload.totalPages || 1;
       })
       .addCase(getTransportsByManager.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch transports by manager';
-      })// getTransportsByBrandOwner
+      })
+      
+      // getTransportsByBrandOwner
       .addCase(getTransportsByBrandOwner.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -236,18 +261,21 @@ const transportSlice = createSlice({
         if (action.payload?.transports) {
           state.transport = action.payload.transports;
           state.totalItems = action.payload.totalItems || 0;
+          state.currentPage = action.payload.currentPage || 1;
+          state.totalPages = action.payload.totalPages || 1;
         } else {
           state.transport = Array.isArray(action.payload) ? action.payload : [];
           state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+          state.currentPage = 1;
+          state.totalPages = 1;
         }
       })
       .addCase(getTransportsByBrandOwner.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch transports by brand owner';
-      })
-      
+      });
   },
 });
 
-export const { clearError } = transportSlice.actions;
+export const { clearError, resetTransports } = transportSlice.actions;
 export default transportSlice.reducer;
