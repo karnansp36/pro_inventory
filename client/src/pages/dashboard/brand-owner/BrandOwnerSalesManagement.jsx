@@ -1,39 +1,43 @@
-// client/src/pages/dashboard/brand-owner/BrandOwnerSalesManagement.jsx
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getSales, deleteSale, createSale, updateSale } from '../../../store/slices/salesSlice';
+import { getSales, deleteSale, createSale, updateSale, getSalesByBrandOwner } from '../../../store/slices/salesSlice';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import SalesForm from '../../../components/forms/SalesForm'; // Import the new SalesForm component
 // import SalesTable from '../../branch-owner/SalesTable'; // Reusing for now
 
 const BrandOwnerSalesManagement = () => {
   const dispatch = useDispatch();
-  const { sales, loading } = useSelector((state) => state.sales);
+  const { sales, loading, error } = useSelector((state) => state.sales);
   const { user: currentUser } = useSelector((state) => state.auth);
   const { users } = useSelector((state) => state.users); // To get branch owner names
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [editSale, setEditSale] = useState(null);
-  const [refreshTable, setRefreshTable] = useState(0);
 
+  const [filters, setFilters] = useState({});
   useEffect(() => {
-    dispatch(getSales());
+    dispatch(getSalesByBrandOwner({ brandOwnerId: currentUser?._id, filters }));
     // Optionally fetch users if needed for filtering/displaying branch owner names
-    // dispatch(getUsers()); 
-  }, [dispatch]);
+    // dispatch(getUsers());
+  }, [dispatch, currentUser?._id, filters]);
 
-  const assignedBranchOwners = users?.filter(user => 
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      [name]: value
+    }));
+  };
+
+  const assignedBranchOwners = users?.filter(user =>
     user.role === 'BranchOwner' && user.assignedBrandOwner === currentUser?._id
   ).map(bo => bo._id) || [];
 
-  const filteredSales = sales?.filter(sale => 
+  const filteredSales = sales?.filter(sale =>
     assignedBranchOwners.includes(sale.branchOwner?._id) &&
     (sale.branchOwner?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
      sale.date.includes(searchTerm)) // Simple date search for now
   ) || [];
 
   const handleSaleAdded = () => {
-    setRefreshTable(prev => prev + 1);
+    //setRefreshTable(prev => prev + 1);
     setShowModal(false);
     setEditSale(null);
   };
@@ -68,16 +72,33 @@ const BrandOwnerSalesManagement = () => {
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
         <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          {/* Search by Branch Owner Name */}
+          <div className="flex-1">
+            <label htmlFor="branchOwnerName" className="block text-sm font-medium text-gray-700">Branch Owner Name:</label>
             <input
               type="text"
-              placeholder="Search sales by branch or date..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              id="branchOwnerName"
+              name="branchOwnerName"
+              placeholder="Enter branch owner name"
+              onChange={handleFilterChange}
+              className="mt-1 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             />
           </div>
+
+          {/* Search by Manager Name */}
+          <div className="flex-1">
+            <label htmlFor="managerName" className="block text-sm font-medium text-gray-700">Manager Name:</label>
+            <input
+              type="text"
+              id="managerName"
+              name="managerName"
+              placeholder="Enter manager name"
+              onChange={handleFilterChange}
+              className="mt-1 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            />
+          </div>
+
+          {/* Add more filters here as needed */}
         </div>
       </div>
 
@@ -95,8 +116,8 @@ const BrandOwnerSalesManagement = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredSales.length > 0 ? (
-                filteredSales.map((sale) => (
+              {sales?.length > 0 ? (
+                sales.map((sale) => (
                   <tr key={sale._id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(sale.date).toLocaleDateString()}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{sale.branchOwner?.name || 'N/A'}</td>
@@ -126,16 +147,20 @@ const BrandOwnerSalesManagement = () => {
         </div>
       </div>
 
-      {/* Add/Edit Sale Modal */}
-      {showModal && (
+      {/* Display loading state */}
+      {loading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">{editSale ? 'Edit Sale' : 'Add New Sale'}</h2>
-            <SalesForm 
-              onClose={handleSaleAdded}
-              initialData={editSale}
-              branchOwnerId={editSale?.branchOwner?._id || ''}
-            />
+            <h2 className="text-xl font-bold mb-4">Loading...</h2>
+          </div>
+        </div>
+      )}
+
+      {/* Display error state */}
+      {error && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Error: {error}</h2>
           </div>
         </div>
       )}

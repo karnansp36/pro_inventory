@@ -29,6 +29,22 @@ const salesService = {
   getSalesByManager: async (managerId, page = 1, limit = 10) => {
     const response = await api.get(`/sales/manager/${managerId}?page=${page}&limit=${limit}`);
     return response.data;
+  },
+
+  getSalesByBrandOwner: async (brandOwnerId, page = 1, limit = 10, filters = {}) => {
+    let url = `/sales/brandowner/${brandOwnerId}?page=${page}&limit=${limit}`;
+
+    // Add filters to the URL
+    if (filters) {
+      Object.keys(filters).forEach(key => {
+        if (filters[key]) { // Only add filter if it has a value
+          url += `&${key}=${filters[key]}`;
+        }
+      });
+    }
+
+    const response = await api.get(url);
+    return response.data;
   }
 };
 

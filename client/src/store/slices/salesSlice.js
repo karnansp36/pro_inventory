@@ -68,6 +68,17 @@ export const getSalesByManager = createAsyncThunk(
   }
 );
 
+export const getSalesByBrandOwner = createAsyncThunk(
+  'sales/getSalesByBrandOwner',
+  async ({ brandOwnerId, page = 1, limit = 10, filters = {} }, { rejectWithValue }) => {
+    try {
+      return await salesService.getSalesByBrandOwner(brandOwnerId, page, limit, filters);
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch sales by brand owner' });
+    }
+  }
+);
+
 const salesSlice = createSlice({
   name: 'sales',
   initialState: {
@@ -87,19 +98,16 @@ const salesSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // getSales
       .addCase(getSales.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(getSales.fulfilled, (state, action) => {
         state.loading = false;
-        // Handle paginated response
-        if (action.payload.sales) {
+        if (action.payload?.sales) {
           state.sales = action.payload.sales;
           state.totalItems = action.payload.totalItems || 0;
         } else {
-          // Fallback for non-paginated response
           state.sales = Array.isArray(action.payload) ? action.payload : [];
           state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
         }
@@ -108,23 +116,19 @@ const salesSlice = createSlice({
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch sales';
       })
-      
-      // createSale
       .addCase(createSale.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(createSale.fulfilled, (state, action) => {
         state.loading = false;
-        state.sales.unshift(action.payload); // Add to beginning for newest first
+        state.sales.unshift(action.payload);
         state.totalItems++;
       })
       .addCase(createSale.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to create sale';
       })
-      
-      // deleteSale
       .addCase(deleteSale.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -138,8 +142,6 @@ const salesSlice = createSlice({
         state.loading = false;
         state.error = action.payload?.message || 'Failed to delete sale';
       })
-      
-      // updateSale
       .addCase(updateSale.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -155,20 +157,16 @@ const salesSlice = createSlice({
         state.loading = false;
         state.error = action.payload?.message || 'Failed to update sale';
       })
-      
-      // getSalesByBranch
       .addCase(getSalesByBranch.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(getSalesByBranch.fulfilled, (state, action) => {
         state.loading = false;
-        // Handle paginated response format
-        if (action.payload.sales) {
+        if (action.payload?.sales) {
           state.sales = action.payload.sales;
           state.totalItems = action.payload.totalItems || 0;
         } else {
-          // Fallback for non-paginated response
           state.sales = Array.isArray(action.payload) ? action.payload : [];
           state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
         }
@@ -177,20 +175,16 @@ const salesSlice = createSlice({
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch sales by branch';
       })
-      
-      // getSalesByManager
       .addCase(getSalesByManager.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(getSalesByManager.fulfilled, (state, action) => {
         state.loading = false;
-        // Handle paginated response format
-        if (action.payload.sales) {
+        if (action.payload?.sales) {
           state.sales = action.payload.sales;
           state.totalItems = action.payload.totalItems || 0;
         } else {
-          // Fallback for non-paginated response
           state.sales = Array.isArray(action.payload) ? action.payload : [];
           state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
         }
@@ -198,8 +192,26 @@ const salesSlice = createSlice({
       .addCase(getSalesByManager.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch sales by manager';
+      })
+      .addCase(getSalesByBrandOwner.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getSalesByBrandOwner.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload?.sales) {
+          state.sales = action.payload.sales;
+          state.totalItems = action.payload.totalItems || 0;
+        } else {
+          state.sales = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+        }
+      })
+      .addCase(getSalesByBrandOwner.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch sales by brand owner';
       });
-  },
+  }
 });
 
 export const { clearError, clearSales } = salesSlice.actions;

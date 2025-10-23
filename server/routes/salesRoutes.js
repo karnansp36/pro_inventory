@@ -5,8 +5,9 @@ import {
   createSales, 
   deleteSales, 
   updateSales, 
-  getSalesByBranchOwnerId, 
-  getSalesByManagerId 
+  getSalesByBranchOwnerId,
+  getSalesByManagerId,
+  getSalesByBrandOwner
 } from '../controllers/salesController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
@@ -23,5 +24,8 @@ router.route('/branch/:branchOwnerId')
 
 router.route('/manager/:managerId')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getSalesByManagerId);
+
+router.route('/brandowner/:brandOwnerId')
+  .get(protect, authorizeRoles('Admin', 'BrandOwner'), getSalesByBrandOwner);
 
 export default router;
