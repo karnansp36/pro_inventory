@@ -1,6 +1,6 @@
 import express from 'express';
 const router = express.Router();
-import { getStockRequests, createStockRequest, approveStockRequest, deleteStockRequest, getStockRequestsByBranchId, getStockRequestsByManagerId } from '../controllers/stockRequestController.js';
+import { getStockRequests, createStockRequest, approveStockRequest, deleteStockRequest, getStockRequestsByBranchId, getStockRequestsByManagerId, getStockRequestsByBrandOwner } from '../controllers/stockRequestController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 router.route('/')
@@ -16,5 +16,11 @@ router.route('/:id')
 router.route('/branch/:branchId')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getStockRequestsByBranchId);
 router.route('/manager/:managerId').get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getStockRequestsByManagerId);
+
+
+router.route('/brandowner/:brandOwnerId')
+  .get(protect, authorizeRoles('Admin', 'BrandOwner'), getStockRequestsByBrandOwner);
+
+
 
 export default router

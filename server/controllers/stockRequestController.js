@@ -138,14 +138,6 @@ const deleteStockRequest = asyncHandler(async (req, res) => {
 });
 
 
-export {
-  getStockRequests,
-  createStockRequest,
-  approveStockRequest,
-  deleteStockRequest,
-  getStockRequestsByBranchId,
-  getStockRequestsByManagerId,
-}
 
 // @desc    Get stock requests by manager ID with pagination
 // @route   GET /api/stockrequests/manager/:managerId
@@ -287,3 +279,83 @@ const getStockRequestsByBranchId = asyncHandler(async (req, res) => {
     totalPages: Math.ceil(totalItems / limit),
   });
 });
+
+
+// @desc    Get stock requests by brand owner ID with pagination and filtering
+// @route   GET /api/stockrequests/brandowner/:brandOwnerId
+// @access  Private (Admin, BrandOwner)
+const getStockRequestsByBrandOwner = asyncHandler(async (req, res) => {
+  const { brandOwnerId } = req.params;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+  const managerNameFilter = req.query.managerName || ''; // Added managerNameFilter
+  const statusFilter = req.query.status || '';
+
+  const brandOwner = await User.findById(brandOwnerId).populate({
+    path: 'assignedManagers',
+    select: 'name email assignedBranchOwners'
+  });
+
+  if (!brandOwner) {
+    res.status(404);
+    throw new Error('Brand owner not found');
+  }
+
+  let relevantManagers = brandOwner.assignedManagers;
+
+  if (managerNameFilter) {
+    relevantManagers = relevantManagers.filter(manager =>
+      manager.name.toLowerCase().includes(managerNameFilter.toLowerCase())
+    );
+  }
+
+  let branchOwnerIds = [];
+  relevantManagers.forEach(manager => {
+    if (manager.assignedBranchOwners && manager.assignedBranchOwners.length > 0) {
+      branchOwnerIds = branchOwnerIds.concat(manager.assignedBranchOwners);
+    }
+  });
+
+  branchOwnerIds = [...new Set(branchOwnerIds.map(id => id.toString()))];
+
+  if (branchOwnerIds.length === 0) {
+    return res.status(200).json({
+      stockRequests: [],
+      totalItems: 0,
+      currentPage: page,
+      totalPages: 0,
+    });
+  }
+
+  let query = { branchOwner: { $in: branchOwnerIds } };
+
+  if (statusFilter) {
+    query.status = statusFilter;
+  }
+
+  const stockRequests = await StockRequest.find(query)
+    .populate('branchOwner', 'name email')
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip(skip);
+
+  const totalItems = await StockRequest.countDocuments(query);
+
+  res.status(200).json({
+    stockRequests,
+    totalItems,
+    currentPage: page,
+    totalPages: Math.ceil(totalItems / limit),
+  });
+});
+
+export {
+  getStockRequests,
+  createStockRequest,
+  approveStockRequest,
+  deleteStockRequest,
+  getStockRequestsByBranchId,
+  getStockRequestsByManagerId,
+  getStockRequestsByBrandOwner,
+}

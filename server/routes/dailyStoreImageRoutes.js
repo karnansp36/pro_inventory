@@ -7,7 +7,8 @@ import {
   getDailyStoreImagesByBranch,
   getAllDailyStoreImages,
   getDailyStoreImagesForBranchOwner,
-  getDailyStoreImagesByManagerId
+  getDailyStoreImagesByManagerId,
+  
 } from '../controllers/dailyStoreImageController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 import { upload, compressImage } from '../middleware/uploadMiddleware.js';

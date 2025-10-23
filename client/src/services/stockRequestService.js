@@ -31,7 +31,22 @@ const deleteStockRequest = async (requestId) => {
   const response = await api.delete(`${STOCK_REQUEST_URL}/${requestId}`);
   return response.data;
 };
+// Get stock requests by brand owner with pagination and filters
+const getStockRequestsByBrandOwner = async (brandOwnerId, page = 1, limit = 10, filters = {}) => {
+  let url = `/stockrequests/brandowner/${brandOwnerId}?page=${page}&limit=${limit}`;
 
+  // Add filters to the URL
+  if (filters) {
+    Object.keys(filters).forEach(key => {
+      if (filters[key]) { // Only add filter if it has a value
+        url += `&${key}=${filters[key]}`;
+      }
+    });
+  }
+
+  const response = await api.get(url);
+  return response.data;
+};
 const stockRequestService = {
   getStockRequests,
   createStockRequest,
@@ -45,7 +60,8 @@ const stockRequestService = {
   getStockRequestsByManager: async (managerId, page, limit) => {
     const response = await api.get(`/stockrequests/manager/${managerId}?page=${page}&limit=${limit}`);
     return response.data;
-  }
+  },
+  getStockRequestsByBrandOwner,
 };
 
 export default stockRequestService;

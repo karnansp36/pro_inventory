@@ -91,7 +91,22 @@ export const getStockRequestsByManager = createAsyncThunk(
     }
   }
 );
-
+// New thunk for getting stock requests by brand owner
+export const getStockRequestsByBrandOwner = createAsyncThunk(
+  "stockRequests/getStockRequestsByBrandOwner",
+  async ({ brandOwnerId, page = 1, limit = 10, filters = {} }, { rejectWithValue }) => {
+    try {
+      const response = await stockRequestService.getStockRequestsByBrandOwner(
+        brandOwnerId, page, limit, filters
+      );
+      return response;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data || { message: "Failed to fetch stock requests by brand owner" }
+      );
+    }
+  }
+);
 const stockRequestsSlice = createSlice({
   name: "stockRequests",
   initialState: {
@@ -212,6 +227,25 @@ const stockRequestsSlice = createSlice({
         state.loading = false;
         state.error =
           action.payload?.message || "Failed to fetch stock requests by manager";
+      })
+      .addCase(getStockRequestsByBrandOwner.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getStockRequestsByBrandOwner.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload?.stockRequests) {
+          state.stockRequests = action.payload.stockRequests;
+          state.totalItems = action.payload.totalItems || 0;
+        } else {
+          state.stockRequests = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+        }
+      })
+      .addCase(getStockRequestsByBrandOwner.rejected, (state, action) => {
+        state.loading = false;
+        state.error =
+          action.payload?.message || "Failed to fetch stock requests by brand owner";
       });
   },
 });

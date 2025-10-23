@@ -1,43 +1,54 @@
-// client/src/pages/dashboard/brand-owner/BrandOwnerStockRequestsManagement.jsx
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getStockRequests, updateStockRequest, deleteStockRequest, createStockRequest } from '../../../store/slices/stockRequestsSlice';
+import { 
+  getStockRequestsByBrandOwner, 
+  updateStockRequest, 
+  deleteStockRequest, 
+  createStockRequest 
+} from '../../../store/slices/stockRequestsSlice';
 import { Plus, Edit, Trash2, Search, CheckCircle, XCircle } from 'lucide-react';
-import StockRequestForm from '../branch-owner/StockRequestForm'; // Reusing for now
-import StockRequestsTable from '../branch-owner/StockRequestsTable'; // Reusing for now
+import StockRequestForm from '../branch-owner/StockRequestForm';
 
 const BrandOwnerStockRequestsManagement = () => {
   const dispatch = useDispatch();
-  const { stockRequests, loading } = useSelector((state) => state.stockRequests);
+  const { stockRequests, loading, error } = useSelector((state) => state.stockRequests);
   const { user: currentUser } = useSelector((state) => state.auth);
-  const { users } = useSelector((state) => state.users); // To get branch owner names
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const { users } = useSelector((state) => state.users);
+
+  const [filters, setFilters] = useState({
+    branchOwnerName: '',
+    status: ''
+  });
   const [showModal, setShowModal] = useState(false);
   const [editRequest, setEditRequest] = useState(null);
-  const [refreshTable, setRefreshTable] = useState(0);
 
   useEffect(() => {
-    dispatch(getStockRequests());
-    // Optionally fetch users if needed for filtering/displaying branch owner names
-    // dispatch(getUsers()); 
-  }, [dispatch]);
+    if (currentUser?._id) {
+      dispatch(getStockRequestsByBrandOwner({ 
+        brandOwnerId: currentUser._id, 
+        filters 
+      }));
+    }
+  }, [dispatch, currentUser?._id, filters]);
 
-  const assignedBranchOwners = users?.filter(user => 
-    user.role === 'BranchOwner' && user.assignedBrandOwner === currentUser?._id
-  ).map(bo => bo._id) || [];
-
-  const filteredRequests = stockRequests?.filter(request => 
-    assignedBranchOwners.includes(request.branchOwner?._id) &&
-    (request.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     request.branchOwner?.name.toLowerCase().includes(searchTerm.toLowerCase())) &&
-    (statusFilter === '' || request.status === statusFilter)
-  ) || [];
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      [name]: value
+    }));
+  };
 
   const handleRequestAdded = () => {
-    setRefreshTable(prev => prev + 1);
     setShowModal(false);
     setEditRequest(null);
+    // Refresh the data
+    if (currentUser?._id) {
+      dispatch(getStockRequestsByBrandOwner({ 
+        brandOwnerId: currentUser._id, 
+        filters 
+      }));
+    }
   };
 
   const handleEdit = (request) => {
@@ -47,12 +58,31 @@ const BrandOwnerStockRequestsManagement = () => {
 
   const handleDelete = (requestId) => {
     if (window.confirm('Are you sure you want to delete this stock request?')) {
-      dispatch(deleteStockRequest(requestId));
+      dispatch(deleteStockRequest(requestId)).then(() => {
+        // Refresh the data after deletion
+        if (currentUser?._id) {
+          dispatch(getStockRequestsByBrandOwner({ 
+            brandOwnerId: currentUser._id, 
+            filters 
+          }));
+        }
+      });
     }
   };
 
   const handleApproveReject = (requestId, status) => {
-    dispatch(updateStockRequest({ id: requestId, stockRequestData: { status, approved: status === 'Approved' } }));
+    dispatch(updateStockRequest({ 
+      id: requestId, 
+      stockRequestData: { status } 
+    })).then(() => {
+      // Refresh the data after status update
+      if (currentUser?._id) {
+        dispatch(getStockRequestsByBrandOwner({ 
+          brandOwnerId: currentUser._id, 
+          filters 
+        }));
+      }
+    });
   };
 
   const statuses = ['Pending', 'Approved', 'Rejected'];
@@ -76,26 +106,40 @@ const BrandOwnerStockRequestsManagement = () => {
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
         <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          {/* Search by Branch Owner Name */}
+          <div className="flex-1">
+            <label htmlFor="branchOwnerName" className="block text-sm font-medium text-gray-700">
+              Branch Owner Name:
+            </label>
             <input
               type="text"
-              placeholder="Search requests by product or branch..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              id="branchOwnerName"
+              name="branchOwnerName"
+              placeholder="Enter branch owner name"
+              value={filters.branchOwnerName}
+              onChange={handleFilterChange}
+              className="mt-1 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             />
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">All Statuses</option>
-            {statuses.map(status => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
+
+          {/* Status Filter */}
+          <div className="flex-1">
+            <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+              Status:
+            </label>
+            <select
+              id="status"
+              name="status"
+              value={filters.status}
+              onChange={handleFilterChange}
+              className="mt-1 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            >
+              <option value="">All Statuses</option>
+              {statuses.map(status => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -110,17 +154,26 @@ const BrandOwnerStockRequestsManagement = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredRequests.length > 0 ? (
-                filteredRequests.map((request) => (
+              {stockRequests?.length > 0 ? (
+                stockRequests.map((request) => (
                   <tr key={request._id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{request.productName}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{request.branchOwner?.name || 'N/A'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.quantity}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.priority}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        request.priority === 'High' ? 'bg-red-100 text-red-800' :
+                        request.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-green-100 text-green-800'
+                      }`}>
+                        {request.priority}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         request.status === 'Approved' ? 'bg-green-100 text-green-800' :
@@ -130,22 +183,41 @@ const BrandOwnerStockRequestsManagement = () => {
                         {request.status}
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(request.createdAt).toLocaleDateString()}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex space-x-2">
                         {request.status === 'Pending' && (
                           <>
-                            <button onClick={() => handleApproveReject(request._id, 'Approved')} className="text-green-600 hover:text-green-900">
+                            <button 
+                              onClick={() => handleApproveReject(request._id, 'Approved')} 
+                              className="text-green-600 hover:text-green-900"
+                              title="Approve"
+                            >
                               <CheckCircle className="h-4 w-4" />
                             </button>
-                            <button onClick={() => handleApproveReject(request._id, 'Rejected')} className="text-red-600 hover:text-red-900">
+                            <button 
+                              onClick={() => handleApproveReject(request._id, 'Rejected')} 
+                              className="text-red-600 hover:text-red-900"
+                              title="Reject"
+                            >
                               <XCircle className="h-4 w-4" />
                             </button>
                           </>
                         )}
-                        <button onClick={() => handleEdit(request)} className="text-blue-600 hover:text-blue-900">
+                        <button 
+                          onClick={() => handleEdit(request)} 
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Edit"
+                        >
                           <Edit className="h-4 w-4" />
                         </button>
-                        <button onClick={() => handleDelete(request._id)} className="text-red-600 hover:text-red-900">
+                        <button 
+                          onClick={() => handleDelete(request._id)} 
+                          className="text-red-600 hover:text-red-900"
+                          title="Delete"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -154,8 +226,8 @@ const BrandOwnerStockRequestsManagement = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
-                    No stock requests found for your assigned branches.
+                  <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
+                    {loading ? 'Loading...' : 'No stock requests found for your assigned branches.'}
                   </td>
                 </tr>
               )}
@@ -168,11 +240,13 @@ const BrandOwnerStockRequestsManagement = () => {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">{editRequest ? 'Edit Stock Request' : 'Add New Stock Request'}</h2>
-            <StockRequestForm 
-              onStockRequestAdded={handleRequestAdded} 
-              initialData={editRequest} 
-              onCancel={() => setShowModal(false)} 
+            <h2 className="text-xl font-bold mb-4">
+              {editRequest ? 'Edit Stock Request' : 'Add Stock Request'}
+            </h2>
+            <StockRequestForm
+              request={editRequest}
+              onRequestAdded={handleRequestAdded}
+              onCancel={() => { setShowModal(false); setEditRequest(null); }}
               isBrandOwner={true}
             />
           </div>
