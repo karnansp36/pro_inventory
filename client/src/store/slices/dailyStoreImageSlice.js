@@ -90,7 +90,21 @@ export const getDailyStoreImagesByManager = createAsyncThunk(
     }
   }
 );
-
+// dailyStoreImageSlice.js - Add this async thunk
+export const getDailyStoreImagesByBrandOwner = createAsyncThunk(
+  'dailyStoreImages/getByBrandOwner',
+  async ({ brandOwnerId, page = 1, limit = 10, filters = {} }, thunkAPI) => {
+    try {
+      return await dailyStoreImageService.getDailyStoreImagesByBrandOwner(brandOwnerId, page, limit, filters);
+    } catch (error) {
+      const message =
+        (error.response && error.response.data && error.response.data.message) ||
+        error.message ||
+        error.toString();
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
 export const dailyStoreImageSlice = createSlice({
   name: 'dailyStoreImages',
   initialState,
@@ -208,7 +222,26 @@ export const dailyStoreImageSlice = createSlice({
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;
-      });
+      })// getDailyStoreImagesByBrandOwner
+    .addCase(getDailyStoreImagesByBrandOwner.pending, (state) => {
+      state.isLoading = true;
+    })
+    .addCase(getDailyStoreImagesByBrandOwner.fulfilled, (state, action) => {
+      state.isLoading = false;
+      state.isSuccess = true;
+      if (action.payload.images) {
+        state.dailyStoreImages = action.payload.images;
+        state.totalItems = action.payload.totalItems || 0;
+      } else {
+        state.dailyStoreImages = Array.isArray(action.payload) ? action.payload : [];
+        state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+      }
+    })
+    .addCase(getDailyStoreImagesByBrandOwner.rejected, (state, action) => {
+      state.isLoading = false;
+      state.isError = true;
+      state.message = action.payload;
+    });
   },
 });
 

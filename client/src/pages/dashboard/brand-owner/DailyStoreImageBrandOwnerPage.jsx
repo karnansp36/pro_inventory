@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getAllDailyStoreImages, reset } from '../../../../src/store/slices/dailyStoreImageSlice';
+import { getDailyStoreImagesByBrandOwner, reset } from '../../../../src/store/slices/dailyStoreImageSlice';
 import { toast } from 'react-toastify';
 import Spinner from '../../../../src/components/Spinner';
 
@@ -9,18 +9,20 @@ const DailyStoreImageBrandOwnerPage = () => {
   const { dailyStoreImages, isLoading, isError, message } = useSelector(
     (state) => state.dailyStoreImages
   );
+  const { user: currentUser } = useSelector((state) => state.auth);
 
   useEffect(() => {
     if (isError) {
       toast.error(message);
     }
 
-    dispatch(getAllDailyStoreImages());
+    // Only fetch if we have a current user ID
+    if (currentUser?._id) {
+      dispatch(getDailyStoreImagesByBrandOwner({ brandOwnerId: currentUser._id }));
+    }
 
-    return () => {
-      dispatch(reset());
-    };
-  }, [isError, message, dispatch]);
+    return () => {};
+  }, [dispatch, currentUser?._id]); // Remove .toString()
 
   if (isLoading) {
     return <Spinner />;
@@ -42,7 +44,7 @@ const DailyStoreImageBrandOwnerPage = () => {
                   className="w-full h-48 object-cover"
                   onError={(e) => {
                     console.error('Failed to load image:', img.img);
-                    e.target.src = '/placeholder-image.jpg'; // Fallback image
+                    e.target.src = '/placeholder-image.jpg';
                   }}
                 />
                 <div className="p-4">

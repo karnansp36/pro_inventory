@@ -8,6 +8,7 @@ import {
   getAllDailyStoreImages,
   getDailyStoreImagesForBranchOwner,
   getDailyStoreImagesByManagerId,
+  getDailyStoreImagesByBrandOwner,
   
 } from '../controllers/dailyStoreImageController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
@@ -63,5 +64,7 @@ router
 // Add route for manager transports
 router.route('/manager/:managerId')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getDailyStoreImagesByManagerId);
-
+// dailyStoreImageRoutes.js - Add this route
+router.route('/brandowner/:brandOwnerId')
+  .get(protect, authorizeRoles('Admin', 'BrandOwner'), getDailyStoreImagesByBrandOwner);
 export default router;

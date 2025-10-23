@@ -14,7 +14,7 @@ const BrandOwnerDashboard = () => {
   useEffect(() => {
     dispatch(getSales())
     dispatch(getStockRequests())
-  }, [dispatch])
+  }, [dispatch, user?._id])
 
   // Filter data for assigned branches only
   const assignedSales = sales?.filter(sale => 

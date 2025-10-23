@@ -1,4 +1,5 @@
 import asyncHandler from 'express-async-handler';
+import mongoose from 'mongoose'; // Import mongoose
 import DailyStoreImage from '../models/DailyStoreImage.js';
 import User from '../models/User.js';
 
@@ -62,7 +63,16 @@ const uploadDailyStoreImage = asyncHandler(async (req, res) => {
     branchOwnerId = user._id;
   } else if (user.role === 'Admin') {
     // Admin can specify branch owner, otherwise use their own
-    branchOwnerId = req.body.branchOwner || user._id;
+    if (req.body.branchOwner) {
+      if (mongoose.Types.ObjectId.isValid(req.body.branchOwner)) {
+        branchOwnerId = req.body.branchOwner;
+      } else {
+        res.status(400);
+        throw new Error('Invalid branchOwner ID');
+      }
+    } else {
+      branchOwnerId = user._id;
+    }
   } else {
     res.status(403);
     throw new Error('Not authorized to upload images');
@@ -248,11 +258,91 @@ const getDailyStoreImagesByManagerId = asyncHandler(async (req, res) => {
     totalPages: Math.ceil(totalItems / limit),
   });
 });
+// dailyStoreImageController.js - Add this function
+// @desc    Get daily store images by brand owner ID with pagination and filtering
+// @route   GET /api/daily-store-images/brandowner/:brandOwnerId
+// @access  Private (Admin, BrandOwner)
+const getDailyStoreImagesByBrandOwner = asyncHandler(async (req, res) => {
+  const { brandOwnerId } = req.params;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+  const managerNameFilter = req.query.managerName || '';
+  const branchOwnerNameFilter = req.query.branchOwnerName || '';
 
+  const brandOwner = await User.findById(brandOwnerId).populate({
+    path: 'assignedManagers',
+    select: 'name email assignedBranchOwners',
+    populate: {
+      path: 'assignedBranchOwners',
+      select: 'name email branchName'
+    }
+  });
+
+  if (!brandOwner) {
+    res.status(404);
+    throw new Error('Brand owner not found');
+  }
+
+  let relevantManagers = brandOwner.assignedManagers;
+
+  if (managerNameFilter) {
+    relevantManagers = relevantManagers.filter(manager =>
+      manager.name.toLowerCase().includes(managerNameFilter.toLowerCase())
+    );
+  }
+
+  let branchOwnerIds = [];
+  relevantManagers.forEach(manager => {
+    if (manager.assignedBranchOwners && manager.assignedBranchOwners.length > 0) {
+      branchOwnerIds = branchOwnerIds.concat(manager.assignedBranchOwners.map(bo => bo._id));
+    }
+  });
+
+  // Ensure uniqueness and convert to string IDs for filtering if needed
+  branchOwnerIds = [...new Set(branchOwnerIds.map(id => id.toString()))];
+
+  // Apply branch owner name filter if provided
+  if (branchOwnerNameFilter && branchOwnerIds.length > 0) {
+    const filteredBranchOwners = await User.find({
+      _id: { $in: branchOwnerIds },
+      name: { $regex: branchOwnerNameFilter, $options: 'i' }
+    });
+    branchOwnerIds = filteredBranchOwners.map(bo => bo._id.toString()); // Ensure string IDs
+  }
+
+  // Convert all branchOwnerIds to Mongoose ObjectIds for the final query
+  const objectIdBranchOwnerIds = branchOwnerIds.map(id => new mongoose.Types.ObjectId(id));
+
+  if (objectIdBranchOwnerIds.length === 0) {
+    return res.status(200).json({
+      images: [],
+      totalItems: 0,
+      currentPage: page,
+      totalPages: 0,
+    });
+  }
+
+  const images = await DailyStoreImage.find({ branchOwner: { $in: objectIdBranchOwnerIds } })
+    .populate('branchOwner', 'name email branchName')
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip(skip);
+
+  const totalItems = await DailyStoreImage.countDocuments({ branchOwner: { $in: branchOwnerIds } });
+
+  res.status(200).json({
+    images,
+    totalItems,
+    currentPage: page,
+    totalPages: Math.ceil(totalItems / limit),
+  });
+});
 export {
   getAllDailyStoreImages,
   getDailyStoreImagesByBranch,
   getDailyStoreImagesForBranchOwner,
   getDailyStoreImagesByManagerId,
   uploadDailyStoreImage,
+  getDailyStoreImagesByBrandOwner,
 };
