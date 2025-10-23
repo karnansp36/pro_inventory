@@ -44,6 +44,24 @@ const deleteTransport = async (id) => {
   return response.data;
 };
 
+
+// Get transports by brand owner ID with pagination and filters
+const getTransportsByBrandOwner = async (brandOwnerId, page = 1, limit = 10, filters = {}) => {
+  let url = `${TRANSPORT_URL}/brandowner/${brandOwnerId}?page=${page}&limit=${limit}`;
+
+  // Add filters to the URL
+  if (filters) {
+    Object.keys(filters).forEach(key => {
+      if (filters[key] && filters[key] !== 'all') { // Only add filter if it has a value and not 'all'
+        url += `&${key}=${filters[key]}`;
+      }
+    });
+  }
+
+  const response = await api.get(url);
+  return response.data;
+};
+
 const transportService = {
   getTransports,
   getTransportsByBranch,
@@ -51,7 +69,8 @@ const transportService = {
   createTransport,
   updateTransport,
   receiveTransport,
-  deleteTransport
+  deleteTransport,
+  getTransportsByBrandOwner,
 };
 
 export default transportService;

@@ -6,7 +6,8 @@ import {
   confirmReceivedTransport, 
   deleteTransport, 
   getTransportsByBranchOwnerId,
-  getTransportsByManagerId 
+  getTransportsByManagerId,
+  getTransportsByBrandOwner
 } from '../controllers/transportController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
@@ -26,5 +27,7 @@ router.route('/branch/:branchOwnerId')
 // Add route for manager transports
 router.route('/manager/:managerId')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getTransportsByManagerId);
-
+// Add this route to transportRoutes.js
+router.route('/brandowner/:brandOwnerId')
+  .get(protect, authorizeRoles('Admin', 'BrandOwner'), getTransportsByBrandOwner);
 export default router;

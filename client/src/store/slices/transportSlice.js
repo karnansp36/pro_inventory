@@ -62,6 +62,18 @@ export const getTransportsByBranch = createAsyncThunk(
     }
   }
 );
+// Get transports by brand owner with pagination and filters
+export const getTransportsByBrandOwner = createAsyncThunk(
+  'transport/getTransportsByBrandOwner',
+  async ({ brandOwnerId, page = 1, limit = 10, filters = {} }, { rejectWithValue }) => {
+    try {
+      const response = await transportService.getTransportsByBrandOwner(brandOwnerId, page, limit, filters);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch transports by brand owner' });
+    }
+  }
+);
 
 // Get transports by manager with pagination (matching stockRequest pattern)
 export const getTransportsByManager = createAsyncThunk(
@@ -214,7 +226,26 @@ const transportSlice = createSlice({
       .addCase(getTransportsByManager.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch transports by manager';
-      });
+      })// getTransportsByBrandOwner
+      .addCase(getTransportsByBrandOwner.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getTransportsByBrandOwner.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload?.transports) {
+          state.transport = action.payload.transports;
+          state.totalItems = action.payload.totalItems || 0;
+        } else {
+          state.transport = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+        }
+      })
+      .addCase(getTransportsByBrandOwner.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch transports by brand owner';
+      })
+      
   },
 });
 
