@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getSales, deleteSale, createSale, updateSale, getSalesByBrandOwner } from '../../../store/slices/salesSlice';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import SalesForm from '../../../components/forms/SalesForm'; // Import the new SalesForm component
-// import SalesTable from '../../branch-owner/SalesTable'; // Reusing for now
 
 const BrandOwnerSalesManagement = () => {
   const dispatch = useDispatch();

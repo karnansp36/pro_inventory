@@ -405,7 +405,67 @@ const getExpensesByBranchOwners = asyncHandler(async (req, res) => {
     totalPages: Math.ceil(totalItems / limit),
   });
 });
+// @desc    Get expenses by brand owner ID with pagination and filtering
+// @route   GET /api/expenses/brandowner/:brandOwnerId
+// @access  Private (Admin, BrandOwner)
+const getExpensesByBrandOwner = asyncHandler(async (req, res) => {
+  const { brandOwnerId } = req.params;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+  const managerNameFilter = req.query.managerName || '';
 
+  const brandOwner = await User.findById(brandOwnerId).populate({
+    path: 'assignedManagers',
+    select: 'name email assignedBranchOwners'
+  });
+
+  if (!brandOwner) {
+    res.status(404);
+    throw new Error('Brand owner not found');
+  }
+
+  let relevantManagers = brandOwner.assignedManagers;
+
+  if (managerNameFilter) {
+    relevantManagers = relevantManagers.filter(manager =>
+      manager.name.toLowerCase().includes(managerNameFilter.toLowerCase())
+    );
+  }
+
+  let branchOwnerIds = [];
+  relevantManagers.forEach(manager => {
+    if (manager.assignedBranchOwners && manager.assignedBranchOwners.length > 0) {
+      branchOwnerIds = branchOwnerIds.concat(manager.assignedBranchOwners);
+    }
+  });
+
+  branchOwnerIds = [...new Set(branchOwnerIds.map(id => id.toString()))];
+
+  if (branchOwnerIds.length === 0) {
+    return res.status(200).json({
+      expenses: [],
+      totalItems: 0,
+      currentPage: page,
+      totalPages: 0,
+    });
+  }
+
+  const expenses = await Expense.find({ branchOwner: { $in: branchOwnerIds } })
+    .populate('branchOwner', 'name email')
+    .sort({ date: -1 })
+    .limit(limit)
+    .skip(skip);
+
+  const totalItems = await Expense.countDocuments({ branchOwner: { $in: branchOwnerIds } });
+
+  res.status(200).json({
+    expenses,
+    totalItems,
+    currentPage: page,
+    totalPages: Math.ceil(totalItems / limit),
+  });
+});
 export {
   getExpenses,
   createExpense,
@@ -414,4 +474,5 @@ export {
   getExpensesByManagerId,
   getExpensesByBranchOwnerId,
   getExpensesByBranchOwners,
+  getExpensesByBrandOwner,
 };

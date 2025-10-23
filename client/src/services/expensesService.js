@@ -42,6 +42,25 @@ const expensesService = {
     const response = await api.get(`/expenses/branch-owners?${queryString}&page=${page}&limit=${limit}`);
     return response.data;
   },
+
+  // NEW: Get expenses by brand owner with filtering
+  getExpensesByBrandOwner: async (brandOwnerId, page = 1, limit = 10, filters = {}) => {
+    let url = `/expenses/brandowner/${brandOwnerId}?page=${page}&limit=${limit}`;
+
+    // Add filters to the URL
+    if (filters) {
+      Object.keys(filters).forEach(key => {
+        if (filters[key]) { // Only add filter if it has a value
+          url += `&${key}=${filters[key]}`;
+        }
+      });
+    }
+
+    const response = await api.get(url);
+    return response.data;
+  }
+
 };
+
 
 export default expensesService;

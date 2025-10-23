@@ -79,6 +79,18 @@ export const getExpensesByBranchOwners = createAsyncThunk(
   }
 );
 
+// NEW: Get expenses by brand owner
+export const getExpensesByBrandOwner = createAsyncThunk(
+  'expenses/getExpensesByBrandOwner',
+  async ({ brandOwnerId, page = 1, limit = 10, filters = {} }, { rejectWithValue }) => {
+    try {
+      return await expensesService.getExpensesByBrandOwner(brandOwnerId, page, limit, filters);
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch expenses by brand owner' });
+    }
+  }
+);
+
 const expensesSlice = createSlice({
   name: 'expenses',
   initialState: {
@@ -223,6 +235,25 @@ const expensesSlice = createSlice({
       .addCase(getExpensesByBranchOwners.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch expenses by branch owners';
+      })
+       // NEW: getExpensesByBrandOwner
+      .addCase(getExpensesByBrandOwner.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getExpensesByBrandOwner.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload.expenses) {
+          state.expenses = action.payload.expenses;
+          state.totalItems = action.payload.totalItems || 0;
+        } else {
+          state.expenses = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+        }
+      })
+      .addCase(getExpensesByBrandOwner.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch expenses by brand owner';
       });
   },
 });

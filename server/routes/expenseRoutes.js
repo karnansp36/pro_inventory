@@ -1,6 +1,7 @@
 import express from 'express';
 const router = express.Router();
-import { getExpenses, createExpense, updateExpense, deleteExpense, getExpensesByManagerId, getExpensesByBranchOwnerId, getExpensesByBranchOwners } from '../controllers/expenseController.js';
+import { getExpenses, createExpense, updateExpense, deleteExpense, getExpensesByManagerId, getExpensesByBranchOwnerId, getExpensesByBranchOwners,   getExpensesByBrandOwner // Add this import
+ } from '../controllers/expenseController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 
@@ -20,5 +21,9 @@ router.route('/branch-owner/:branchOwnerId')
 
 router.route('/branch-owners')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getExpensesByBranchOwners);
+
+  // NEW: Add brand owner expenses route
+router.route('/brandowner/:brandOwnerId')
+  .get(protect, authorizeRoles('Admin', 'BrandOwner'), getExpensesByBrandOwner);
 
 export default router;
