@@ -99,8 +99,13 @@ const usersSlice = createSlice({
       })
       .addCase(getUsers.fulfilled, (state, action) => {
         state.loading = false;
-        state.users = action.payload.users;
-        state.totalItems = action.payload.totalItems;
+        if (action.payload?.users) {
+          state.users = action.payload.users;
+          state.totalItems = action.payload.totalItems || 0;
+        } else {
+          state.users = Array.isArray(action.payload) ? action.payload : [];
+          state.totalItems = Array.isArray(action.payload) ? action.payload.length : 0;
+        }
       })
       .addCase(getUsers.rejected, (state, action) => {
         state.loading = false;
@@ -174,7 +179,7 @@ const usersSlice = createSlice({
       .addCase(getUsersByRole.fulfilled, (state, action) => {
         state.loading = false;
         const role = action.meta?.arg?.role || 'unknown';
-        state.usersByRole[role] = action.payload.users;
+        state.usersByRole[role] = action.payload.users || [];
       })
       .addCase(getUsersByRole.rejected, (state, action) => {
         state.loading = false;

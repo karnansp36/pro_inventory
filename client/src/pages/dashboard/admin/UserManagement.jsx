@@ -19,7 +19,7 @@ import {
   ChevronsRight,
   Loader2
 } from 'lucide-react';
-import { getUsers, deleteUser, createUser, updateUser, getUsersByRole } from '../../../store/slices/usersSlice';
+import { getUsers, deleteUser, createUser, updateUser, getUsersByRole, clearUsers } from '../../../store/slices/usersSlice';
 import { useTheme } from '../../../context/ThemeContext';
 import UserView from './UserView';
 
