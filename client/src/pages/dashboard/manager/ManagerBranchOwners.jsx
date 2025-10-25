@@ -1,4 +1,3 @@
-// client/src/pages/manager/ManagerBranchOwners.jsx
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
@@ -80,113 +79,163 @@ const ManagerBranchOwners = () => {
         </div>
       </div>
 
-      {/* Branches Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredBranches.map((branch) => (
-          <div
-            key={branch._id}
-            className={`group rounded-2xl border p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
-              theme === 'dark'
-                ? 'bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800/50 hover:border-slate-700'
-                : 'bg-white border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                  theme === 'dark' ? 'bg-slate-800' : 'bg-gray-100'
+      {/* Table View */}
+      <div className={`rounded-2xl border shadow-lg overflow-hidden ${
+        theme === 'dark'
+          ? 'bg-slate-900 border-slate-800/50'
+          : 'bg-white border-gray-200'
+      }`}>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className={theme === 'dark' ? 'bg-slate-800/50' : 'bg-gray-50'}>
+              <tr>
+                <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
+                  theme === 'dark' ? 'text-slate-300' : 'text-gray-700'
                 }`}>
-                  <Building2 className={`h-6 w-6 ${
-                    theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
-                  }`} />
-                </div>
-                <div>
-                  <h3 className={`font-semibold ${
-                    theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
-                  }`}>
-                    {branch.name}
-                  </h3>
-                  <p className={`text-sm ${
-                    theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
-                  }`}>
-                    {branch.email}
-                  </p>
-                </div>
-              </div>
-              <Link
-                to={`/dashboard/manager/branch-owners/${branch._id}`}
-                className={`p-2 rounded-lg transition-all duration-200 hover:scale-110 ${
-                  theme === 'dark'
-                    ? 'text-slate-400 hover:bg-slate-800 hover:text-slate-300'
-                    : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
-                }`}
-              >
-                <Eye className="h-4 w-4" />
-              </Link>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2 text-sm">
-                <Phone className={`h-4 w-4 ${
-                  theme === 'dark' ? 'text-slate-500' : 'text-gray-400'
-                }`} />
-                <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>
-                  {branch.phone || 'No phone'}
-                </span>
-              </div>
-              <div className="flex items-center space-x-2 text-sm">
-                <MapPin className={`h-4 w-4 ${
-                  theme === 'dark' ? 'text-slate-500' : 'text-gray-400'
-                }`} />
-                <span className={`truncate ${
-                  theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                  Branch
+                </th>
+                <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
+                  theme === 'dark' ? 'text-slate-300' : 'text-gray-700'
                 }`}>
-                  {branch.address || 'No address'}
-                </span>
-              </div>
-            </div>
-            
-            <div className={`mt-4 pt-4 border-t ${
-              theme === 'dark' ? 'border-slate-800' : 'border-gray-200'
-            }`}>
-              <div className="flex justify-between text-sm">
-                <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>
+                  Email
+                </th>
+                <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
+                  theme === 'dark' ? 'text-slate-300' : 'text-gray-700'
+                }`}>
+                  Phone
+                </th>
+                <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
+                  theme === 'dark' ? 'text-slate-300' : 'text-gray-700'
+                }`}>
+                  Address
+                </th>
+                <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
+                  theme === 'dark' ? 'text-slate-300' : 'text-gray-700'
+                }`}>
                   Status
-                </span>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  theme === 'dark' 
-                    ? 'bg-green-600/20 text-green-400' 
-                    : 'bg-green-100 text-green-800'
+                </th>
+                <th className={`px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider ${
+                  theme === 'dark' ? 'text-slate-300' : 'text-gray-700'
                 }`}>
-                  Active
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {filteredBranches.length === 0 && (
-        <div className={`text-center py-16 rounded-2xl border ${
-          theme === 'dark'
-            ? 'bg-slate-900 border-slate-800/50'
-            : 'bg-white border-gray-200'
-        }`}>
-          <Building2 className={`h-16 w-16 mx-auto mb-4 ${
-            theme === 'dark' ? 'text-slate-600' : 'text-gray-400'
-          }`} />
-          <h3 className={`text-xl font-semibold mb-2 ${
-            theme === 'dark' ? 'text-slate-300' : 'text-gray-700'
-          }`}>
-            {searchTerm ? 'No branches found' : 'No branches assigned'}
-          </h3>
-          <p className={`text-sm ${
-            theme === 'dark' ? 'text-slate-500' : 'text-gray-500'
-          }`}>
-            {searchTerm ? 'Try adjusting your search terms' : 'You will see branches here once they are assigned to you'}
-          </p>
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className={`divide-y ${
+              theme === 'dark' ? 'divide-slate-800' : 'divide-gray-200'
+            }`}>
+              {filteredBranches.map((branch) => (
+                <tr
+                  key={branch._id}
+                  className={`transition-colors duration-150 ${
+                    theme === 'dark'
+                      ? 'hover:bg-slate-800/50'
+                      : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        theme === 'dark' ? 'bg-slate-800' : 'bg-gray-100'
+                      }`}>
+                        <Building2 className={`h-5 w-5 ${
+                          theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                        }`} />
+                      </div>
+                      <div>
+                        <div className={`text-sm font-medium ${
+                          theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
+                        }`}>
+                          {branch.name}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center space-x-2">
+                      <Mail className={`h-4 w-4 ${
+                        theme === 'dark' ? 'text-slate-500' : 'text-gray-400'
+                      }`} />
+                      <span className={`text-sm ${
+                        theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                      }`}>
+                        {branch.email}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center space-x-2">
+                      <Phone className={`h-4 w-4 ${
+                        theme === 'dark' ? 'text-slate-500' : 'text-gray-400'
+                      }`} />
+                      <span className={`text-sm ${
+                        theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                      }`}>
+                        {branch.phone || 'N/A'}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center space-x-2 max-w-xs">
+                      <MapPin className={`h-4 w-4 flex-shrink-0 ${
+                        theme === 'dark' ? 'text-slate-500' : 'text-gray-400'
+                      }`} />
+                      <span className={`text-sm truncate ${
+                        theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                      }`}>
+                        {branch.address || 'N/A'}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                      theme === 'dark' 
+                        ? 'bg-green-600/20 text-green-400' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      Active
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <Link
+                      to={`/dashboard/manager/branch-owners/${branch._id}`}
+                      className={`inline-flex items-center justify-center p-2 rounded-lg transition-all duration-200 hover:scale-110 ${
+                        theme === 'dark'
+                          ? 'text-slate-400 hover:bg-slate-800 hover:text-slate-300'
+                          : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+                      }`}
+                      title="View Details"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
+
+        {/* Empty State */}
+        {filteredBranches.length === 0 && (
+          <div className={`text-center py-16 ${
+            theme === 'dark' ? 'bg-slate-900' : 'bg-white'
+          }`}>
+            <Building2 className={`h-16 w-16 mx-auto mb-4 ${
+              theme === 'dark' ? 'text-slate-600' : 'text-gray-400'
+            }`} />
+            <h3 className={`text-xl font-semibold mb-2 ${
+              theme === 'dark' ? 'text-slate-300' : 'text-gray-700'
+            }`}>
+              {searchTerm ? 'No branches found' : 'No branches assigned'}
+            </h3>
+            <p className={`text-sm ${
+              theme === 'dark' ? 'text-slate-500' : 'text-gray-500'
+            }`}>
+              {searchTerm ? 'Try adjusting your search terms' : 'You will see branches here once they are assigned to you'}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
