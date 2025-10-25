@@ -12,6 +12,7 @@ import Reports from '../pages/dashboard/admin/Reports';
 import Exports from '../pages/dashboard/admin/Exports';
 import ActivityLogs from '../pages/dashboard/admin/ActivityLogs';
 import DailyStoreImageAdminPage from '../pages/dashboard/admin/DailyStoreImageAdminPage';
+import UserProfilePage from '../pages/dashboard/UserProfilePage';
 
 const AdminRoutes = () => {
   return (
@@ -28,6 +29,7 @@ const AdminRoutes = () => {
         <Route path="exports" element={<Exports />} />
         <Route path="activity-logs" element={<ActivityLogs />} />
         <Route path="daily-store-images" element={<DailyStoreImageAdminPage />} />
+        <Route path="profile" element={<UserProfilePage />} />
       </Route>
     </Routes>
   );

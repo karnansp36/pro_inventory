@@ -1,9 +1,10 @@
-import { Bell, Menu, User, LogOut, Search, ChevronDown } from 'lucide-react';
+import { Bell, Menu, User, LogOut, Search, ChevronDown, Settings } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
 import { useState } from 'react';
 import ThemeToggle from '../ThemeToggle';
 import { useTheme } from '../../context/ThemeContext';
+import { Link } from 'react-router-dom';
 
 const Navbar = ({ onMenuToggle }) => {
   const dispatch = useDispatch();
@@ -149,6 +150,24 @@ const Navbar = ({ onMenuToggle }) => {
                   </div>
                   
                   <div className={`p-2 ${theme === 'dark' ? 'bg-slate-900/50' : ''}`}>
+                    <Link
+                      to="/dashboard/profile"
+                      onClick={() => setShowDropdown(false)}
+                      className={`flex items-center space-x-3 w-full px-4 py-3 rounded-xl text-sm transition-all duration-200 group ${
+                        theme === 'dark'
+                          ? 'text-slate-300 hover:bg-blue-600/10 hover:text-blue-400 active:scale-98'
+                          : 'text-gray-700 hover:bg-blue-50 active:scale-98'
+                      }`}
+                    >
+                      <div className={`p-2 rounded-lg transition-all duration-200 ${
+                        theme === 'dark'
+                          ? 'bg-slate-800/50 group-hover:bg-blue-600/20'
+                          : 'bg-blue-50 group-hover:bg-blue-100'
+                      }`}>
+                        <Settings className={`h-4 w-4 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-500'}`} />
+                      </div>
+                      <span className="font-medium">Profile</span>
+                    </Link>
                     <button
                       onClick={handleLogout}
                       className={`flex items-center space-x-3 w-full px-4 py-3 rounded-xl text-sm transition-all duration-200 group ${

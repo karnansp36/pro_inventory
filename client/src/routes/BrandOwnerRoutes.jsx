@@ -10,6 +10,7 @@ import BrandOwnerTransportManagement from '../pages/dashboard/brand-owner/BrandO
 import BrandOwnerReportsPage from '../pages/dashboard/brand-owner/BrandOwnerReportsPage';
 import BrandOwnerExportsPage from '../pages/dashboard/brand-owner/BrandOwnerExportsPage';
 import DailyStoreImageBrandOwnerPage from '../pages/dashboard/brand-owner/DailyStoreImageBrandOwnerPage';
+import UserProfilePage from '../pages/dashboard/UserProfilePage';
 
 const BrandOwnerRoutes = () => {
   return (
@@ -25,6 +26,7 @@ const BrandOwnerRoutes = () => {
         <Route path="reports" element={<BrandOwnerReportsPage />} />
         <Route path="exports" element={<BrandOwnerExportsPage />} />
         <Route path="daily-store-images" element={<DailyStoreImageBrandOwnerPage />} />
+        <Route path="profile" element={<UserProfilePage />} />
         <Route path="*" element={<BrandOwnerDashboard />} />
       </Route>
     </Routes>

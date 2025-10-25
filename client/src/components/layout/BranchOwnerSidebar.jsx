@@ -38,6 +38,7 @@ const BranchOwnerSidebar = ({ isOpen, onClose }) => {
     { path: '/dashboard/branch-owner/transport', icon: Truck, label: 'Transport', category: 'operations', state: { branchOwnerId } },
     { path: '/dashboard/branch-owner/daily-store-images', icon: Camera, label: 'Store Images', category: 'monitoring', state: { branchOwnerId } },
     { path: '/dashboard/branch-owner/reports', icon: FileText, label: 'Reports', category: 'monitoring', state: { branchOwnerId } },
+    { path: '/dashboard/branch-owner/profile', icon: Users, label: 'Profile', category: 'main' },
   ];
 
   const categories = {

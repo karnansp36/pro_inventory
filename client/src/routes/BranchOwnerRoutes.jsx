@@ -8,6 +8,7 @@ import StockRequestsPage from '../pages/dashboard/branch-owner/StockRequestsPage
 import TransportPage from '../pages/dashboard/branch-owner/TransportPage';
 import ReportsPage from '../pages/dashboard/branch-owner/ReportsPage';
 import DailyStoreImagePage from '../pages/dashboard/branch-owner/DailyStoreImagePage';
+import UserProfilePage from '../pages/dashboard/UserProfilePage';
 
 const BranchOwnerRoutes = () => {
   return (
@@ -23,6 +24,7 @@ const BranchOwnerRoutes = () => {
         <Route path="transport" element={<TransportPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="daily-store-images" element={<DailyStoreImagePage />} />
+        <Route path="profile" element={<UserProfilePage />} />
         {/* Catch-all: redirect to dashboard if no match */}
         <Route path="*" element={<BranchDashboard />} />
       </Route>

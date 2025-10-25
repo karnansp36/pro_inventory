@@ -10,6 +10,7 @@ import ManagerReportsPage from '../pages/dashboard/manager/ManagerReportsPage';
 import ManagerBranchOwners from '../pages/dashboard/manager/ManagerBranchOwners';
 import ManagerBranchDetails from '../pages/dashboard/manager/ManagerBranchDetails';
 import DailyStoreImageManagerPage from '../pages/dashboard/manager/DailyStoreImageManagerPage';
+import UserProfilePage from '../pages/dashboard/UserProfilePage';
 
 const ManagerRoutes = () => {
   return (
@@ -24,6 +25,7 @@ const ManagerRoutes = () => {
          <Route path="branch-owners" element={<ManagerBranchOwners />} />
         <Route path="branch-owners/:branchId" element={<ManagerBranchDetails />} />
         <Route path="daily-store-images" element={<DailyStoreImageManagerPage />} />
+        <Route path="profile" element={<UserProfilePage />} />
         <Route path="*" element={<ManagerDashboard />} />
       </Route>
     </Routes>

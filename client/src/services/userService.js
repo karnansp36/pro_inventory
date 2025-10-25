@@ -40,7 +40,21 @@ const userService = {
   getUsersByRole: async (role, page = 1, limit = 10) => {
     const response = await api.get(`/users/role/${role}?page=${page}&limit=${limit}`);
     return response.data;
-  }
+  },
+
+  updateUserProfile: async (userData) => {
+    const response = await api.put(`/users/profile`, userData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  getUserProfile: async () => {
+    const response = await api.get(`/users/me`);
+    return response.data;
+  },
 };
 
 export default userService;
