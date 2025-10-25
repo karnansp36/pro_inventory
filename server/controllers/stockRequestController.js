@@ -316,13 +316,35 @@ const getStockRequestsByBranchId = asyncHandler(async (req, res) => {
 // @desc    Get stock requests by brand owner ID with pagination and filtering
 // @route   GET /api/stockrequests/brandowner/:brandOwnerId
 // @access  Private (Admin, BrandOwner)
+// @desc    Get stock requests by brand owner ID with pagination and filtering
+// @route   GET /api/stockrequests/brandowner/:brandOwnerId
+// @access  Private (Admin, BrandOwner)
 const getStockRequestsByBrandOwner = asyncHandler(async (req, res) => {
   const { brandOwnerId } = req.params;
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
-  const managerNameFilter = req.query.managerName || ''; // Added managerNameFilter
-  const statusFilter = req.query.status || '';
+  
+  // Extract filters from query parameters
+  const searchTerm = req.query.searchTerm || '';
+  const statusFilter = req.query.statusFilter || '';
+  const priorityFilter = req.query.priorityFilter || '';
+  const branchOwnerName = req.query.branchOwnerName || '';
+  
+  // Date filter parameters
+  const dateFilterType = req.query.dateFilterType || '';
+  const startDate = req.query.startDate || '';
+  const endDate = req.query.endDate || '';
+
+  console.log('Received filters:', {
+    searchTerm,
+    statusFilter,
+    priorityFilter,
+    branchOwnerName,
+    dateFilterType,
+    startDate,
+    endDate
+  });
 
   const brandOwner = await User.findById(brandOwnerId).populate({
     path: 'assignedManagers',
@@ -336,12 +358,7 @@ const getStockRequestsByBrandOwner = asyncHandler(async (req, res) => {
 
   let relevantManagers = brandOwner.assignedManagers;
 
-  if (managerNameFilter) {
-    relevantManagers = relevantManagers.filter(manager =>
-      manager.name.toLowerCase().includes(managerNameFilter.toLowerCase())
-    );
-  }
-
+  // Get all branch owners from relevant managers
   let branchOwnerIds = [];
   relevantManagers.forEach(manager => {
     if (manager.assignedBranchOwners && manager.assignedBranchOwners.length > 0) {
@@ -360,12 +377,85 @@ const getStockRequestsByBrandOwner = asyncHandler(async (req, res) => {
     });
   }
 
+  // Build the base query
   let query = { branchOwner: { $in: branchOwnerIds } };
 
-  if (statusFilter) {
+  // Apply search filter
+  if (searchTerm) {
+    query.$or = [
+      { productName: { $regex: searchTerm, $options: 'i' } },
+      { 'branchOwner.name': { $regex: searchTerm, $options: 'i' } }
+    ];
+  }
+
+  // Apply status filter
+  if (statusFilter && statusFilter !== 'all') {
     query.status = statusFilter;
   }
 
+  // Apply priority filter
+  if (priorityFilter && priorityFilter !== 'all') {
+    query.priority = priorityFilter;
+  }
+
+  // Apply date filters
+  if (dateFilterType && dateFilterType !== 'all') {
+    let dateQuery = {};
+    
+    switch (dateFilterType) {
+      case 'today':
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        dateQuery = {
+          createdAt: {
+            $gte: today,
+            $lt: tomorrow
+          }
+        };
+        break;
+        
+      case 'week':
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        dateQuery = {
+          createdAt: { $gte: weekAgo }
+        };
+        break;
+        
+      case 'month':
+        const monthAgo = new Date();
+        monthAgo.setDate(monthAgo.getDate() - 30);
+        dateQuery = {
+          createdAt: { $gte: monthAgo }
+        };
+        break;
+        
+      case 'custom':
+        if (startDate && endDate) {
+          const customStart = new Date(startDate);
+          const customEnd = new Date(endDate);
+          customEnd.setHours(23, 59, 59, 999); // End of the day
+          
+          dateQuery = {
+            createdAt: {
+              $gte: customStart,
+              $lte: customEnd
+            }
+          };
+        }
+        break;
+    }
+    
+    if (Object.keys(dateQuery).length > 0) {
+      query = { ...query, ...dateQuery };
+    }
+  }
+
+  console.log('Final query:', JSON.stringify(query, null, 2));
+
+  // Fetch stock requests with the constructed query
   const stockRequests = await StockRequest.find(query)
     .populate('branchOwner', 'name email')
     .sort({ createdAt: -1 })

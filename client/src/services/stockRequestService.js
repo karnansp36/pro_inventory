@@ -42,21 +42,39 @@ const deleteStockRequest = async (requestId) => {
   return response.data;
 };
 // Get stock requests by brand owner with pagination and filters
+// Get stock requests by brand owner with pagination and filters
 const getStockRequestsByBrandOwner = async (brandOwnerId, page = 1, limit = 10, filters = {}) => {
   let url = `/stockrequests/brandowner/${brandOwnerId}?page=${page}&limit=${limit}`;
 
-  // Add filters to the URL
+  // Add filters to the URL - properly serialize each filter
   if (filters) {
     Object.keys(filters).forEach(key => {
-      if (filters[key]) { // Only add filter if it has a value
-        url += `&${key}=${filters[key]}`;
+      if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
+        if (key === 'dateFilter') {
+          // Handle date filter object separately
+          const dateFilter = filters[key];
+          if (dateFilter.type && dateFilter.type !== 'all') {
+            url += `&dateFilterType=${encodeURIComponent(dateFilter.type)}`;
+            if (dateFilter.startDate) {
+              url += `&startDate=${encodeURIComponent(dateFilter.startDate)}`;
+            }
+            if (dateFilter.endDate) {
+              url += `&endDate=${encodeURIComponent(dateFilter.endDate)}`;
+            }
+          }
+        } else {
+          // Handle other filters
+          url += `&${key}=${encodeURIComponent(filters[key])}`;
+        }
       }
     });
   }
 
+  console.log('Final URL:', url);
   const response = await api.get(url);
   return response.data;
 };
+
 const stockRequestService = {
   getStockRequests,
   createStockRequest,

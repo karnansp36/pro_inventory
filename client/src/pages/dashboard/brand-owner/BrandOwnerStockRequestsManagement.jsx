@@ -56,25 +56,45 @@ const BrandOwnerStockRequestsPage = () => {
   const [branchOwnerFilter, setBranchOwnerFilter] = useState('');
 
   // Fetch data when filters/pagination change
-  useEffect(() => {
-    if (currentUser?._id) {
-      const filters = {
-        searchTerm,
-        dateFilter,
-        statusFilter,
-        priorityFilter,
-        branchOwnerName: branchOwnerFilter
-      };
-      
-      dispatch(getStockRequestsByBrandOwner({ 
-        brandOwnerId: currentUser._id, 
-        page: currentPage, 
-        limit: itemsPerPage,
-        filters 
-      }));
+useEffect(() => {
+  if (currentUser?._id) {
+    // Create clean filters object with proper structure
+    const cleanFilters = {};
+    
+    // Add search term if exists
+    if (searchTerm) {
+      cleanFilters.searchTerm = searchTerm;
     }
-  }, [dispatch, currentUser?._id, currentPage, itemsPerPage, searchTerm, dateFilter, statusFilter, priorityFilter, branchOwnerFilter]);
+    
+    // Add status filter if not 'all'
+    if (statusFilter && statusFilter !== 'all') {
+      cleanFilters.statusFilter = statusFilter;
+    }
+    
+    // Add priority filter if not 'all'
+    if (priorityFilter && priorityFilter !== 'all') {
+      cleanFilters.priorityFilter = priorityFilter;
+    }
+    
+    // Add branch owner filter if exists
+    if (branchOwnerFilter) {
+      cleanFilters.branchOwnerName = branchOwnerFilter;
+    }
+    
+    // Add date filter if not 'all' - this will be handled specially in the service
+    if (dateFilter.type !== 'all') {
+      cleanFilters.dateFilter = dateFilter;
+    }
 
+    console.log('Dispatching with filters:', cleanFilters);
+    dispatch(getStockRequestsByBrandOwner({ 
+      brandOwnerId: currentUser._id, 
+      page: currentPage, 
+      limit: itemsPerPage,
+      filters: cleanFilters 
+    }));
+  }
+}, [dispatch, currentUser?._id, currentPage, itemsPerPage, searchTerm, dateFilter, statusFilter, priorityFilter, branchOwnerFilter]);
   useEffect(() => {
     if (error) {
       toast.error(error);
