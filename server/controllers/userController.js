@@ -290,6 +290,115 @@ const updateUser = asyncHandler(async (req, res, next) => {
   });
 });
 
+// @desc    Update user profile
+// @route   PUT /api/users/profile
+// @access  Private
+const updateUserProfile = asyncHandler(async (req, res, next) => {
+  profileImageUpload.single('profileImage')(req, res, async (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ message: 'File too large. Maximum size is 5MB.' });
+      } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        return res.status(400).json({ message: 'Unexpected field in form data.' });
+      } else {
+        return res.status(400).json({ message: `Multer Error: ${err.message}` });
+      }
+    } else if (err) {
+      if (err.message && err.message.includes('Unexpected end of form')) {
+        return next(new Error('Upload Error: Malformed form data or missing file.'));
+      } else {
+        return next(new Error(`Upload Error: ${err.message}`));
+      }
+    }
+
+    try {
+      const user = await User.findById(req.user._id);
+
+      if (user) {
+        user.name = req.body.name || user.name;
+        user.email = req.body.email || user.email;
+        if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
+          user.profileImage = `/uploads/profileImages/${req.files['profileImage'][0].filename}`;
+        } else if (req.body.profileImage === '') {
+          user.profileImage = undefined;
+        }
+
+        if (req.body.password) {
+          user.password = req.body.password; // Mongoose pre-save hook will hash this
+        }
+
+        // Shop Information
+        user.shopName = req.body.shopName !== undefined ? req.body.shopName : user.shopName;
+        user.ownerName = req.body.ownerName !== undefined ? req.body.ownerName : user.ownerName;
+        user.shopType = req.body.shopType !== undefined ? req.body.shopType : user.shopType;
+        user.description = req.body.description !== undefined ? req.body.description : user.description;
+        user.establishedYear = req.body.establishedYear !== undefined ? req.body.establishedYear : user.establishedYear;
+
+        // Contact Information
+        user.phoneNumbers = req.body.phoneNumbers !== undefined ? req.body.phoneNumbers : user.phoneNumbers;
+        user.emailAddress = req.body.emailAddress !== undefined ? req.body.emailAddress : user.emailAddress;
+        user.websiteLinks = req.body.websiteLinks !== undefined ? req.body.websiteLinks : user.websiteLinks;
+        user.socialMediaLinks = req.body.socialMediaLinks !== undefined ? req.body.socialMediaLinks : user.socialMediaLinks;
+        user.messagingLinks = req.body.messagingLinks !== undefined ? req.body.messagingLinks : user.messagingLinks;
+
+        // Location & Address
+        user.fullAddress = req.body.fullAddress !== undefined ? req.body.fullAddress : user.fullAddress;
+        user.landmark = req.body.landmark !== undefined ? req.body.landmark : user.landmark;
+        user.googleMapsLink = req.body.googleMapsLink !== undefined ? req.body.googleMapsLink : user.googleMapsLink;
+        user.operatingArea = req.body.operatingArea !== undefined ? req.body.operatingArea : user.operatingArea;
+        user.deliveryArea = req.body.deliveryArea !== undefined ? req.body.deliveryArea : user.deliveryArea;
+
+        // Operating Details
+        user.openingClosingTimes = req.body.openingClosingTimes !== undefined ? req.body.openingClosingTimes : user.openingClosingTimes;
+        user.holidays = req.body.holidays !== undefined ? req.body.holidays : user.holidays;
+        user.availableServices = req.body.availableServices !== undefined ? req.body.availableServices : user.availableServices;
+
+        // Products / Services Offered
+        user.productCategories = req.body.productCategories !== undefined ? req.body.productCategories : user.productCategories;
+        user.productHighlights = req.body.productHighlights !== undefined ? req.body.productHighlights : user.productHighlights;
+        user.serviceDetails = req.body.serviceDetails !== undefined ? req.body.serviceDetails : user.serviceDetails;
+
+
+        const updatedUser = await user.save();
+
+        res.json({
+          _id: updatedUser._id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          role: updatedUser.role,
+          profileImage: updatedUser.profileImage,
+          shopName: updatedUser.shopName,
+          ownerName: updatedUser.ownerName,
+          shopType: updatedUser.shopType,
+          description: updatedUser.description,
+          establishedYear: updatedUser.establishedYear,
+          phoneNumbers: updatedUser.phoneNumbers,
+          emailAddress: updatedUser.emailAddress,
+          websiteLinks: updatedUser.websiteLinks,
+          socialMediaLinks: updatedUser.socialMediaLinks,
+          messagingLinks: updatedUser.messagingLinks,
+          fullAddress: updatedUser.fullAddress,
+          landmark: updatedUser.landmark,
+          googleMapsLink: updatedUser.googleMapsLink,
+          operatingArea: updatedUser.operatingArea,
+          deliveryArea: updatedUser.deliveryArea,
+          openingClosingTimes: updatedUser.openingClosingTimes,
+          holidays: updatedUser.holidays,
+          availableServices: updatedUser.availableServices,
+          productCategories: updatedUser.productCategories,
+          productHighlights: updatedUser.productHighlights,
+          serviceDetails: updatedUser.serviceDetails,
+        });
+      } else {
+        res.status(404);
+        throw new Error('User not found');
+      }
+    } catch (error) {
+      next(error);
+    }
+  });
+});
+
 // @desc    Delete user (Admin only)
 // @route   DELETE /api/users/:id
 // @access  Private/Admin
@@ -533,6 +642,7 @@ export {
   getUsersByRole,
   assignUser,
   getUserHierarchy,
+  updateUserProfile,
   refreshAccessToken,
   logoutUser,
   generateRefreshToken, // Export for testing if needed, but not for direct route use

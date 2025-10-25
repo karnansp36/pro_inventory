@@ -9,6 +9,7 @@ import {
   assignUser,
   getUserHierarchy,
   createUserByAdmin,
+  updateUserProfile,
 } from '../controllers/userController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 import { profileImageUpload } from '../middleware/profileImageUploadMiddleware.js';
@@ -16,6 +17,9 @@ import { profileImageUpload } from '../middleware/profileImageUploadMiddleware.j
 router.route('/')
   .get(protect, authorizeRoles('Admin', 'Manager'), getUsers)
   .post(protect, authorizeRoles('Admin'), profileImageUpload.single('profileImage'), createUserByAdmin);
+
+router.route('/profile')
+  .put(protect, profileImageUpload.fields([{ name: 'profileImage', maxCount: 1 }]), updateUserProfile);
 
 router.route('/role/:role')
   .get(protect, authorizeRoles('Admin', 'BrandOwner'), getUsersByRole);

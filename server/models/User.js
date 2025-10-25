@@ -60,6 +60,111 @@ const userSchema = mongoose.Schema(
       type: Date,
       required: false,
     },
+    // Shop Information (Optional for BranchOwner role)
+    shopName: {
+      type: String,
+      required: false,
+    },
+    ownerName: {
+      type: String,
+      required: false,
+    },
+    shopType: {
+      type: String,
+      required: false,
+    },
+    description: {
+      type: String,
+      required: false,
+    },
+    establishedYear: {
+      type: Number,
+      required: false,
+    },
+    // Contact Information (Optional for BranchOwner role)
+    phoneNumbers: [
+      {
+        type: String,
+        required: false,
+      },
+    ],
+    emailAddress: {
+      type: String,
+      required: false,
+    },
+    websiteLinks: [
+      {
+        type: String,
+        required: false,
+      },
+    ],
+    socialMediaLinks: [
+      {
+        type: String,
+        required: false,
+      },
+    ],
+    messagingLinks: [
+      {
+        type: String,
+        required: false,
+      },
+    ],
+    // Location & Address (Optional for BranchOwner role)
+    fullAddress: {
+      type: String,
+      required: false,
+    },
+    landmark: {
+      type: String,
+      required: false,
+    },
+    googleMapsLink: {
+      type: String,
+      required: false,
+    },
+    operatingArea: {
+      type: String,
+      required: false,
+    },
+    deliveryArea: {
+      type: String,
+      required: false,
+    },
+    // Operating Details (Optional for BranchOwner role)
+    openingClosingTimes: {
+      type: String,
+      required: false,
+    },
+    holidays: {
+      type: String,
+      required: false,
+    },
+    availableServices: [
+      {
+        type: String,
+        required: false,
+      },
+    ],
+    // Products / Services Offered (Optional for BranchOwner role)
+    productCategories: [
+      {
+        type: String,
+        required: false,
+      },
+    ],
+    productHighlights: [
+      {
+        type: String,
+        required: false,
+      },
+    ],
+    serviceDetails: [
+      {
+        type: String,
+        required: false,
+      },
+    ],
   },
   {
     timestamps: true,
