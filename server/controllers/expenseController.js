@@ -413,7 +413,12 @@ const getExpensesByBrandOwner = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
-  const managerNameFilter = req.query.managerName || '';
+  
+  // Get all filters from query
+  const search = req.query.search || '';
+  const category = req.query.category || '';
+  const branchOwnerName = req.query.branchOwnerName || '';
+  const dateFilter = req.query.dateFilter ? JSON.parse(req.query.dateFilter) : null;
 
   const brandOwner = await User.findById(brandOwnerId).populate({
     path: 'assignedManagers',
@@ -427,12 +432,7 @@ const getExpensesByBrandOwner = asyncHandler(async (req, res) => {
 
   let relevantManagers = brandOwner.assignedManagers;
 
-  if (managerNameFilter) {
-    relevantManagers = relevantManagers.filter(manager =>
-      manager.name.toLowerCase().includes(managerNameFilter.toLowerCase())
-    );
-  }
-
+  // Get all branch owner IDs from all managers
   let branchOwnerIds = [];
   relevantManagers.forEach(manager => {
     if (manager.assignedBranchOwners && manager.assignedBranchOwners.length > 0) {
@@ -451,13 +451,75 @@ const getExpensesByBrandOwner = asyncHandler(async (req, res) => {
     });
   }
 
-  const expenses = await Expense.find({ branchOwner: { $in: branchOwnerIds } })
+  // Build the base query
+  let query = { branchOwner: { $in: branchOwnerIds } };
+
+  // Apply search filter
+  if (search) {
+    query.$or = [
+      { description: { $regex: search, $options: 'i' } },
+      { category: { $regex: search, $options: 'i' } }
+    ];
+  }
+
+  // Apply category filter
+  if (category) {
+    query.category = category;
+  }
+
+  // Apply branch owner name filter
+  if (branchOwnerName) {
+    // We'll populate and filter after the main query since we need to filter by populated field
+  }
+
+  // Apply date filter
+  if (dateFilter && dateFilter.type !== 'all') {
+    const today = new Date();
+    let startDate = new Date();
+    
+    switch (dateFilter.type) {
+      case 'today':
+        startDate.setHours(0, 0, 0, 0);
+        query.date = { $gte: startDate, $lte: today };
+        break;
+      case 'week':
+        startDate.setDate(today.getDate() - 7);
+        startDate.setHours(0, 0, 0, 0);
+        query.date = { $gte: startDate, $lte: today };
+        break;
+      case 'month':
+        startDate.setMonth(today.getMonth() - 1);
+        startDate.setHours(0, 0, 0, 0);
+        query.date = { $gte: startDate, $lte: today };
+        break;
+      case 'custom':
+        if (dateFilter.startDate && dateFilter.endDate) {
+          const start = new Date(dateFilter.startDate);
+          const end = new Date(dateFilter.endDate);
+          end.setHours(23, 59, 59, 999);
+          query.date = { $gte: start, $lte: end };
+        }
+        break;
+    }
+  }
+
+  // Get total count for pagination
+  const totalItems = await Expense.countDocuments(query);
+
+  // Get paginated expenses
+  let expenses = await Expense.find(query)
     .populate('branchOwner', 'name email')
     .sort({ date: -1 })
     .limit(limit)
     .skip(skip);
 
-  const totalItems = await Expense.countDocuments({ branchOwner: { $in: branchOwnerIds } });
+  // Apply branch owner name filter on populated data (client-side in this case)
+  // For better performance, you might want to use aggregation pipeline
+  if (branchOwnerName) {
+    expenses = expenses.filter(expense => 
+      expense.branchOwner?.name?.toLowerCase().includes(branchOwnerName.toLowerCase())
+    );
+  }
 
   res.status(200).json({
     expenses,

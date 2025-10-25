@@ -41,24 +41,34 @@ const BrandOwnerSalesManagement = () => {
     endDate: ''
   });
   const [branchFilter, setBranchFilter] = useState('');
-
-  useEffect(() => {
-    if (currentUser?._id) {
-      const filters = {
-        searchTerm,
-        dateFilter,
-        branchFilter
-      };
-      
-      dispatch(getSalesByBrandOwner({ 
-        brandOwnerId: currentUser._id, 
-        page: currentPage, 
-        limit: itemsPerPage,
-        filters 
-      }));
+useEffect(() => {
+  if (currentUser?._id) {
+    // Create clean filters object
+    const cleanFilters = {};
+    
+    // Add search term if exists
+    if (searchTerm) {
+      cleanFilters.searchTerm = searchTerm;
     }
-  }, [dispatch, currentUser?._id, currentPage, itemsPerPage, searchTerm, dateFilter, branchFilter]);
+    
+    // Add branch filter if exists
+    if (branchFilter) {
+      cleanFilters.branchFilter = branchFilter;
+    }
+    
+    // Add date filter if not 'all'
+    if (dateFilter.type !== 'all') {
+      cleanFilters.dateFilter = dateFilter;
+    }
 
+    dispatch(getSalesByBrandOwner({ 
+      brandOwnerId: currentUser._id, 
+      page: currentPage, 
+      limit: itemsPerPage,
+      filters: cleanFilters 
+    }));
+  }
+}, [dispatch, currentUser?._id, currentPage, itemsPerPage, searchTerm, dateFilter, branchFilter]);
   useEffect(() => {
     if (error) {
       toast.error(error);

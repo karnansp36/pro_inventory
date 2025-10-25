@@ -31,21 +31,29 @@ const salesService = {
     return response.data;
   },
 
-  getSalesByBrandOwner: async (brandOwnerId, page = 1, limit = 10, filters = {}) => {
-    let url = `/sales/brandowner/${brandOwnerId}?page=${page}&limit=${limit}`;
+ getSalesByBrandOwner: async (brandOwnerId, page = 1, limit = 10, filters = {}) => {
+  // Create URLSearchParams to handle proper URL encoding
+  const params = new URLSearchParams({
+    page: page.toString(),
+    limit: limit.toString()
+  });
 
-    // Add filters to the URL
-    if (filters) {
-      Object.keys(filters).forEach(key => {
-        if (filters[key]) { // Only add filter if it has a value
-          url += `&${key}=${filters[key]}`;
-        }
-      });
-    }
-
-    const response = await api.get(url);
-    return response.data;
+  // Add filters to the URLSearchParams
+  if (filters) {
+    Object.keys(filters).forEach(key => {
+      if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
+        // Stringify objects, leave strings/numbers as is
+        const value = typeof filters[key] === 'object' 
+          ? JSON.stringify(filters[key])
+          : filters[key];
+        params.append(key, value);
+      }
+    });
   }
+
+  const response = await api.get(`/sales/brandowner/${brandOwnerId}?${params.toString()}`);
+  return response.data;
+}
 };
 
 export default salesService;

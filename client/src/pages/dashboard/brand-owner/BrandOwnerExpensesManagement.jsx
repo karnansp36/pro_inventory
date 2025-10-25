@@ -60,26 +60,33 @@ const BrandOwnerExpensesManagement = () => {
 
   const categories = ['Rent', 'Utilities', 'Supplies', 'Salaries', 'Maintenance', 'Marketing', 'Transportation', 'Other'];
 
-  // Fetch expenses with filters
-  useEffect(() => {
-    if (currentUser?._id) {
-      const filters = {
-        page: currentPage,
-        limit: itemsPerPage,
-        search: searchTerm,
-        category: categoryFilter !== 'all' ? categoryFilter : undefined,
-        dateFilter: dateFilter.type !== 'all' ? dateFilter : undefined,
-        branchOwnerName: branchOwnerFilter || undefined
-      };
+// In your BrandOwnerExpensesManagement component - Update the useEffect
+useEffect(() => {
+  if (currentUser?._id) {
+    const filters = {
+      search: searchTerm || undefined,
+      category: categoryFilter !== 'all' ? categoryFilter : undefined,
+      branchOwnerName: branchOwnerFilter || undefined,
+      dateFilter: dateFilter.type !== 'all' ? JSON.stringify(dateFilter) : undefined
+    };
 
-      dispatch(getExpensesByBrandOwner({ 
-        brandOwnerId: currentUser._id, 
-        filters 
-      }));
-    }
-  }, [dispatch, currentUser?._id, currentPage, itemsPerPage, searchTerm, categoryFilter, dateFilter, branchOwnerFilter]);
+    // Remove undefined values
+    const cleanFilters = {};
+    Object.keys(filters).forEach(key => {
+      if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
+        cleanFilters[key] = filters[key];
+      }
+    });
 
-  useEffect(() => {
+    dispatch(getExpensesByBrandOwner({ 
+      brandOwnerId: currentUser._id, 
+      page: currentPage,
+      limit: itemsPerPage,
+      filters: cleanFilters 
+    }));
+  }
+}, [dispatch, currentUser?._id, currentPage, itemsPerPage, searchTerm, categoryFilter, dateFilter, branchOwnerFilter]);
+useEffect(() => {
     if (error) {
       toast.error(error);
     }

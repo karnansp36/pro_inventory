@@ -43,22 +43,29 @@ const expensesService = {
     return response.data;
   },
 
-  // NEW: Get expenses by brand owner with filtering
-  getExpensesByBrandOwner: async (brandOwnerId, page = 1, limit = 10, filters = {}) => {
-    let url = `/expenses/brandowner/${brandOwnerId}?page=${page}&limit=${limit}`;
+ // In expensesService.js - Enhanced version
+getExpensesByBrandOwner: async (brandOwnerId, page = 1, limit = 10, filters = {}) => {
+  // Create params object with direct page/limit (these take priority)
+  const params = {
+    page: page.toString(),
+    limit: limit.toString()
+  };
 
-    // Add filters to the URL
-    if (filters) {
-      Object.keys(filters).forEach(key => {
-        if (filters[key]) { // Only add filter if it has a value
-          url += `&${key}=${filters[key]}`;
-        }
-      });
-    }
-
-    const response = await api.get(url);
-    return response.data;
+  // Merge filters, but exclude page and limit from filters to avoid conflicts
+  if (filters) {
+    Object.keys(filters).forEach(key => {
+      // Skip page and limit from filters since we already have them
+      if (key !== 'page' && key !== 'limit' && 
+          filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
+        params[key] = filters[key];
+      }
+    });
   }
+
+  const queryString = new URLSearchParams(params).toString();
+  const response = await api.get(`/expenses/brandowner/${brandOwnerId}?${queryString}`);
+  return response.data;
+}
 
 };
 

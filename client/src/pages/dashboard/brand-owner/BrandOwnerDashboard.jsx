@@ -11,10 +11,10 @@ const BrandOwnerDashboard = () => {
   const { sales } = useSelector((state) => state.sales)
   const { stockRequests } = useSelector((state) => state.stockRequests)
 
-  useEffect(() => {
-    dispatch(getSales())
-    dispatch(getStockRequests())
-  }, [dispatch, user?._id])
+  // useEffect(() => {
+  //   dispatch(getSales())
+  //   dispatch(getStockRequests())
+  // }, [dispatch, user?._id])
 
   // Filter data for assigned branches only
   const assignedSales = sales?.filter(sale => 
