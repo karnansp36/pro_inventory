@@ -6,7 +6,8 @@ import SalesTable from './SalesTable';
 import { useDispatch, useSelector } from 'react-redux';
 import { getDailyReportsByBranch, createDailyReport } from '../../../store/slices/dailyReportSlice';
 import { useTheme } from '../../../context/ThemeContext';
-import { DollarSign, X, Plus, Wallet, CreditCard, Banknote, Receipt, TrendingUp, Calendar, CheckCircle2, AlertCircle } from 'lucide-react';
+import { DollarSign, X, Plus, Wallet, CreditCard, Banknote, Receipt, TrendingUp, Calendar, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import Modal from '../../../components/Modal';
 
 const SalesPage = () => {
   const location = useLocation();
@@ -18,6 +19,7 @@ const SalesPage = () => {
   const [refreshTable, setRefreshTable] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   
   // Daily report state
   const [gpay, setGpay] = useState('');
@@ -60,13 +62,27 @@ const SalesPage = () => {
     return total - exp;
   };
 
-  // Save daily report
-  const handleSaveReport = async () => {
+  // Save daily report (show confirm modal)
+  const handleSaveReport = () => {
+    setShowConfirmModal(true);
+  };
+
+  // Helper to get today's date in IST (YYYY-MM-DD)
+  const getTodayIST = () => {
+    const now = new Date();
+    // IST is UTC+5:30
+    const istOffsetMs = 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(now.getTime() + istOffsetMs);
+    return istDate.toISOString().split('T')[0];
+  };
+
+  // Actually save after confirmation
+  const confirmSaveReport = async () => {
     if (!branchOwnerId) {
       console.error('No branchOwnerId found');
+      setShowConfirmModal(false);
       return;
     }
-
     setSavingReport(true);
     try {
       await dispatch(createDailyReport({
@@ -75,10 +91,8 @@ const SalesPage = () => {
         card: parseFloat(card) || 0,
         cash: parseFloat(cash) || 0,
         expenses: parseFloat(expenses) || 0,
-        date: new Date().toISOString().split('T')[0]
+        date: getTodayIST()
       })).unwrap();
-      
-      // Clear form and show success
       setGpay(''); 
       setCard(''); 
       setCash(''); 
@@ -90,6 +104,7 @@ const SalesPage = () => {
       console.error('Failed to save report:', error);
     } finally {
       setSavingReport(false);
+      setShowConfirmModal(false);
     }
   };
 
@@ -416,25 +431,15 @@ const SalesPage = () => {
               <button 
                 onClick={handleSaveReport} 
                 disabled={savingReport || !branchOwnerId}
-                className={`w-full px-6 py-4 rounded-xl font-bold text-lg text-white transition-all duration-300 transform hover:scale-[1.02] shadow-lg ${
+                className={`px-6 py-3 rounded-xl font-semibold text-white ${
                   savingReport || !branchOwnerId 
                     ? 'bg-gray-400 cursor-not-allowed' 
                     : isDark 
-                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 hover:shadow-xl' 
-                      : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 hover:shadow-xl'
-                } disabled:transform-none`}
+                      ? 'bg-blue-600 hover:bg-blue-700' 
+                      : 'bg-emerald-600 hover:bg-emerald-700'
+                } transition-all duration-300`}
               >
-                {savingReport ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Saving Report...
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    <CheckCircle2 className="w-5 h-5" />
-                    Save Daily Report
-                  </span>
-                )}
+                {savingReport ? 'Saving...' : 'Save Report'}
               </button>
 
               {/* Error Messages */}
@@ -492,6 +497,132 @@ const SalesPage = () => {
             />
           </div>
         </div>
+
+        {/* Enhanced Confirm Save Modal */}
+        {showConfirmModal && (
+          <Modal onClose={() => setShowConfirmModal(false)} title="">
+            <div className="space-y-6 p-2">
+              {/* Icon Section */}
+              <div className="flex justify-center">
+                <div className={`p-4 rounded-full ${
+                  isDark 
+                    ? 'bg-emerald-500/20 border-2 border-emerald-500/30' 
+                    : 'bg-emerald-100 border-2 border-emerald-200'
+                }`}>
+                  <CheckCircle2 className={`w-12 h-12 ${
+                    isDark ? 'text-emerald-400' : 'text-emerald-600'
+                  }`} />
+                </div>
+              </div>
+
+              {/* Message Section */}
+              <div className="text-center space-y-2">
+                <h3 className={`text-xl font-bold ${
+                  isDark ? 'text-white' : 'text-gray-900'
+                }`}>
+                  Save Daily Shop Report?
+                </h3>
+                <p className={`text-sm ${
+                  isDark ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  This action will save the current daily shop report. You can edit it later if needed.
+                </p>
+              </div>
+
+              {/* Report Summary */}
+              <div className={`p-4 rounded-xl border ${
+                isDark
+                  ? 'bg-slate-900/50 border-slate-700/50'
+                  : 'bg-gray-50 border-gray-200'
+              }`}>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className={`text-sm font-medium ${
+                      isDark ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                      Date:
+                    </span>
+                    <span className={`text-sm font-semibold ${
+                      isDark ? 'text-red-400' : 'text-red-600'
+                    }`}>
+                      ₹{(Number(expenses) || 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className={`border-t-2 ${isDark ? 'border-slate-700' : 'border-gray-300'}`}></div>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-base font-bold ${
+                      isDark ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      Total Collection:
+                    </span>
+                    <span className={`text-lg font-bold ${
+                      isDark ? 'text-emerald-400' : 'text-emerald-600'
+                    }`}>
+                      ₹{calculateTotal().toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-base font-bold ${
+                      isDark ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      Net Income:
+                    </span>
+                    <span className={`text-lg font-bold ${
+                      calculateNet() >= 0
+                        ? isDark ? 'text-green-400' : 'text-green-600'
+                        : isDark ? 'text-red-400' : 'text-red-600'
+                    }`}>
+                      ₹{calculateNet().toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all duration-200 ${
+                    isDark
+                      ? 'bg-slate-700 text-gray-300 hover:bg-slate-600 border border-slate-600'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
+                  }`}
+                  onClick={() => setShowConfirmModal(false)}
+                  disabled={savingReport}
+                >
+                  Cancel
+                </button>
+                <button
+                  className={`flex-1 px-6 py-3 rounded-xl font-semibold text-white transition-all duration-200 flex items-center justify-center gap-2 ${
+                    savingReport
+                      ? 'bg-emerald-500 cursor-not-allowed opacity-75'
+                      : 'bg-emerald-600 hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-500/30 transform hover:scale-105'
+                  }`}
+                  onClick={confirmSaveReport}
+                  disabled={savingReport}
+                >
+                  {savingReport ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-5 h-5" />
+                      <span>Confirm Save</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Helper Text */}
+              <p className={`text-xs text-center ${
+                isDark ? 'text-gray-500' : 'text-gray-500'
+              }`}>
+                This report will be saved to your daily records and can be viewed in the table below
+              </p>
+            </div>
+          </Modal>
+        )}
       </div>
     </div>
   );
