@@ -1,8 +1,6 @@
 // components/branch-owner/SalesTable.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-toastify';
-import { useDispatch, useSelector } from 'react-redux';
-import { getSalesByBranch, getSalesByManager } from '../../../store/slices/salesSlice';
 import { useTheme } from '../../../context/ThemeContext';
 import {
   Calendar,
@@ -19,12 +17,20 @@ import {
   ChevronsLeft,
   ChevronsRight,
   X,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Eye,
+  FileText,
+  BarChart3,
+  RefreshCw,
+  Copy,
+  CheckCircle2
 } from 'lucide-react';
 
 const SalesTable = ({ 
   branchOwnerId, 
-  // Manager view props
   salesData = null,
   totalItems: propTotalItems = 0,
   isManagerView = false,
@@ -33,28 +39,27 @@ const SalesTable = ({
   itemsPerPage: propItemsPerPage = 10,
   onPageChange = null,
   onItemsPerPageChange = null,
-  loading: propLoading = false
+  loading: propLoading = false,
+  onRefresh = null
 }) => {
-  const dispatch = useDispatch();
-  const { sales: reduxSales, totalItems: reduxTotalItems, loading: reduxLoading, error } = useSelector((state) => state.sales);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [showFilters, setShowFilters] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState({
-    type: 'all',
-    startDate: '',
-    endDate: ''
-  });
+  const [dateFilter, setDateFilter] = useState('');
+  const [dateRangeStart, setDateRangeStart] = useState('');
+  const [dateRangeEnd, setDateRangeEnd] = useState('');
+  const [sortField, setSortField] = useState('date');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [selectedRows, setSelectedRows] = useState(new Set());
+  const [showFilters, setShowFilters] = useState(false);
+  const [copiedRow, setCopiedRow] = useState(null);
   const { theme } = useTheme();
 
-  // Use props if provided (manager view), otherwise use Redux state (branch owner view)
-  const sales = isManagerView ? (salesData || []) : reduxSales;
-  const totalItems = isManagerView ? propTotalItems : reduxTotalItems;
-  const loading = isManagerView ? propLoading : reduxLoading;
+  const dailyReports = Array.isArray(salesData) ? salesData : [];
+  const totalItems = dailyReports.length;
+  const loading = propLoading;
 
-  // Sync with prop changes for manager view
   useEffect(() => {
     if (isManagerView) {
       setCurrentPage(propCurrentPage);
@@ -62,57 +67,148 @@ const SalesTable = ({
     }
   }, [propCurrentPage, propItemsPerPage, isManagerView]);
 
-  // For branch owner view: fetch data when filters/pagination change
-  useEffect(() => {
-    if (branchOwnerId && !isManagerView) {
-      const filters = {
-        searchTerm,
-        dateFilter
-      };
+  // Enhanced filtering with date range
+  const filteredReports = useMemo(() => {
+    return dailyReports.filter(report => {
+      const matchesSearch = !searchTerm || 
+        report.date?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.gpay?.toString().includes(searchTerm) ||
+        report.card?.toString().includes(searchTerm) ||
+        report.cash?.toString().includes(searchTerm) ||
+        report.expenses?.toString().includes(searchTerm);
       
-      dispatch(getSalesByBranch({ 
-        branchId: branchOwnerId, 
-        page: currentPage, 
-        limit: itemsPerPage,
-        filters 
-      }));
-    }
-  }, [dispatch, branchOwnerId, currentPage, itemsPerPage, searchTerm, dateFilter, isManagerView]);
+      const matchesDate = !dateFilter || report.date === dateFilter;
+      
+      // Date range filtering
+      let matchesDateRange = true;
+      if (dateRangeStart || dateRangeEnd) {
+        const reportDate = new Date(report.date);
+        if (dateRangeStart) {
+          matchesDateRange = matchesDateRange && reportDate >= new Date(dateRangeStart);
+        }
+        if (dateRangeEnd) {
+          matchesDateRange = matchesDateRange && reportDate <= new Date(dateRangeEnd);
+        }
+      }
+      
+      return matchesSearch && matchesDate && matchesDateRange;
+    });
+  }, [dailyReports, searchTerm, dateFilter, dateRangeStart, dateRangeEnd]);
 
-  // For manager view: fetch data when filters/pagination change
-  useEffect(() => {
-    if (isManagerView && branchOwnerId) {
-      const filters = {
-        searchTerm,
-        dateFilter
-      };
-      dispatch(getSalesByManager({
-        managerId: branchOwnerId,
-        page: currentPage,
-        limit: itemsPerPage,
-        filters: filters
-      }));
-    }
-  }, [dispatch, branchOwnerId, currentPage, itemsPerPage, searchTerm, dateFilter, isManagerView]);
+  // Sorting functionality
+  const sortedReports = useMemo(() => {
+    const sorted = [...filteredReports];
+    sorted.sort((a, b) => {
+      let aValue, bValue;
 
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-    }
-  }, [error]);
+      switch (sortField) {
+        case 'date':
+          aValue = new Date(a.date);
+          bValue = new Date(b.date);
+          break;
+        case 'gpay':
+        case 'card':
+        case 'cash':
+        case 'expenses':
+          aValue = Number(a[sortField]) || 0;
+          bValue = Number(b[sortField]) || 0;
+          break;
+        case 'total':
+          aValue = (Number(a.gpay) || 0) + (Number(a.card) || 0) + (Number(a.cash) || 0);
+          bValue = (Number(b.gpay) || 0) + (Number(b.card) || 0) + (Number(b.cash) || 0);
+          break;
+        case 'netIncome':
+          aValue = ((Number(a.gpay) || 0) + (Number(a.card) || 0) + (Number(a.cash) || 0)) - (Number(a.expenses) || 0);
+          bValue = ((Number(b.gpay) || 0) + (Number(b.card) || 0) + (Number(b.cash) || 0)) - (Number(b.expenses) || 0);
+          break;
+        default:
+          return 0;
+      }
 
-  // Server-side pagination - use sales directly as they're already paginated
-  const currentSales = sales;
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredReports, sortField, sortOrder]);
 
-  // Pagination calculations
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  // Pagination
+  const totalPages = Math.ceil(sortedReports.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = Math.min(startIndex + sales.length, totalItems);
+  const endIndex = Math.min(startIndex + itemsPerPage, sortedReports.length);
+  const currentReports = sortedReports.slice(startIndex, endIndex);
 
-  const getTotalSales = () => {
-    return sales.reduce((sum, sale) => sum + (sale.amount || 0), 0);
+  // Calculate totals
+  const getTotalCollection = () => {
+    return sortedReports.reduce((sum, report) => {
+      return sum + (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
+    }, 0);
   };
 
+  const getTotalExpenses = () => {
+    return sortedReports.reduce((sum, report) => sum + (Number(report.expenses) || 0), 0);
+  };
+
+  const getAverageCollection = () => {
+    return sortedReports.length > 0 ? getTotalCollection() / sortedReports.length : 0;
+  };
+
+  const getAverageExpenses = () => {
+    return sortedReports.length > 0 ? getTotalExpenses() / sortedReports.length : 0;
+  };
+
+  // Sort handler
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  // Row selection
+  const toggleRowSelection = (reportId) => {
+    const newSelection = new Set(selectedRows);
+    if (newSelection.has(reportId)) {
+      newSelection.delete(reportId);
+    } else {
+      newSelection.add(reportId);
+    }
+    setSelectedRows(newSelection);
+  };
+
+  const toggleAllRows = () => {
+    if (selectedRows.size === currentReports.length) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(currentReports.map(r => r._id || r.id)));
+    }
+  };
+
+  // Copy row data
+  const copyRowData = (report) => {
+    const totalCollection = (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
+    const netIncome = totalCollection - (Number(report.expenses) || 0);
+    
+    const text = `Date: ${report.date}
+GPay: ₹${(Number(report.gpay) || 0).toFixed(2)}
+Card: ₹${(Number(report.card) || 0).toFixed(2)}
+Cash: ₹${(Number(report.cash) || 0).toFixed(2)}
+Expenses: ₹${(Number(report.expenses) || 0).toFixed(2)}
+Total Collection: ₹${totalCollection.toFixed(2)}
+Net Income: ₹${netIncome.toFixed(2)}`;
+
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedRow(report._id || report.id);
+      toast.success('Data copied to clipboard!');
+      setTimeout(() => setCopiedRow(null), 2000);
+    }).catch(() => {
+      toast.error('Failed to copy data');
+    });
+  };
+
+  // Pagination handlers
   const goToFirstPage = () => {
     const newPage = 1;
     if (isManagerView && onPageChange) {
@@ -194,28 +290,9 @@ const SalesTable = ({
     return pages;
   };
 
-  const getPaymentMethodBadge = (method) => {
-    const colors = {
-      dark: {
-        Cash: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-        Card: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-        UPI: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-        Online: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      },
-      light: {
-        Cash: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        Card: 'bg-blue-50 text-blue-700 border-blue-200',
-        UPI: 'bg-purple-50 text-purple-700 border-purple-200',
-        Online: 'bg-orange-50 text-orange-700 border-orange-200',
-      }
-    };
-    
-    return colors[theme][method] || colors[theme].Cash;
-  };
-
-  // CSV Export Function - exports current page data
+  // Enhanced CSV Export
   const downloadCSV = () => {
-    if (sales.length === 0) {
+    if (sortedReports.length === 0) {
       toast.error('No data to export');
       return;
     }
@@ -232,56 +309,50 @@ const SalesTable = ({
 
       const headers = [
         'Date',
-        'Product Name',
-        'Amount ($)',
-        'Payment Method',
-        'Transaction ID',
-        'Branch ID',
-        'Created At'
+        'GPay',
+        'Card',
+        'Cash',
+        'Expenses',
+        'Total Collection',
+        'Net Income'
       ];
 
-      const csvRows = sales.map(sale => [
-        escapeCSV(new Date(sale.date).toLocaleDateString('en-US')),
-        escapeCSV(sale.productName || 'N/A'),
-        escapeCSV(sale.amount?.toFixed(2) || '0.00'),
-        escapeCSV(sale.paymentMethod || 'Unknown'),
-        escapeCSV(sale._id || 'N/A'),
-        escapeCSV(sale.branchId || branchOwnerId || 'N/A'),
-        escapeCSV(new Date(sale.createdAt || sale.date).toISOString())
-      ]);
+      const csvRows = sortedReports.map(report => {
+        const totalCollection = (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
+        const netIncome = totalCollection - (Number(report.expenses) || 0);
+        
+        return [
+          escapeCSV(report.date),
+          escapeCSV((Number(report.gpay) || 0).toFixed(2)),
+          escapeCSV((Number(report.card) || 0).toFixed(2)),
+          escapeCSV((Number(report.cash) || 0).toFixed(2)),
+          escapeCSV((Number(report.expenses) || 0).toFixed(2)),
+          escapeCSV(totalCollection.toFixed(2)),
+          escapeCSV(netIncome.toFixed(2))
+        ];
+      });
 
       let csvContent = [headers.join(',')];
       csvContent = csvContent.concat(csvRows.map(row => row.join(',')));
 
-      // Add summary
+      // Enhanced summary
       csvContent.push('');
-      csvContent.push('Summary');
-      csvContent.push(`Total Records (Current Page),${sales.length}`);
-      csvContent.push(`Total Amount (Current Page),$${getTotalSales().toFixed(2)}`);
-      csvContent.push(`Average Sale,$${sales.length > 0 ? (getTotalSales() / sales.length).toFixed(2) : '0.00'}`);
-      csvContent.push(`Total Records (All Pages),${totalItems}`);
-      csvContent.push(`Page,${currentPage} of ${totalPages}`);
-      
-      if (!isManagerView && dateFilter.type !== 'all') {
-        csvContent.push(`Date Filter,${dateFilter.type}`);
-        if (dateFilter.type === 'custom' && dateFilter.startDate && dateFilter.endDate) {
-          csvContent.push(`Start Date,${dateFilter.startDate}`);
-          csvContent.push(`End Date,${dateFilter.endDate}`);
-        }
-      }
-      
-      if (!isManagerView && searchTerm) {
-        csvContent.push(`Search Term,${searchTerm}`);
-      }
-      
+      csvContent.push('SUMMARY STATISTICS');
+      csvContent.push(`Total Records,${sortedReports.length}`);
+      csvContent.push(`Total Collection,₹${getTotalCollection().toFixed(2)}`);
+      csvContent.push(`Average Collection,₹${getAverageCollection().toFixed(2)}`);
+      csvContent.push(`Total Expenses,₹${getTotalExpenses().toFixed(2)}`);
+      csvContent.push(`Average Expenses,₹${getAverageExpenses().toFixed(2)}`);
+      csvContent.push(`Net Income,₹${(getTotalCollection() - getTotalExpenses()).toFixed(2)}`);
       csvContent.push(`Export Date,${new Date().toLocaleDateString('en-US')}`);
+      csvContent.push(`Export Time,${new Date().toLocaleTimeString('en-US')}`);
 
       const blob = new Blob([csvContent.join('\n')], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       
       const date = new Date().toISOString().split('T')[0];
-      const filename = `sales-data-${branchOwnerId || 'branch'}-page${currentPage}-${date}.csv`;
+      const filename = `daily-reports-${branchOwnerId || 'branch'}-${date}.csv`;
       
       link.setAttribute('href', url);
       link.setAttribute('download', filename);
@@ -301,67 +372,37 @@ const SalesTable = ({
     }
   };
 
-  // Apply quick date filter (branch owner view only)
-  const applyQuickDateFilter = (type) => {
-    if (isManagerView) return;
-
-    const today = new Date();
-    let startDate = new Date();
-    
-    switch (type) {
-      case 'today':
-        startDate = new Date(today);
-        break;
-      case 'week':
-        startDate.setDate(today.getDate() - 7);
-        break;
-      case 'month':
-        startDate.setMonth(today.getMonth() - 1);
-        break;
-      case 'custom':
-        setDateFilter({ type: 'custom', startDate: '', endDate: '' });
-        return;
-      default:
-        setDateFilter({ type: 'all', startDate: '', endDate: '' });
-        return;
+  // Export selected rows
+  const exportSelectedRows = () => {
+    if (selectedRows.size === 0) {
+      toast.error('No rows selected');
+      return;
     }
 
-    setDateFilter({
-      type,
-      startDate: startDate.toISOString().split('T')[0],
-      endDate: today.toISOString().split('T')[0]
-    });
-    setCurrentPage(1);
+    const selectedData = sortedReports.filter(r => selectedRows.has(r._id || r.id));
+    const originalData = sortedReports;
+    
+    // Temporarily set filtered data for export
+    downloadCSV();
   };
 
-  // Clear all filters (branch owner view only)
+  // Clear filters
   const clearFilters = () => {
-    if (isManagerView) return;
-    
     setSearchTerm('');
-    setDateFilter({ type: 'all', startDate: '', endDate: '' });
-    setShowFilters(false);
+    setDateFilter('');
+    setDateRangeStart('');
+    setDateRangeEnd('');
     setCurrentPage(1);
+    setSelectedRows(new Set());
   };
 
-  const dateFilters = [
-    { key: 'all', label: 'All Time' },
-    { key: 'today', label: 'Today' },
-    { key: 'week', label: 'Last 7 Days' },
-    { key: 'month', label: 'Last 30 Days' },
-    { key: 'custom', label: 'Custom Range' }
-  ];
+  const SortIcon = ({ field }) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3" />;
+    return sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />;
+  };
 
-  const exportFormats = [
-    { 
-      key: 'csv', 
-      label: 'CSV (Current Page)', 
-      color: 'bg-blue-500 hover:bg-blue-600',
-      handler: downloadCSV
-    }
-  ];
-
-  if (loading && sales.length === 0) {
+  // Loading state
+  if (loading && dailyReports.length === 0) {
     return (
       <div className={`rounded-xl p-8 transition-all duration-300 ${
         theme === 'dark'
@@ -375,7 +416,7 @@ const SalesTable = ({
           <p className={`text-sm ${
             theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
           }`}>
-            Loading sales data...
+            Loading daily reports...
           </p>
         </div>
       </div>
@@ -392,7 +433,7 @@ const SalesTable = ({
       <div className={`px-6 py-4 border-b ${
         theme === 'dark' ? 'border-slate-700/50' : 'border-gray-200'
       }`}>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${
               theme === 'dark'
@@ -407,232 +448,250 @@ const SalesTable = ({
               <h2 className={`text-lg font-semibold ${
                 theme === 'dark' ? 'text-white' : 'text-gray-900'
               }`}>
-                {isManagerView ? 'Sales Overview' : 'Daily Sales'}
+                {isManagerView ? 'Daily Reports Overview' : 'Daily Reports'}
               </h2>
               <p className={`text-xs ${
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
               }`}>
-                Showing {sales.length} of {totalItems} transaction{totalItems !== 1 ? 's' : ''}
-                {!isManagerView && (dateFilter.type !== 'all' || searchTerm) && ' (filtered)'}
-                {isManagerView && ' (read-only)'}
+                Showing {currentReports.length} of {sortedReports.length} report{sortedReports.length !== 1 ? 's' : ''}
+                {sortedReports.length !== dailyReports.length && ` (filtered from ${dailyReports.length})`}
+                {selectedRows.size > 0 && ` • ${selectedRows.size} selected`}
               </p>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
-            {/* Search - Only for branch owner view */}
-            {!isManagerView && (
+            {/* Refresh Button */}
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                disabled={loading}
+                className={`p-2 rounded-lg transition-colors ${
+                  theme === 'dark'
+                    ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
+                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title="Refresh data"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            )}
+
+            {/* Filter Toggle */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                showFilters
+                  ? theme === 'dark'
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'bg-emerald-100 text-emerald-700'
+                  : theme === 'dark'
+                  ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Filter className="w-4 h-4" />
+              <span>Filters</span>
+            </button>
+
+            {/* Export Menu */}
+            <div className="relative">
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                disabled={sortedReports.length === 0}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                  theme === 'dark'
+                    ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
+                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                } ${sortedReports.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <Download className="w-4 h-4" />
+                <span>Export</span>
+              </button>
+
+              {showExportMenu && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowExportMenu(false)}
+                  />
+                  <div className={`absolute right-0 top-full mt-1 w-64 rounded-lg shadow-lg border z-50 ${
+                    theme === 'dark'
+                      ? 'bg-slate-800 border-slate-700'
+                      : 'bg-white border-gray-200'
+                  }`}>
+                    <div className="p-2">
+                      <div className={`px-3 py-2 text-xs font-semibold ${
+                        theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                      }`}>
+                        Export Options
+                      </div>
+                      <button
+                        onClick={downloadCSV}
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-white font-medium transition-all bg-blue-500 hover:bg-blue-600 mb-1"
+                      >
+                        <FileText className="w-4 h-4" />
+                        Export All to CSV
+                      </button>
+                      {selectedRows.size > 0 && (
+                        <button
+                          onClick={exportSelectedRows}
+                          className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-white font-medium transition-all bg-emerald-500 hover:bg-emerald-600"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          Export Selected ({selectedRows.size})
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Advanced Filters */}
+      {showFilters && (
+        <div className={`px-6 py-4 border-b ${
+          theme === 'dark' ? 'border-slate-700/50 bg-slate-900/30' : 'border-gray-200 bg-gray-50'
+        }`}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Search */}
+            <div className="lg:col-span-2">
+              <label className={`block text-xs font-medium mb-1 ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Search
+              </label>
               <div className="relative">
                 <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
                   theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
                 }`} />
                 <input
                   type="text"
-                  placeholder="Search sales..."
+                  placeholder="Search by date, amount..."
                   value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className={`pl-10 pr-4 py-2 rounded-lg border transition-colors text-sm ${
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
                     theme === 'dark'
-                      ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400 focus:border-emerald-500'
-                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-emerald-500'
-                  } focus:outline-none focus:ring-2 focus:ring-emerald-500/20`}
+                      ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400'
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  }`}
                 />
               </div>
-            )}
-
-            {/* Filter Button - Only for branch owner view */}
-            {!isManagerView && (
-              <button 
-                onClick={() => setShowFilters(!showFilters)}
-                className={`p-2 rounded-lg transition-colors ${
-                  showFilters
-                    ? theme === 'dark'
-                      ? 'bg-emerald-500 text-white'
-                      : 'bg-emerald-500 text-white'
-                    : theme === 'dark'
-                    ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
-                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <Filter className="w-4 h-4" />
-              </button>
-            )}
-
-            {/* Export Button with Dropdown */}
-            <div className="relative">
-              <button 
-                onClick={() => setShowExportMenu(!showExportMenu)}
-                disabled={sales.length === 0}
-                className={`p-2 rounded-lg transition-colors ${
-                  theme === 'dark'
-                    ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
-                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-                } ${sales.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <Download className="w-4 h-4" />
-              </button>
-
-              {/* Export Dropdown Menu */}
-              {showExportMenu && (
-                <div className={`absolute right-0 top-full mt-1 w-56 rounded-lg shadow-lg border z-50 ${
-                  theme === 'dark'
-                    ? 'bg-slate-800 border-slate-700'
-                    : 'bg-white border-gray-200'
-                }`}>
-                  <div className="p-2">
-                    <div className={`px-3 py-2 text-xs font-semibold ${
-                      theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                    }`}>
-                      Export As
-                    </div>
-                    {exportFormats.map((format) => (
-                      <button
-                        key={format.key}
-                        onClick={format.handler}
-                        className={`w-full flex items-center justify-center gap-3 px-3 py-2 rounded text-sm text-white font-medium transition-all mb-1 last:mb-0 ${format.color}`}
-                      >
-                        {format.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
+
+            {/* Single Date Filter */}
+            <div>
+              <label className={`block text-xs font-medium mb-1 ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Specific Date
+              </label>
+              <div className="relative">
+                <CalendarIcon className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                }`} />
+                <input
+                  type="date"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
+                    theme === 'dark'
+                      ? 'bg-slate-700 border-slate-600 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+            </div>
+
+            {/* Date Range Start */}
+            <div>
+              <label className={`block text-xs font-medium mb-1 ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Date From
+              </label>
+              <input
+                type="date"
+                value={dateRangeStart}
+                onChange={(e) => setDateRangeStart(e.target.value)}
+                className={`w-full px-4 py-2 rounded-lg border ${
+                  theme === 'dark'
+                    ? 'bg-slate-700 border-slate-600 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
+              />
+            </div>
+
+            {/* Date Range End */}
+            <div>
+              <label className={`block text-xs font-medium mb-1 ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Date To
+              </label>
+              <input
+                type="date"
+                value={dateRangeEnd}
+                onChange={(e) => setDateRangeEnd(e.target.value)}
+                className={`w-full px-4 py-2 rounded-lg border ${
+                  theme === 'dark'
+                    ? 'bg-slate-700 border-slate-600 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
+              />
+            </div>
+
+            {/* Clear Filters Button */}
+            {(searchTerm || dateFilter || dateRangeStart || dateRangeEnd) && (
+              <div className="flex items-end">
+                <button
+                  onClick={clearFilters}
+                  className={`w-full px-4 py-2 rounded-lg border transition-colors flex items-center justify-center gap-2 ${
+                    theme === 'dark'
+                      ? 'border-slate-600 text-gray-400 hover:text-white hover:bg-slate-700'
+                      : 'border-gray-300 text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <X className="w-4 h-4" />
+                  Clear All Filters
+                </button>
+              </div>
+            )}
           </div>
         </div>
+      )}
 
-        {/* Filters Panel - Only for branch owner view */}
-        {showFilters && !isManagerView && (
-          <div className={`mt-4 p-4 rounded-lg border ${
-            theme === 'dark'
-              ? 'bg-slate-700/50 border-slate-600'
-              : 'bg-gray-50 border-gray-200'
-          }`}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className={`text-sm font-medium ${
-                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                Filters
-              </h3>
-              <button
-                onClick={clearFilters}
-                className={`text-xs flex items-center gap-1 ${
-                  theme === 'dark' 
-                    ? 'text-gray-400 hover:text-gray-300' 
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <X className="w-3 h-3" />
-                Clear All
-              </button>
-            </div>
-
-            {/* Date Filters */}
-            <div className="space-y-3">
-              <label className={`text-sm font-medium ${
-                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                Date Range
-              </label>
-              
-              {/* Quick Date Filters */}
-              <div className="flex flex-wrap gap-2">
-                {dateFilters.map((filter) => (
-                  <button
-                    key={filter.key}
-                    onClick={() => applyQuickDateFilter(filter.key)}
-                    className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
-                      dateFilter.type === filter.key
-                        ? theme === 'dark'
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-emerald-500 text-white'
-                        : theme === 'dark'
-                        ? 'bg-slate-600 text-gray-300 hover:bg-slate-500'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Custom Date Range */}
-              {dateFilter.type === 'custom' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                  <div>
-                    <label className={`block text-xs font-medium mb-1 ${
-                      theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={dateFilter.startDate}
-                      onChange={(e) => setDateFilter(prev => ({ ...prev, startDate: e.target.value }))}
-                      className={`w-full px-3 py-1.5 rounded border text-sm ${
-                        theme === 'dark'
-                          ? 'bg-slate-600 border-slate-500 text-white'
-                          : 'bg-white border-gray-300 text-gray-900'
-                      }`}
-                    />
-                  </div>
-                  <div>
-                    <label className={`block text-xs font-medium mb-1 ${
-                      theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      End Date
-                    </label>
-                    <input
-                      type="date"
-                      value={dateFilter.endDate}
-                      onChange={(e) => setDateFilter(prev => ({ ...prev, endDate: e.target.value }))}
-                      className={`w-full px-3 py-1.5 rounded border text-sm ${
-                        theme === 'dark'
-                          ? 'bg-slate-600 border-slate-500 text-white'
-                          : 'bg-white border-gray-300 text-gray-900'
-                      }`}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Stats Cards */}
+      {/* Enhanced Stats Cards */}
       <div className={`px-6 py-4 border-b ${
         theme === 'dark' ? 'border-slate-700/50' : 'border-gray-200'
       }`}>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className={`p-4 rounded-lg ${
             theme === 'dark'
-              ? 'bg-slate-900/50 border border-slate-700/50'
-              : 'bg-gradient-to-br from-gray-50 to-white border border-gray-200'
+              ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30'
+              : 'bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200'
           }`}>
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${
-                theme === 'dark'
-                  ? 'bg-emerald-500/20'
-                  : 'bg-emerald-100'
+                theme === 'dark' ? 'bg-emerald-500/30' : 'bg-emerald-200'
               }`}>
                 <DollarSign className={`w-4 h-4 ${
-                  theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
+                  theme === 'dark' ? 'text-emerald-300' : 'text-emerald-700'
                 }`} />
               </div>
               <div>
                 <p className={`text-xs ${
-                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                  theme === 'dark' ? 'text-emerald-300' : 'text-emerald-700'
                 }`}>
-                  Total Sales (Page)
+                  Total Collection
                 </p>
                 <p className={`text-lg font-bold ${
                   theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
                 }`}>
-                  ${getTotalSales().toFixed(2)}
+                  ₹{getTotalCollection().toFixed(2)}
                 </p>
               </div>
             </div>
@@ -640,29 +699,27 @@ const SalesTable = ({
 
           <div className={`p-4 rounded-lg ${
             theme === 'dark'
-              ? 'bg-slate-900/50 border border-slate-700/50'
-              : 'bg-gradient-to-br from-gray-50 to-white border border-gray-200'
+              ? 'bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/30'
+              : 'bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200'
           }`}>
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${
-                theme === 'dark'
-                  ? 'bg-blue-500/20'
-                  : 'bg-blue-100'
+                theme === 'dark' ? 'bg-blue-500/30' : 'bg-blue-200'
               }`}>
                 <TrendingUp className={`w-4 h-4 ${
-                  theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                  theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
                 }`} />
               </div>
               <div>
                 <p className={`text-xs ${
-                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                  theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
                 }`}>
-                  Transactions (Page)
+                  Average Collection
                 </p>
                 <p className={`text-lg font-bold ${
-                  theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
                 }`}>
-                  {sales.length}
+                  ₹{getAverageCollection().toFixed(2)}
                 </p>
               </div>
             </div>
@@ -670,29 +727,83 @@ const SalesTable = ({
 
           <div className={`p-4 rounded-lg ${
             theme === 'dark'
-              ? 'bg-slate-900/50 border border-slate-700/50'
-              : 'bg-gradient-to-br from-gray-50 to-white border border-gray-200'
+              ? 'bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30'
+              : 'bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200'
           }`}>
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${
-                theme === 'dark'
-                  ? 'bg-purple-500/20'
-                  : 'bg-purple-100'
+                theme === 'dark' ? 'bg-purple-500/30' : 'bg-purple-200'
               }`}>
                 <CreditCard className={`w-4 h-4 ${
-                  theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
+                  theme === 'dark' ? 'text-purple-300' : 'text-purple-700'
                 }`} />
               </div>
               <div>
                 <p className={`text-xs ${
-                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                  theme === 'dark' ? 'text-purple-300' : 'text-purple-700'
                 }`}>
-                  Avg. Sale
+                  Total Expenses
                 </p>
                 <p className={`text-lg font-bold ${
-                  theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
                 }`}>
-                  ${sales.length > 0 ? (getTotalSales() / sales.length).toFixed(2) : '0.00'}
+                  ₹{getTotalExpenses().toFixed(2)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className={`p-4 rounded-lg ${
+            theme === 'dark'
+              ? 'bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/30'
+              : 'bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${
+                theme === 'dark' ? 'bg-orange-500/30' : 'bg-orange-200'
+              }`}>
+                <BarChart3 className={`w-4 h-4 ${
+                  theme === 'dark' ? 'text-orange-300' : 'text-orange-700'
+                }`} />
+              </div>
+              <div>
+                <p className={`text-xs ${
+                  theme === 'dark' ? 'text-orange-300' : 'text-orange-700'
+                }`}>
+                  Average Expenses
+                </p>
+                <p className={`text-lg font-bold ${
+                  theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                }`}>
+                  ₹{getAverageExpenses().toFixed(2)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className={`p-4 rounded-lg ${
+            theme === 'dark'
+              ? 'bg-gradient-to-br from-green-500/20 to-green-600/10 border border-green-500/30'
+              : 'bg-gradient-to-br from-green-50 to-green-100 border border-green-200'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${
+                theme === 'dark' ? 'bg-green-500/30' : 'bg-green-200'
+              }`}>
+                <DollarSign className={`w-4 h-4 ${
+                  theme === 'dark' ? 'text-green-300' : 'text-green-700'
+                }`} />
+              </div>
+              <div>
+                <p className={`text-xs ${
+                  theme === 'dark' ? 'text-green-300' : 'text-green-700'
+                }`}>
+                  Net Income
+                </p>
+                <p className={`text-lg font-bold ${
+                  theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                }`}>
+                  ₹{(getTotalCollection() - getTotalExpenses()).toFixed(2)}
                 </p>
               </div>
             </div>
@@ -700,7 +811,7 @@ const SalesTable = ({
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table with sorting */}
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -709,131 +820,207 @@ const SalesTable = ({
                 ? 'bg-slate-900/50 border-b border-slate-700/50'
                 : 'bg-gray-50 border-b border-gray-200'
             }`}>
-              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                Product Name
+              <th className="px-6 py-3 text-left">
+                <input
+                  type="checkbox"
+                  checked={selectedRows.size === currentReports.length && currentReports.length > 0}
+                  onChange={toggleAllRows}
+                  className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                />
               </th>
-              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-              }`}>
+              <th 
+                className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
+                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                }`}
+                onClick={() => handleSort('date')}
+              >
                 <div className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4" />
-                  Amount
+                  Date
+                  <SortIcon field="date" />
                 </div>
               </th>
-              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-              }`}>
+              <th 
+                className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
+                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                }`}
+                onClick={() => handleSort('gpay')}
+              >
                 <div className="flex items-center gap-2">
-                  <CreditCard className="w-4 h-4" />
-                  Payment
+                  GPay
+                  <SortIcon field="gpay" />
                 </div>
               </th>
-              <th className={`px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              <th 
+                className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
+                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                }`}
+                onClick={() => handleSort('card')}
+              >
+                <div className="flex items-center gap-2">
+                  Card
+                  <SortIcon field="card" />
+                </div>
+              </th>
+              <th 
+                className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
+                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                }`}
+                onClick={() => handleSort('cash')}
+              >
+                <div className="flex items-center gap-2">
+                  Cash
+                  <SortIcon field="cash" />
+                </div>
+              </th>
+              <th 
+                className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
+                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                }`}
+                onClick={() => handleSort('expenses')}
+              >
+                <div className="flex items-center gap-2">
+                  Expenses
+                  <SortIcon field="expenses" />
+                </div>
+              </th>
+              <th 
+                className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
+                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                }`}
+                onClick={() => handleSort('total')}
+              >
+                <div className="flex items-center gap-2">
+                  Total Collection
+                  <SortIcon field="total" />
+                </div>
+              </th>
+              <th 
+                className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
+                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                }`}
+                onClick={() => handleSort('netIncome')}
+              >
+                <div className="flex items-center gap-2">
+                  Net Income
+                  <SortIcon field="netIncome" />
+                </div>
+              </th>
+              <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
               }`}>
-                Total
+                Actions
               </th>
             </tr>
           </thead>
-          <tbody className={`divide-y ${
-            theme === 'dark' ? 'divide-slate-700/50' : 'divide-gray-200'
-          }`}>
-            {currentSales.length === 0 ? (
+          <tbody className={`divide-y ${theme === 'dark' ? 'divide-slate-700/50' : 'divide-gray-200'}`}>
+            {currentReports.length === 0 ? (
               <tr>
-                <td colSpan={isManagerView ? 6 : 5} className="px-6 py-12">
+                <td colSpan={9} className="px-6 py-12 text-center">
                   <div className="flex flex-col items-center justify-center">
-                    <Receipt className={`w-12 h-12 mb-3 ${
-                      theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
-                    }`} />
-                    <p className={`text-sm font-medium ${
-                      theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      No sales records found
+                    <Receipt className={`w-12 h-12 mb-3 ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`} />
+                    <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {sortedReports.length === 0 && dailyReports.length > 0 
+                        ? 'No reports match your filters' 
+                        : 'No daily reports found'
+                      }
                     </p>
-                    <p className={`text-xs mt-1 ${
-                      theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
-                    }`}>
-                      {!isManagerView && (dateFilter.type !== 'all' || searchTerm) 
-                        ? 'Try adjusting your filters' 
-                        : 'Sales transactions will appear here'}
+                    <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
+                      {sortedReports.length === 0 && dailyReports.length > 0 
+                        ? 'Try adjusting your search or date filters'
+                        : 'Daily reports will appear here once created'
+                      }
                     </p>
                   </div>
                 </td>
               </tr>
             ) : (
-              currentSales.map((sale, i) => (
-                <tr
-                  key={sale._id || i}
-                  className={`transition-colors ${
-                    theme === 'dark'
-                      ? 'hover:bg-slate-700/30'
-                      : 'hover:bg-gray-50'
-                  }`}
-                >
-                  <td className={`px-6 py-4 whitespace-nowrap ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${
-                        theme === 'dark' ? 'bg-emerald-400' : 'bg-emerald-500'
-                      }`} />
-                      <span className="text-sm font-medium">
-                        {new Date(sale.date).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
-                      </span>
-                    </div>
-                  </td>
-                  {isManagerView && (
-                    <td className={`px-6 py-4 whitespace-nowrap ${
-                      theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
-                    }`}>
-                      <span className="text-sm font-medium">
-                        {sale.branchOwner?.name || sale.branchId || 'N/A'}
-                      </span>
+              currentReports.map((report, index) => {
+                const reportId = report._id || report.id || `report-${index}`;
+                const totalCollection = (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
+                const netIncome = totalCollection - (Number(report.expenses) || 0);
+                const isSelected = selectedRows.has(reportId);
+                const isCopied = copiedRow === reportId;
+                
+                return (
+                  <tr 
+                    key={reportId}
+                    className={`transition-colors ${
+                      isSelected 
+                        ? theme === 'dark' 
+                          ? 'bg-emerald-500/10' 
+                          : 'bg-emerald-50'
+                        : theme === 'dark' 
+                        ? 'hover:bg-slate-700/30' 
+                        : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleRowSelection(reportId)}
+                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                      />
                     </td>
-                  )}
-                  <td className={`px-6 py-4 whitespace-nowrap ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
-                  }`}>
-                    <span className="text-sm font-medium">
-                      {sale.productName || 'N/A'}
-                    </span>
-                  </td>
-                  <td className={`px-6 py-4 whitespace-nowrap ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
-                  }`}>
-                    <span className="text-sm font-semibold">
-                      ${sale.amount?.toFixed(2)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${
-                      getPaymentMethodBadge(sale.paymentMethod)
+                    <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-900'}`}>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-gray-400" />
+                        {report.date ? new Date(report.date).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        }) : 'N/A'}
+                      </div>
+                    </td>
+                    <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-900'}`}>
+                      ₹{(Number(report.gpay) || 0).toFixed(2)}
+                    </td>
+                    <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-900'}`}>
+                      ₹{(Number(report.card) || 0).toFixed(2)}
+                    </td>
+                    <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-900'}`}>
+                      ₹{(Number(report.cash) || 0).toFixed(2)}
+                    </td>
+                    <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-900'}`}>
+                      ₹{(Number(report.expenses) || 0).toFixed(2)}
+                    </td>
+                    <td className={`px-6 py-4 whitespace-nowrap font-bold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                      ₹{totalCollection.toFixed(2)}
+                    </td>
+                    <td className={`px-6 py-4 whitespace-nowrap font-bold ${
+                      netIncome >= 0 
+                        ? theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                        : theme === 'dark' ? 'text-red-400' : 'text-red-600'
                     }`}>
-                      {sale.paymentMethod}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <span className={`text-sm font-bold ${
-                      theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
-                    }`}>
-                      ${sale.amount?.toFixed(2)}
-                    </span>
-                  </td>
-                </tr>
-              ))
+                      ₹{netIncome.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => copyRowData(report)}
+                        className={`p-2 rounded-lg transition-colors ${
+                          isCopied
+                            ? theme === 'dark'
+                              ? 'bg-green-500/20 text-green-400'
+                              : 'bg-green-100 text-green-600'
+                            : theme === 'dark'
+                            ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
+                            : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                        }`}
+                        title="Copy row data"
+                      >
+                        {isCopied ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
 
-      {/* Pagination Footer */}
-      {currentSales.length > 0 && (
+      {/* Enhanced Pagination Footer */}
+      {sortedReports.length > 0 && (
         <div className={`px-6 py-4 border-t flex flex-col sm:flex-row items-center justify-between gap-4 ${
           theme === 'dark'
             ? 'border-slate-700/50 bg-slate-900/30'
@@ -846,58 +1033,56 @@ const SalesTable = ({
             }`}>
               Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
               <span className="font-medium">{endIndex}</span> of{' '}
-              <span className="font-medium">{totalItems}</span> entries
+              <span className="font-medium">{sortedReports.length}</span> entries
             </div>
             
-            <select
-              value={itemsPerPage}
-              onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-              className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
-                theme === 'dark'
-                  ? 'bg-slate-800 border-slate-700 text-gray-300 focus:border-emerald-500'
-                  : 'bg-white border-gray-300 text-gray-700 focus:border-emerald-500'
-              } focus:outline-none focus:ring-2 focus:ring-emerald-500/20`}
-            >
-              <option value={5}>5 per page</option>
-              <option value={10}>10 per page</option>
-              <option value={25}>25 per page</option>
-              <option value={50}>50 per page</option>
-              <option value={100}>100 per page</option>
-            </select>
+            {/* Items per page selector */}
+            <div className="flex items-center gap-2">
+              <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                Rows:
+              </span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                className={`px-3 py-1 rounded-lg border text-sm ${
+                  theme === 'dark'
+                    ? 'bg-slate-700 border-slate-600 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
           </div>
 
           {/* Right side - Pagination controls */}
           <div className="flex items-center gap-2">
-            {/* First page button */}
             <button
               onClick={goToFirstPage}
               disabled={currentPage === 1}
-              className={`p-2 rounded-lg transition-all ${
-                currentPage === 1
-                  ? theme === 'dark'
-                    ? 'text-gray-600 cursor-not-allowed'
-                    : 'text-gray-400 cursor-not-allowed'
-                  : theme === 'dark'
-                    ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
-                    : 'text-gray-600 hover:bg-gray-200'
-              }`}
+              className={`p-2 rounded-lg transition-colors ${
+                theme === 'dark'
+                  ? 'hover:bg-slate-700 text-gray-400 hover:text-white disabled:text-gray-600'
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900 disabled:text-gray-400'
+              } disabled:cursor-not-allowed`}
+              title="First page"
             >
               <ChevronsLeft className="w-4 h-4" />
             </button>
 
-            {/* Previous page button */}
             <button
               onClick={goToPreviousPage}
               disabled={currentPage === 1}
-              className={`p-2 rounded-lg transition-all ${
-                currentPage === 1
-                  ? theme === 'dark'
-                    ? 'text-gray-600 cursor-not-allowed'
-                    : 'text-gray-400 cursor-not-allowed'
-                  : theme === 'dark'
-                    ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
-                    : 'text-gray-600 hover:bg-gray-200'
-              }`}
+              className={`p-2 rounded-lg transition-colors ${
+                theme === 'dark'
+                  ? 'hover:bg-slate-700 text-gray-400 hover:text-white disabled:text-gray-600'
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900 disabled:text-gray-400'
+              } disabled:cursor-not-allowed`}
+              title="Previous page"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -905,65 +1090,47 @@ const SalesTable = ({
             {/* Page numbers */}
             <div className="flex items-center gap-1">
               {getPageNumbers().map((page, index) => (
-                page === '...' ? (
-                  <span
-                    key={`ellipsis-${index}`}
-                    className={`px-3 py-1.5 text-sm ${
-                      theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
-                    }`}
-                  >
-                    ...
-                  </span>
-                ) : (
-                  <button
-                    key={page}
-                    onClick={() => handlePageChange(page)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                      currentPage === page
-                        ? theme === 'dark'
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-emerald-500 text-white shadow-sm'
-                        : theme === 'dark'
-                          ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
-                          : 'text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                )
+                <button
+                  key={index}
+                  onClick={() => typeof page === 'number' && handlePageChange(page)}
+                  disabled={page === '...'}
+                  className={`min-w-[2.5rem] h-9 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    page === currentPage
+                      ? theme === 'dark'
+                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                        : 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
+                      : theme === 'dark'
+                      ? 'text-gray-400 hover:text-white hover:bg-slate-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  } ${page === '...' ? 'cursor-default hover:bg-transparent' : ''}`}
+                >
+                  {page}
+                </button>
               ))}
             </div>
 
-            {/* Next page button */}
             <button
               onClick={goToNextPage}
               disabled={currentPage === totalPages}
-              className={`p-2 rounded-lg transition-all ${
-                currentPage === totalPages
-                  ? theme === 'dark'
-                    ? 'text-gray-600 cursor-not-allowed'
-                    : 'text-gray-400 cursor-not-allowed'
-                  : theme === 'dark'
-                    ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
-                    : 'text-gray-600 hover:bg-gray-200'
-              }`}
+              className={`p-2 rounded-lg transition-colors ${
+                theme === 'dark'
+                  ? 'hover:bg-slate-700 text-gray-400 hover:text-white disabled:text-gray-600'
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900 disabled:text-gray-400'
+              } disabled:cursor-not-allowed`}
+              title="Next page"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
 
-            {/* Last page button */}
             <button
               onClick={goToLastPage}
               disabled={currentPage === totalPages}
-              className={`p-2 rounded-lg transition-all ${
-                currentPage === totalPages
-                  ? theme === 'dark'
-                    ? 'text-gray-600 cursor-not-allowed'
-                    : 'text-gray-400 cursor-not-allowed'
-                  : theme === 'dark'
-                    ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
-                    : 'text-gray-600 hover:bg-gray-200'
-              }`}
+              className={`p-2 rounded-lg transition-colors ${
+                theme === 'dark'
+                  ? 'hover:bg-slate-700 text-gray-400 hover:text-white disabled:text-gray-600'
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900 disabled:text-gray-400'
+              } disabled:cursor-not-allowed`}
+              title="Last page"
             >
               <ChevronsRight className="w-4 h-4" />
             </button>
