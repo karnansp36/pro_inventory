@@ -1,5 +1,5 @@
 // components/branch-owner/TransportTable.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTheme } from '../../../context/ThemeContext';
 import { getTransportsByBranch, getTransportsByManager } from '../../../store/slices/transportSlice';
@@ -32,7 +32,8 @@ const TransportTable = ({
   itemsPerPage: propItemsPerPage = 10,
   onPageChange = null,
   onItemsPerPageChange = null,
-  loading: propLoading = false
+  loading: propLoading = false,
+  refreshSignal = 0
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -71,42 +72,41 @@ const TransportTable = ({
     }
   }, [propCurrentPage, propItemsPerPage, isManagerView]);
 
-  // For branch owner view: fetch data when filters/pagination change
-  useEffect(() => {
-    if (branchOwnerId && !isManagerView) {
-      const filters = {
-        searchTerm,
-        dateFilter,
-        statusFilter,
-        locationFilter
-      };
-      
-      dispatch(getTransportsByBranch({ 
-        branchId: branchOwnerId, 
-        page: currentPage, 
-        limit: itemsPerPage,
-        filters 
-      }));
-    }
-  }, [dispatch, branchOwnerId, currentPage, itemsPerPage, searchTerm, dateFilter, statusFilter, locationFilter, isManagerView]);
+  // Memoize filter objects to prevent infinite loop
+  const memoizedDateFilter = useMemo(() => dateFilter, [dateFilter.type, dateFilter.startDate, dateFilter.endDate]);
+  const memoizedFilters = useMemo(() => ({
+    searchTerm,
+    dateFilter: memoizedDateFilter,
+    statusFilter,
+    locationFilter
+  }), [searchTerm, memoizedDateFilter, statusFilter, locationFilter]);
 
-  // For manager view: fetch data when filters/pagination change
-  useEffect(() => {
+  // Memoized fetch functions
+  const fetchBranchTransports = useCallback(() => {
+    if (branchOwnerId && !isManagerView) {
+      dispatch(getTransportsByBranch({ branchId: branchOwnerId, page: currentPage, limit: itemsPerPage }));
+    }
+  }, [branchOwnerId, isManagerView, currentPage, itemsPerPage, dispatch]);
+
+  const fetchManagerTransports = useCallback(() => {
     if (isManagerView && branchOwnerId) {
-      const filters = {
-        searchTerm,
-        dateFilter,
-        statusFilter,
-        locationFilter
-      };
       dispatch(getTransportsByManager({
         managerId: branchOwnerId,
         page: currentPage,
         limit: itemsPerPage,
-        filters: filters
+        filters: memoizedFilters
       }));
     }
-  }, [dispatch, branchOwnerId, currentPage, itemsPerPage, searchTerm, dateFilter, statusFilter, locationFilter, isManagerView]);
+  }, [dispatch, branchOwnerId, currentPage, itemsPerPage, memoizedFilters, isManagerView]);
+
+  // Initial fetch and refresh handling
+  useEffect(() => {
+    if (isManagerView) {
+      fetchManagerTransports();
+    } else {
+      fetchBranchTransports();
+    }
+  }, [fetchBranchTransports, fetchManagerTransports, isManagerView, refreshSignal]);
 
   useEffect(() => {
     if (error) {
