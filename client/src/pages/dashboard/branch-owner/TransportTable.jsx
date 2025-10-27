@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTheme } from '../../../context/ThemeContext';
-import { getTransportsByBranch, getTransportsByManager } from '../../../store/slices/transportSlice';
+import { getTransportsByBranch, getTransportsByManager, updateTransport } from '../../../store/slices/transportSlice';
 import { toast } from 'react-toastify';
 import {
   Search,
@@ -18,7 +18,9 @@ import {
   Package,
   CheckCircle,
   Clock,
-  Loader2
+  Loader2,
+  Edit,
+  Save
 } from 'lucide-react';
 
 const TransportTable = ({ 
@@ -58,6 +60,9 @@ const TransportTable = ({
   });
   const [statusFilter, setStatusFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('all');
+  const [editingTransportId, setEditingTransportId] = useState(null);
+  const [receivedQuantities, setReceivedQuantities] = useState({});
+  const [complaints, setComplaints] = useState({});
 
   // Use props if provided (manager view), otherwise use Redux state (branch owner view)
   const transports = isManagerView ? (transportsData || []) : reduxTransports;
@@ -108,11 +113,50 @@ const TransportTable = ({
     }
   }, [fetchBranchTransports, fetchManagerTransports, isManagerView, refreshSignal]);
 
+  // Initialize receivedQuantities and complaints when transports load
+  useEffect(() => {
+    const initialQuantities = {};
+    const initialComplaints = {};
+    transports.forEach(transport => {
+      initialQuantities[transport._id] = transport.receivedQuantity || '';
+      initialComplaints[transport._id] = transport.complaints || '';
+    });
+    setReceivedQuantities(initialQuantities);
+    setComplaints(initialComplaints);
+  }, [transports]);
+
   useEffect(() => {
     if (error) {
       toast.error(error);
     }
   }, [error]);
+
+  // Handle update transport
+  const handleUpdateTransport = async (transportId) => {
+    try {
+      const transportData = {
+        receivedQuantity: parseInt(receivedQuantities[transportId]) || 0,
+        complaints: complaints[transportId] || ''
+      };
+
+      await dispatch(updateTransport({ 
+        id: transportId, 
+        transportData 
+      })).unwrap();
+
+      toast.success('Transport updated successfully!');
+      setEditingTransportId(null);
+      
+      // Refresh the table data
+      if (isManagerView) {
+        fetchManagerTransports();
+      } else {
+        fetchBranchTransports();
+      }
+    } catch (error) {
+      toast.error(error.message || 'Failed to update transport');
+    }
+  };
 
   // Server-side pagination - use transports directly as they're already paginated
   const currentItems = transports;
@@ -255,6 +299,7 @@ const TransportTable = ({
         'To Location',
         'Sent Quantity',
         'Received Quantity',
+        'Complaints',
         'Status',
         'Transport ID',
         'Branch ID',
@@ -268,6 +313,7 @@ const TransportTable = ({
         escapeCSV(transport.to || 'N/A'),
         escapeCSV(transport.quantity || '0'),
         escapeCSV(transport.receivedQuantity || '0'),
+        escapeCSV(transport.complaints || 'N/A'),
         escapeCSV(getStatusText(transport)),
         escapeCSV(transport._id || 'N/A'),
         escapeCSV(transport.branchId || branchOwnerId || 'N/A'),
@@ -798,18 +844,8 @@ const TransportTable = ({
               <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
                 isDark ? 'text-gray-400' : 'text-gray-600'
               }`}>
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Date
-                </div>
+                Transport Details
               </th>
-              {isManagerView && (
-                <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                  isDark ? 'text-gray-400' : 'text-gray-600'
-                }`}>
-                  Branch
-                </th>
-              )}
               <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
                 isDark ? 'text-gray-400' : 'text-gray-600'
               }`}>
@@ -818,280 +854,377 @@ const TransportTable = ({
               <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
                 isDark ? 'text-gray-400' : 'text-gray-600'
               }`}>
-                From
-              </th>
-              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                isDark ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                To
-              </th>
-              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                isDark ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                Sent Qty
-              </th>
-              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                isDark ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                Received Qty
+                Quantity
               </th>
               <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
                 isDark ? 'text-gray-400' : 'text-gray-600'
               }`}>
                 Status
               </th>
+              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className={`divide-y ${
             isDark ? 'divide-slate-700/50' : 'divide-gray-200'
           }`}>
-            {currentItems.length === 0 ? (
-              <tr>
-                <td colSpan={isManagerView ? 8 : 7} className="px-6 py-12">
-                  <div className="flex flex-col items-center justify-center">
-                    <Truck className={`w-12 h-12 mb-3 ${
-                      isDark ? 'text-gray-600' : 'text-gray-400'
-                    }`} />
-                    <p className={`text-sm font-medium ${
-                      isDark ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      No transport records found
-                    </p>
-                    <p className={`text-xs mt-1 ${
-                      isDark ? 'text-gray-500' : 'text-gray-500'
-                    }`}>
-                      {!isManagerView && (dateFilter.type !== 'all' || statusFilter !== 'all' || locationFilter !== 'all' || searchTerm)
-                        ? 'Try adjusting your filters'
-                        : 'Transport records will appear here'}
-                    </p>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              currentItems.map((transport) => (
-                <tr
-                  key={transport._id}
-                  className={`transition-colors ${
-                    isDark
-                      ? 'hover:bg-slate-700/30'
-                      : 'hover:bg-gray-50'
-                  }`}
-                >
-                  <td className={`px-6 py-4 whitespace-nowrap ${
-                    isDark ? 'text-gray-300' : 'text-gray-900'
-                  }`}>
+            {currentItems.map((transport) => (
+              <tr 
+                key={transport._id}
+                className={`transition-colors ${
+                  isDark
+                    ? 'hover:bg-slate-700/30'
+                    : 'hover:bg-gray-50'
+                }`}
+              >
+                {/* Transport Details */}
+                <td className="px-6 py-4">
+                  <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${
-                        isDark ? 'bg-blue-400' : 'bg-blue-500'
+                      <Calendar className={`w-4 h-4 ${
+                        isDark ? 'text-gray-400' : 'text-gray-500'
                       }`} />
-                      <span className="text-sm font-medium">
+                      <span className={`text-sm font-medium ${
+                        isDark ? 'text-white' : 'text-gray-900'
+                      }`}>
                         {new Date(transport.createdAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
                           month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
+                          day: 'numeric'
                         })}
                       </span>
                     </div>
-                  </td>
-                  {isManagerView && (
-                    <td className={`px-6 py-4 whitespace-nowrap ${
-                      isDark ? 'text-gray-300' : 'text-gray-900'
-                    }`}>
-                      <span className="text-sm font-medium">
-                        {transport.stockRequest?.branchOwner?.name || transport.branchId || 'N/A'}
-                      </span>
-                    </td>
-                  )}
-                  <td className={`px-6 py-4 whitespace-nowrap ${
-                    isDark ? 'text-gray-200' : 'text-gray-900'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                        isDark ? 'bg-blue-500/20' : 'bg-blue-100'
-                      }`}>
-                        <Package className="w-4 h-4" />
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs ${
+                          isDark ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                          From:
+                        </span>
+                        <span className={`text-xs font-medium ${
+                          isDark ? 'text-white' : 'text-gray-900'
+                        }`}>
+                          {transport.from || 'N/A'}
+                        </span>
                       </div>
-                      <span className="font-medium">{transport.stockRequest?.productName || 'N/A'}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs ${
+                          isDark ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                          To:
+                        </span>
+                        <span className={`text-xs font-medium ${
+                          isDark ? 'text-white' : 'text-gray-900'
+                        }`}>
+                          {transport.to || 'N/A'}
+                        </span>
+                      </div>
                     </div>
-                  </td>
-                  <td className={`px-6 py-4 whitespace-nowrap ${
-                    isDark ? 'text-gray-300' : 'text-gray-900'
-                  }`}>
-                    <span className="text-sm font-medium">{transport.from || 'N/A'}</span>
-                  </td>
-                  <td className={`px-6 py-4 whitespace-nowrap ${
-                    isDark ? 'text-gray-300' : 'text-gray-900'
-                  }`}>
-                    <span className="text-sm font-medium">{transport.to || 'N/A'}</span>
-                  </td>
-                  <td className={`px-6 py-4 whitespace-nowrap ${
-                    isDark ? 'text-gray-300' : 'text-gray-900'
-                  }`}>
-                    <span className="font-semibold">{transport.quantity}</span>
-                    <span className={`text-xs ml-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>units</span>
-                  </td>
-                  <td className={`px-6 py-4 whitespace-nowrap ${
-                    isDark ? 'text-gray-300' : 'text-gray-900'
-                  }`}>
-                    {transport.receivedQuantity !== undefined && transport.receivedQuantity !== null ? (
-                      <span className="font-semibold">{transport.receivedQuantity}</span>
-                    ) : (
-                      <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>-</span>
-                    )}
-                    {transport.receivedQuantity !== undefined && transport.receivedQuantity !== null && (
-                      <span className={`text-xs ml-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>units</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${
-                      getStatusStyles(transport)
+                  </div>
+                </td>
+
+                {/* Product */}
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-2">
+                    <Package className={`w-4 h-4 ${
+                      isDark ? 'text-gray-400' : 'text-gray-500'
+                    }`} />
+                    <span className={`text-sm font-medium ${
+                      isDark ? 'text-white' : 'text-gray-900'
                     }`}>
-                      {getStatusIcon(transport)}
-                      {getStatusText(transport)}
+                      {transport.stockRequest?.productName || 'Unknown Product'}
                     </span>
-                  </td>
-                </tr>
-              ))
-            )}
+                  </div>
+                </td>
+
+                {/* Quantity */}
+                <td className="px-6 py-4">
+                  <div className="space-y-2">
+                    {/* Sent Quantity */}
+                    <div>
+                      <span className={`text-xs ${
+                        isDark ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                        Sent:
+                      </span>
+                      <span className={`text-sm font-medium ml-1 ${
+                        isDark ? 'text-white' : 'text-gray-900'
+                      }`}>
+                        {transport.quantity || 0}
+                      </span>
+                    </div>
+                    
+                    {/* Received Quantity */}
+                    <div>
+                      <span className={`text-xs ${
+                        isDark ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                        Received:
+                      </span>
+                      {editingTransportId === transport._id ? (
+                        <input
+                          type="number"
+                          min="0"
+                          max={transport.quantity}
+                          value={receivedQuantities[transport._id] || ''}
+                          onChange={(e) => setReceivedQuantities(prev => ({
+                            ...prev,
+                            [transport._id]: e.target.value
+                          }))}
+                          className={`ml-1 w-20 px-2 py-1 text-sm rounded border ${
+                            isDark
+                              ? 'bg-slate-600 border-slate-500 text-white'
+                              : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                        />
+                      ) : (
+                        <span className={`text-sm font-medium ml-1 ${
+                          isDark ? 'text-white' : 'text-gray-900'
+                        }`}>
+                          {transport.receivedQuantity || 0}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Complaints */}
+                    <div>
+                      <span className={`text-xs ${
+                        isDark ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                        Complaints:
+                      </span>
+                      {editingTransportId === transport._id ? (
+                        <textarea
+                          value={complaints[transport._id] || ''}
+                          onChange={(e) => setComplaints(prev => ({
+                            ...prev,
+                            [transport._id]: e.target.value
+                          }))}
+                          placeholder="Enter complaints..."
+                          rows="2"
+                          className={`ml-1 w-full px-2 py-1 text-sm rounded border ${
+                            isDark
+                              ? 'bg-slate-600 border-slate-500 text-white placeholder-gray-400'
+                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                          }`}
+                        />
+                      ) : (
+                        <span className={`text-sm font-medium ml-1 ${
+                          isDark ? 'text-white' : 'text-gray-900'
+                        }`}>
+                          {transport.complaints || 'No complaints'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </td>
+
+                {/* Status */}
+                <td className="px-6 py-4">
+                  <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${getStatusStyles(transport)}`}>
+                    {getStatusIcon(transport)}
+                    {getStatusText(transport)}
+                  </div>
+                </td>
+
+                {/* Actions */}
+                <td className="px-6 py-4">
+                  {!isManagerView && (
+                    <div className="flex items-center gap-2">
+                      {editingTransportId === transport._id ? (
+                        <>
+                          <button
+                            onClick={() => handleUpdateTransport(transport._id)}
+                            disabled={loading}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors disabled:opacity-50"
+                          >
+                            <Save className="w-3 h-3" />
+                            {loading ? 'Saving...' : 'Save'}
+                          </button>
+                          <button
+                            onClick={() => setEditingTransportId(null)}
+                            disabled={loading}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 transition-colors disabled:opacity-50"
+                          >
+                            <X className="w-3 h-3" />
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => setEditingTransportId(transport._id)}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
+                        >
+                          <Edit className="w-3 h-3" />
+                          Edit
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
 
-      {/* Pagination Footer */}
+      {/* Empty State */}
+      {currentItems.length === 0 && !loading && (
+        <div className="py-12 text-center">
+          <div className="flex flex-col items-center justify-center">
+            <Truck className={`w-16 h-16 mb-4 ${
+              isDark ? 'text-gray-600' : 'text-gray-400'
+            }`} />
+            <h3 className={`text-lg font-medium mb-2 ${
+              isDark ? 'text-gray-300' : 'text-gray-700'
+            }`}>
+              No Transport Records Found
+            </h3>
+            <p className={`text-sm max-w-md mx-auto ${
+              isDark ? 'text-gray-500' : 'text-gray-600'
+            }`}>
+              {!isManagerView && (dateFilter.type !== 'all' || statusFilter !== 'all' || locationFilter !== 'all' || searchTerm)
+                ? 'Try adjusting your filters to see more results.'
+                : 'Transport records will appear here once they are created.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Pagination */}
       {currentItems.length > 0 && (
-        <div className={`px-6 py-4 border-t flex flex-col sm:flex-row items-center justify-between gap-4 ${
-          isDark
-            ? 'border-slate-700/50 bg-slate-900/30'
-            : 'border-gray-200 bg-gray-50'
+        <div className={`px-6 py-4 border-t ${
+          isDark ? 'border-slate-700/50' : 'border-gray-200'
         }`}>
-          {/* Left side - Rows info and per page selector */}
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            {/* Items per page */}
+            <div className="flex items-center gap-2">
+              <span className={`text-sm ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Show
+              </span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                className={`px-2 py-1 rounded border text-sm ${
+                  isDark
+                    ? 'bg-slate-700 border-slate-600 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+              <span className={`text-sm ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                per page
+              </span>
+            </div>
+
+            {/* Page info */}
             <div className={`text-sm ${
               isDark ? 'text-gray-400' : 'text-gray-600'
             }`}>
-              Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-              <span className="font-medium">{endIndex}</span> of{' '}
-              <span className="font-medium">{totalItems}</span> entries
+              Showing {startIndex + 1} to {endIndex} of {totalItems} entries
             </div>
-            
-            <select
-              value={itemsPerPage}
-              onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-              className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
-                isDark
-                  ? 'bg-slate-800 border-slate-700 text-gray-300 focus:border-blue-500'
-                  : 'bg-white border-gray-300 text-gray-700 focus:border-blue-500'
-              } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
-            >
-              <option value={5}>5 per page</option>
-              <option value={10}>10 per page</option>
-              <option value={25}>25 per page</option>
-              <option value={50}>50 per page</option>
-              <option value={100}>100 per page</option>
-            </select>
-          </div>
 
-          {/* Right side - Pagination controls */}
-          <div className="flex items-center gap-2">
-            {/* First page button */}
-            <button
-              onClick={goToFirstPage}
-              disabled={currentPage === 1}
-              className={`p-2 rounded-lg transition-all ${
-                currentPage === 1
-                  ? isDark
-                    ? 'text-gray-600 cursor-not-allowed'
-                    : 'text-gray-400 cursor-not-allowed'
-                  : isDark
-                    ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
-                    : 'text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <ChevronsLeft className="w-4 h-4" />
-            </button>
-
-            {/* Previous page button */}
-            <button
-              onClick={goToPreviousPage}
-              disabled={currentPage === 1}
-              className={`p-2 rounded-lg transition-all ${
-                currentPage === 1
-                  ? isDark
-                    ? 'text-gray-600 cursor-not-allowed'
-                    : 'text-gray-400 cursor-not-allowed'
-                  : isDark
-                    ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
-                    : 'text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-
-            {/* Page numbers */}
+            {/* Pagination controls */}
             <div className="flex items-center gap-1">
+              {/* First Page */}
+              <button
+                onClick={goToFirstPage}
+                disabled={currentPage === 1}
+                className={`p-2 rounded ${
+                  currentPage === 1
+                    ? isDark
+                      ? 'text-gray-600 cursor-not-allowed'
+                      : 'text-gray-400 cursor-not-allowed'
+                    : isDark
+                    ? 'text-gray-400 hover:text-white hover:bg-slate-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <ChevronsLeft className="w-4 h-4" />
+              </button>
+
+              {/* Previous Page */}
+              <button
+                onClick={goToPreviousPage}
+                disabled={currentPage === 1}
+                className={`p-2 rounded ${
+                  currentPage === 1
+                    ? isDark
+                      ? 'text-gray-600 cursor-not-allowed'
+                      : 'text-gray-400 cursor-not-allowed'
+                    : isDark
+                    ? 'text-gray-400 hover:text-white hover:bg-slate-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {/* Page Numbers */}
               {getPageNumbers().map((page, index) => (
-                page === '...' ? (
-                  <span
-                    key={`ellipsis-${index}`}
-                    className={`px-3 py-1.5 text-sm ${
-                      isDark ? 'text-gray-500' : 'text-gray-400'
-                    }`}
-                  >
-                    ...
-                  </span>
-                ) : (
-                  <button
-                    key={page}
-                    onClick={() => handlePageChange(page)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                      currentPage === page
-                        ? isDark
-                          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                          : 'bg-blue-500 text-white shadow-sm'
-                        : isDark
-                          ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
-                          : 'text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                )
+                <button
+                  key={index}
+                  onClick={() => typeof page === 'number' ? handlePageChange(page) : null}
+                  disabled={page === '...'}
+                  className={`min-w-[2rem] px-2 py-1 rounded text-sm font-medium ${
+                    page === currentPage
+                      ? isDark
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-blue-500 text-white'
+                      : isDark
+                      ? 'text-gray-400 hover:text-white hover:bg-slate-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  } ${page === '...' ? 'cursor-default' : ''}`}
+                >
+                  {page}
+                </button>
               ))}
+
+              {/* Next Page */}
+              <button
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+                className={`p-2 rounded ${
+                  currentPage === totalPages
+                    ? isDark
+                      ? 'text-gray-600 cursor-not-allowed'
+                      : 'text-gray-400 cursor-not-allowed'
+                    : isDark
+                    ? 'text-gray-400 hover:text-white hover:bg-slate-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              {/* Last Page */}
+              <button
+                onClick={goToLastPage}
+                disabled={currentPage === totalPages}
+                className={`p-2 rounded ${
+                  currentPage === totalPages
+                    ? isDark
+                      ? 'text-gray-600 cursor-not-allowed'
+                      : 'text-gray-400 cursor-not-allowed'
+                    : isDark
+                    ? 'text-gray-400 hover:text-white hover:bg-slate-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <ChevronsRight className="w-4 h-4" />
+              </button>
             </div>
-
-            {/* Next page button */}
-            <button
-              onClick={goToNextPage}
-              disabled={currentPage === totalPages}
-              className={`p-2 rounded-lg transition-all ${
-                currentPage === totalPages
-                  ? isDark
-                    ? 'text-gray-600 cursor-not-allowed'
-                    : 'text-gray-400 cursor-not-allowed'
-                  : isDark
-                    ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
-                    : 'text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-
-            {/* Last page button */}
-            <button
-              onClick={goToLastPage}
-              disabled={currentPage === totalPages}
-              className={`p-2 rounded-lg transition-all ${
-                currentPage === totalPages
-                  ? isDark
-                    ? 'text-gray-600 cursor-not-allowed'
-                    : 'text-gray-400 cursor-not-allowed'
-                  : isDark
-                    ? 'text-gray-400 hover:bg-slate-700 hover:text-white'
-                    : 'text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <ChevronsRight className="w-4 h-4" />
-            </button>
           </div>
         </div>
       )}

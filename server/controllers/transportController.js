@@ -182,6 +182,22 @@ const createTransport = asyncHandler(async (req, res) => {
     throw new Error('Not authorized to create transport details');
   }
 
+  // Validate that the stockRequest belongs to a branchOwner assigned to the BrandOwner
+  const stockRequestDetails = await StockRequest.findById(stockRequest).populate('branchOwner');
+
+  if (!stockRequestDetails) {
+    res.status(404);
+    throw new Error('Stock request not found');
+  }
+
+  if (user.role === 'BrandOwner') {
+    const branchOwner = await User.findById(stockRequestDetails.branchOwner._id);
+    if (!branchOwner || branchOwner.assignedBrandOwner?.toString() !== user._id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to create transport for this stock request');
+    }
+  }
+
   const transport = await Transport.create({
     stockRequest,
     bundleSize,
@@ -399,6 +415,7 @@ const getTransportsByBranchOwnerId = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
+  const { status, search, dateFilter, startDate, endDate } = req.query;
 
   const user = await User.findById(req.user.id);
 
@@ -458,11 +475,84 @@ const getTransportsByBranchOwnerId = asyncHandler(async (req, res) => {
   }
 
   // Get stock requests for the branch owner
-  const stockRequests = await StockRequest.find({ branchOwner: branchOwnerId });
+  let stockRequestQuery = { branchOwner: branchOwnerId };
+  const stockRequests = await StockRequest.find(stockRequestQuery);
   const stockRequestIds = stockRequests.map(request => request._id);
 
-  // Get transports with pagination
-  const transports = await Transport.find({ stockRequest: { $in: stockRequestIds } })
+  // Build transport query
+  let transportQuery = { stockRequest: { $in: stockRequestIds } };
+
+  // Apply status filter
+  if (status && status !== 'all') {
+    if (status === 'completed') {
+      transportQuery.$expr = { $eq: ['$receivedQuantity', '$quantity'] };
+    } else if (status === 'pending') {
+      transportQuery.receivedQuantity = { $in: [0, null, undefined] };
+    } else if (status === 'partial') {
+      transportQuery.$and = [
+        { receivedQuantity: { $gt: 0 } },
+        { $expr: { $lt: ['$receivedQuantity', '$quantity'] } }
+      ];
+    }
+  }
+
+  // Apply search filter
+  if (search) {
+    const stockRequestIdsWithSearch = await StockRequest.find({
+      ...stockRequestQuery,
+      productName: { $regex: search, $options: 'i' }
+    }).select('_id');
+    
+    const searchStockRequestIds = stockRequestIdsWithSearch.map(req => req._id);
+    
+    if (transportQuery.stockRequest) {
+      // Combine with existing stockRequest filter
+      transportQuery.stockRequest.$in = transportQuery.stockRequest.$in.filter(id =>
+        searchStockRequestIds.includes(id.toString())
+      );
+    } else {
+      transportQuery.stockRequest = { $in: searchStockRequestIds };
+    }
+  }
+
+  // Apply date filter
+  if (dateFilter && dateFilter !== 'all') {
+    const now = new Date();
+    let startDateFilter = new Date();
+    let endDateFilter = new Date();
+
+    switch (dateFilter) {
+      case 'today':
+        startDateFilter.setHours(0, 0, 0, 0);
+        endDateFilter.setHours(23, 59, 59, 999);
+        break;
+      case 'week':
+        startDateFilter.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        startDateFilter.setMonth(now.getMonth() - 1);
+        break;
+      case 'custom':
+        if (startDate && endDate) {
+          startDateFilter = new Date(startDate);
+          endDateFilter = new Date(endDate);
+          endDateFilter.setHours(23, 59, 59, 999);
+        }
+        break;
+      default:
+        break;
+    }
+
+    if (dateFilter !== 'all') {
+      transportQuery.createdAt = {
+        $gte: startDateFilter,
+        $lte: endDateFilter
+      };
+    }
+  }
+
+  // Fetch the transports with pagination
+  const transports = await Transport.find(transportQuery)
     .populate({
       path: 'stockRequest',
       select: 'productName quantity branchOwner',
@@ -475,7 +565,7 @@ const getTransportsByBranchOwnerId = asyncHandler(async (req, res) => {
     .limit(limit)
     .skip(skip);
 
-  const totalItems = await Transport.countDocuments({ stockRequest: { $in: stockRequestIds } });
+  const totalItems = await Transport.countDocuments(transportQuery);
 
   res.status(200).json({
     transports,
@@ -623,9 +713,67 @@ const getTransportsByBrandOwner = asyncHandler(async (req, res) => {
     totalPages: Math.ceil(totalItems / limit),
   });
 });
+
+// @desc    Update transport (BranchOwner can update received quantity and complaints)
+// @route   PUT /api/transport/:id
+// @access  Private (Admin, BrandOwner, BranchOwner)
+const updateTransport = asyncHandler(async (req, res) => {
+  const { receivedQuantity, complaints } = req.body;
+
+  const transport = await Transport.findById(req.params.id).populate('stockRequest');
+
+  if (!transport) {
+    res.status(404);
+    throw new Error('Transport not found');
+  }
+
+  const user = await User.findById(req.user.id);
+
+  if (!user) {
+    res.status(401);
+    throw new Error('User not found');
+  }
+
+  // Check authorization
+  if (user.role === 'BranchOwner') {
+    // BranchOwner can only update their own transports
+    if (transport.stockRequest.branchOwner.toString() !== req.user.id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to update this transport');
+    }
+  } else if (user.role !== 'Admin' && user.role !== 'BrandOwner') {
+    res.status(403);
+    throw new Error('Not authorized to update transport details');
+  }
+
+  // Update fields if provided
+  if (receivedQuantity !== undefined) {
+    transport.receivedQuantity = receivedQuantity;
+  }
+  
+  if (complaints !== undefined) {
+    transport.complaints = complaints;
+  }
+
+  const updatedTransport = await transport.save();
+
+  // Populate the response
+  const populatedTransport = await Transport.findById(updatedTransport._id)
+    .populate({
+      path: 'stockRequest',
+      select: 'productName quantity branchOwner',
+      populate: {
+        path: 'branchOwner',
+        select: 'name email',
+      },
+    });
+
+  res.status(200).json(populatedTransport);
+});
 export {
   getTransports,
   createTransport,
+  updateTransport,
   confirmReceivedTransport,
   deleteTransport,
   getTransportsByBranchOwnerId,

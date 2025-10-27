@@ -78,16 +78,17 @@ const TransportManagement = () => {
 
   const handleModalClose = () => {
     setShowModal(false);
+    setInitialStockRequest(null);
   };
 
   const handleFormSubmit = (formData) => {
     dispatch(createTransport(formData)).then((res) => {
       if (!res.error) {
         setShowModal(false);
+        setInitialStockRequest(null);
         // Refresh the table
         if (brandOwnerId) {
-          dispatch(getTransportsByBrandOwner({ 
-            brandOwnerId, 
+          dispatch(getTransports({ 
             page: currentPage, 
             limit: itemsPerPage, 
             filters 

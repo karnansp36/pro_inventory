@@ -4,6 +4,7 @@ import {
   getTransports, 
   createTransport, 
   confirmReceivedTransport, 
+  updateTransport, // Add this import
   deleteTransport, 
   getTransportsByBranchOwnerId,
   getTransportsByManagerId,
@@ -19,6 +20,7 @@ router.route('/:id/receive')
   .put(express.json(), protect, authorizeRoles('BranchOwner'), confirmReceivedTransport);
 
 router.route('/:id')
+  .put(express.json(), protect, authorizeRoles('Admin', 'BrandOwner', 'BranchOwner'), updateTransport) // Add this route
   .delete(protect, authorizeRoles('Admin', 'BrandOwner'), deleteTransport);
 
 router.route('/branch/:branchOwnerId')
@@ -27,7 +29,9 @@ router.route('/branch/:branchOwnerId')
 // Add route for manager transports
 router.route('/manager/:managerId')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getTransportsByManagerId);
+
 // Add this route to transportRoutes.js
 router.route('/brandowner/:brandOwnerId')
   .get(protect, authorizeRoles('Admin', 'BrandOwner'), getTransportsByBrandOwner);
+
 export default router;

@@ -1,3 +1,4 @@
+// components/forms/TransportForm.jsx
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -22,7 +23,8 @@ const TransportForm = ({
     bundleSize: initialData.bundleSize || '',
     quantity:
       initialData.quantity ||
-      initialStockRequest?.quantity ||
+      initialStockRequest?.quantity?.requested || // Fixed: access nested quantity
+      initialStockRequest?.quantity || // Fallback for direct quantity
       '',
     from:
       initialData.from ||
@@ -42,8 +44,11 @@ const TransportForm = ({
 
   // 🪶 Handlers
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    setForm((prev) => ({ 
+      ...prev, 
+      [name]: type === 'number' ? (value === '' ? '' : Number(value)) : value 
+    }));
   };
 
   const handleSubmit = (e) => {
@@ -54,8 +59,8 @@ const TransportForm = ({
   // 🎨 Theming
   const inputClass = `mt-1 block w-full rounded-md shadow-sm px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-300 border ${
     isDark
-      ? 'bg-slate-900/50 border-slate-700 text-slate-100 focus:bg-slate-900/80'
-      : 'bg-white border-gray-300 text-gray-900 focus:bg-gray-50'
+      ? 'bg-slate-900/50 border-slate-700 text-slate-100 focus:bg-slate-900/80 focus:border-blue-400'
+      : 'bg-white border-gray-300 text-gray-900 focus:bg-gray-50 focus:border-blue-500'
   }`;
 
   const labelClass = `block text-sm font-medium transition-colors duration-300 ${
@@ -82,7 +87,7 @@ const TransportForm = ({
           <option value="">Select Stock Request</option>
           {stockRequests.map((req) => (
             <option key={req._id} value={req._id}>
-              {req.productName} (Qty: {req.quantity})
+              {req.productName} (Qty: {req.quantity?.requested || req.quantity})
             </option>
           ))}
         </select>
@@ -99,6 +104,7 @@ const TransportForm = ({
           required
           min="1"
           className={inputClass}
+          placeholder="Enter bundle size"
         />
       </div>
 
@@ -113,6 +119,7 @@ const TransportForm = ({
           required
           min="1"
           className={inputClass}
+          placeholder="Enter quantity"
         />
       </div>
 
@@ -126,6 +133,7 @@ const TransportForm = ({
           onChange={handleChange}
           required
           className={inputClass}
+          placeholder="Enter source location"
         />
       </div>
 
@@ -139,6 +147,7 @@ const TransportForm = ({
           onChange={handleChange}
           required
           className={inputClass}
+          placeholder="Enter destination location"
         />
       </div>
 
@@ -158,9 +167,16 @@ const TransportForm = ({
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-all duration-300"
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-all duration-300 flex items-center gap-2"
         >
-          {loading ? 'Saving...' : 'Save'}
+          {loading ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Saving...
+            </>
+          ) : (
+            'Save Transport'
+          )}
         </button>
       </div>
     </form>

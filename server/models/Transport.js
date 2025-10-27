@@ -27,6 +27,10 @@ const transportSchema = mongoose.Schema(
       type: Number,
       required: false,
     },
+    complaints: {
+      type: String,
+      required: false,
+    },
   },
   {
     timestamps: true,
