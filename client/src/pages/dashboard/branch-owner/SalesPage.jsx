@@ -1,5 +1,5 @@
 // pages/dashboard/branch-owner/SalesPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import SalesForm from '../../../components/forms/SalesForm';
 import SalesTable from './SalesTable';
@@ -12,37 +12,55 @@ import Modal from '../../../components/Modal';
 const SalesPage = () => {
   const location = useLocation();
   const { branchOwnerId } = location.state || {};
-  console.log('branchOwnerId from location.state:', branchOwnerId);
   const dispatch = useDispatch();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const [refreshTable, setRefreshTable] = useState(0);
+
   const [showForm, setShowForm] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   
-  // Daily report state
+  // Daily report form state
   const [gpay, setGpay] = useState('');
   const [card, setCard] = useState('');
   const [cash, setCash] = useState('');
   const [expenses, setExpenses] = useState('');
   const [savingReport, setSavingReport] = useState(false);
-  
-  const { dailyReports, loading: dailyReportLoading, error: dailyReportError } = useSelector((state) => state.dailyReport);
-  
-  console.log('dailyReports from useSelector:', dailyReports);
-  console.log('dailyReportError from useSelector:', dailyReportError);
 
-  useEffect(() => {
+  // Pagination and filter states for SalesTable (when not in ManagerView)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [filters, setFilters] = useState({}); // This will hold search, date filters, sort field/order
+
+  const { dailyReports, totalItems, loading: dailyReportLoading, error: dailyReportError } = useSelector((state) => state.dailyReport);
+  
+  const fetchReports = useCallback(() => {
     if (branchOwnerId) {
-      console.log('Dispatching getDailyReportsByBranch with branchId:', branchOwnerId);
-      dispatch(getDailyReportsByBranch({ branchId: branchOwnerId }));
+      dispatch(getDailyReportsByBranch({
+        branchId: branchOwnerId,
+        page: currentPage,
+        limit: itemsPerPage,
+        filters
+      }));
     }
-  }, [branchOwnerId, dispatch, refreshTable]);
+  }, [branchOwnerId, dispatch, currentPage, itemsPerPage, filters]);
 
   useEffect(() => {
-    console.log('Daily Reports Data updated:', dailyReports);
-  }, [dailyReports]);
+    fetchReports();
+  }, [fetchReports]);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (limit) => {
+    setItemsPerPage(limit);
+    setCurrentPage(1); // Reset to first page when items per page changes
+  };
+
+  const handleSalesTableRefresh = () => {
+    fetchReports();
+  };
 
   const handleSaleAdded = () => {
     setRefreshTable(prev => prev + 1);
@@ -489,11 +507,15 @@ const SalesPage = () => {
           {/* Table */}
           <div className={showForm ? 'lg:col-span-2' : ''}>
             <SalesTable
-              key={refreshTable}
               salesData={dailyReports}
-              totalItems={dailyReports?.length || 0}
+              totalItems={totalItems}
               loading={dailyReportLoading}
               branchOwnerId={branchOwnerId}
+              currentPage={currentPage}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              onRefresh={handleSalesTableRefresh}
             />
           </div>
         </div>

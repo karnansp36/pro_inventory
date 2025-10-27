@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
+import dailyReportService from '../../../services/dailyReportService';
 import {
   Calendar,
   DollarSign,
@@ -42,13 +43,15 @@ const SalesTable = ({
   loading: propLoading = false,
   onRefresh = null
 }) => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [localCurrentPage, setLocalCurrentPage] = useState(1);
+  const [localItemsPerPage, setLocalItemsPerPage] = useState(10);
+  const [localSalesData, setLocalSalesData] = useState([]);
+  const [localTotalItems, setLocalTotalItems] = useState(0);
+  const [localLoading, setLocalLoading] = useState(false);
+
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
-  const [dateRangeStart, setDateRangeStart] = useState('');
-  const [dateRangeEnd, setDateRangeEnd] = useState('');
+  const [dateFilter, setDateFilter] = useState({ type: 'all', startDate: '', endDate: '' });
   const [sortField, setSortField] = useState('date');
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedRows, setSelectedRows] = useState(new Set());
@@ -56,114 +59,195 @@ const SalesTable = ({
   const [copiedRow, setCopiedRow] = useState(null);
   const { theme } = useTheme();
 
-  const dailyReports = Array.isArray(salesData) ? salesData : [];
-  const totalItems = dailyReports.length;
-  const loading = propLoading;
+  const currentPage = isManagerView ? propCurrentPage : localCurrentPage;
+  const itemsPerPage = isManagerView ? propItemsPerPage : localItemsPerPage;
+  const dailyReports = isManagerView ? (Array.isArray(salesData) ? salesData : []) : localSalesData;
+  const totalItems = isManagerView ? propTotalItems : localTotalItems;
+  const loading = isManagerView ? propLoading : localLoading;
 
   useEffect(() => {
     if (isManagerView) {
-      setCurrentPage(propCurrentPage);
-      setItemsPerPage(propItemsPerPage);
+      // Manager view props already control pagination
+    } else {
+      const fetchDailyReports = async () => {
+        setLocalLoading(true);
+        try {
+          const filters = {
+            searchTerm,
+            dateFilterType: dateFilter.type,
+            dateFilterStartDate: dateFilter.startDate,
+            dateFilterEndDate: dateFilter.endDate,
+            sortField,
+            sortOrder,
+          };
+          const response = await dailyReportService.getDailyReportsByBranch(
+            branchOwnerId,
+            localCurrentPage,
+            localItemsPerPage,
+            filters
+          );
+          setLocalSalesData(response.dailyReports);
+          setLocalTotalItems(response.totalItems);
+        } catch (error) {
+          toast.error('Failed to fetch daily reports.');
+          console.error('Error fetching daily reports:', error);
+        } finally {
+          setLocalLoading(false);
+        }
+      };
+
+      if (branchOwnerId) {
+        fetchDailyReports();
+      }
+    }
+  }, [
+    branchOwnerId,
+    currentPage,
+    itemsPerPage,
+    searchTerm,
+    dateFilter,
+    sortField,
+    sortOrder,
+    isManagerView,
+    localCurrentPage,
+    localItemsPerPage,
+  ]);
+
+  // When in manager view, update local states if props change
+  useEffect(() => {
+    if (isManagerView) {
+      setLocalCurrentPage(propCurrentPage);
+      setLocalItemsPerPage(propItemsPerPage);
     }
   }, [propCurrentPage, propItemsPerPage, isManagerView]);
 
-  // Enhanced filtering with date range
-  const filteredReports = useMemo(() => {
-    return dailyReports.filter(report => {
-      const matchesSearch = !searchTerm || 
-        report.date?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.gpay?.toString().includes(searchTerm) ||
-        report.card?.toString().includes(searchTerm) ||
-        report.cash?.toString().includes(searchTerm) ||
-        report.expenses?.toString().includes(searchTerm);
-      
-      const matchesDate = !dateFilter || report.date === dateFilter;
-      
-      // Date range filtering
-      let matchesDateRange = true;
-      if (dateRangeStart || dateRangeEnd) {
-        const reportDate = new Date(report.date);
-        if (dateRangeStart) {
-          matchesDateRange = matchesDateRange && reportDate >= new Date(dateRangeStart);
+  // Filtering and Sorting are now handled by the backend when not in ManagerView
+  // When in ManagerView, we still need to apply local filtering/sorting to the provided salesData
+  const processedReports = useMemo(() => {
+    if (isManagerView) {
+      let filtered = dailyReports.filter(report => {
+        const matchesSearch = !searchTerm ||
+          report.date?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          report.gpay?.toString().includes(searchTerm) ||
+          report.card?.toString().includes(searchTerm) ||
+          report.cash?.toString().includes(searchTerm) ||
+          report.expenses?.toString().includes(searchTerm);
+        
+        let matchesDateRange = true;
+        if (dateFilter.type !== 'all') {
+          const reportDate = new Date(report.date);
+          
+          switch (dateFilter.type) {
+            case 'today':
+              const today = new Date();
+              matchesDateRange = reportDate.toDateString() === today.toDateString();
+              break;
+            case 'week':
+              const weekAgo = new Date();
+              weekAgo.setDate(weekAgo.getDate() - 7);
+              matchesDateRange = reportDate >= weekAgo;
+              break;
+            case 'month':
+              const monthAgo = new Date();
+              monthAgo.setDate(monthAgo.getDate() - 30);
+              matchesDateRange = reportDate >= monthAgo;
+              break;
+            case 'custom':
+              if (dateFilter.startDate) {
+                matchesDateRange = matchesDateRange && reportDate >= new Date(dateFilter.startDate);
+              }
+              if (dateFilter.endDate) {
+                const endDate = new Date(dateFilter.endDate);
+                endDate.setHours(23, 59, 59, 999);
+                matchesDateRange = matchesDateRange && reportDate <= endDate;
+              }
+              break;
+            default:
+              matchesDateRange = true;
+          }
         }
-        if (dateRangeEnd) {
-          matchesDateRange = matchesDateRange && reportDate <= new Date(dateRangeEnd);
+        return matchesSearch && matchesDateRange;
+      });
+
+      const sorted = [...filtered];
+      sorted.sort((a, b) => {
+        let aValue, bValue;
+
+        switch (sortField) {
+          case 'date':
+            aValue = new Date(a.date);
+            bValue = new Date(b.date);
+            break;
+          case 'gpay':
+          case 'card':
+          case 'cash':
+          case 'expenses':
+            aValue = Number(a[sortField]) || 0;
+            bValue = Number(b[sortField]) || 0;
+            break;
+          case 'total':
+            aValue = (Number(a.gpay) || 0) + (Number(a.card) || 0) + (Number(a.cash) || 0);
+            bValue = (Number(b.gpay) || 0) + (Number(b.card) || 0) + (Number(b.cash) || 0);
+            break;
+          case 'netIncome':
+            aValue = ((Number(a.gpay) || 0) + (Number(a.card) || 0) + (Number(a.cash) || 0)) - (Number(a.expenses) || 0);
+            bValue = ((Number(b.gpay) || 0) + (Number(b.card) || 0) + (Number(b.cash) || 0)) - (Number(b.expenses) || 0);
+            break;
+          default:
+            return 0;
         }
-      }
-      
-      return matchesSearch && matchesDate && matchesDateRange;
-    });
-  }, [dailyReports, searchTerm, dateFilter, dateRangeStart, dateRangeEnd]);
 
-  // Sorting functionality
-  const sortedReports = useMemo(() => {
-    const sorted = [...filteredReports];
-    sorted.sort((a, b) => {
-      let aValue, bValue;
+        if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+        return 0;
+      });
+      return sorted;
+    }
+    return dailyReports; // When not in manager view, data is already filtered/sorted by backend
+  }, [dailyReports, searchTerm, dateFilter, sortField, sortOrder, isManagerView]);
 
-      switch (sortField) {
-        case 'date':
-          aValue = new Date(a.date);
-          bValue = new Date(b.date);
-          break;
-        case 'gpay':
-        case 'card':
-        case 'cash':
-        case 'expenses':
-          aValue = Number(a[sortField]) || 0;
-          bValue = Number(b[sortField]) || 0;
-          break;
-        case 'total':
-          aValue = (Number(a.gpay) || 0) + (Number(a.card) || 0) + (Number(a.cash) || 0);
-          bValue = (Number(b.gpay) || 0) + (Number(b.card) || 0) + (Number(b.cash) || 0);
-          break;
-        case 'netIncome':
-          aValue = ((Number(a.gpay) || 0) + (Number(a.card) || 0) + (Number(a.cash) || 0)) - (Number(a.expenses) || 0);
-          bValue = ((Number(b.gpay) || 0) + (Number(b.card) || 0) + (Number(b.cash) || 0)) - (Number(b.expenses) || 0);
-          break;
-        default:
-          return 0;
-      }
-
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
-    return sorted;
-  }, [filteredReports, sortField, sortOrder]);
-
-  // Pagination
-  const totalPages = Math.ceil(sortedReports.length / itemsPerPage);
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = Math.min(startIndex + itemsPerPage, sortedReports.length);
-  const currentReports = sortedReports.slice(startIndex, endIndex);
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+  const currentReports = processedReports; // When using backend pagination, currentReports is already the sliced data
 
-  // Calculate totals
+  // Calculate totals (these should calculate based on the *entire* filtered/sorted dataset if not paginated by backend, or just the current page if it is)
   const getTotalCollection = () => {
-    return sortedReports.reduce((sum, report) => {
+    return processedReports.reduce((sum, report) => {
       return sum + (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
     }, 0);
   };
 
   const getTotalExpenses = () => {
-    return sortedReports.reduce((sum, report) => sum + (Number(report.expenses) || 0), 0);
+    return processedReports.reduce((sum, report) => sum + (Number(report.expenses) || 0), 0);
   };
 
   const getAverageCollection = () => {
-    return sortedReports.length > 0 ? getTotalCollection() / sortedReports.length : 0;
+    return processedReports.length > 0 ? getTotalCollection() / processedReports.length : 0;
   };
 
   const getAverageExpenses = () => {
-    return sortedReports.length > 0 ? getTotalExpenses() / sortedReports.length : 0;
+    return processedReports.length > 0 ? getTotalExpenses() / processedReports.length : 0;
   };
 
   // Sort handler
   const handleSort = (field) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    if (isManagerView) {
+      if (sortField === field) {
+        setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+      } else {
+        setSortField(field);
+        setSortOrder('asc');
+      }
     } else {
-      setSortField(field);
-      setSortOrder('asc');
+      // For local view, sorting is handled by backend fetch
+      if (sortField === field) {
+        setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+      } else {
+        setSortField(field);
+        setSortOrder('asc');
+      }
+      setLocalCurrentPage(1); // Reset to first page on sort change
     }
   };
 
@@ -214,7 +298,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
     if (isManagerView && onPageChange) {
       onPageChange(newPage);
     } else {
-      setCurrentPage(newPage);
+      setLocalCurrentPage(newPage);
     }
   };
 
@@ -223,7 +307,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
     if (isManagerView && onPageChange) {
       onPageChange(newPage);
     } else {
-      setCurrentPage(newPage);
+      setLocalCurrentPage(newPage);
     }
   };
 
@@ -232,7 +316,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
     if (isManagerView && onPageChange) {
       onPageChange(newPage);
     } else {
-      setCurrentPage(newPage);
+      setLocalCurrentPage(newPage);
     }
   };
 
@@ -241,7 +325,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
     if (isManagerView && onPageChange) {
       onPageChange(newPage);
     } else {
-      setCurrentPage(newPage);
+      setLocalCurrentPage(newPage);
     }
   };
 
@@ -249,7 +333,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
     if (isManagerView && onPageChange) {
       onPageChange(page);
     } else {
-      setCurrentPage(page);
+      setLocalCurrentPage(page);
     }
   };
 
@@ -257,8 +341,8 @@ Net Income: ₹${netIncome.toFixed(2)}`;
     if (isManagerView && onItemsPerPageChange) {
       onItemsPerPageChange(newItemsPerPage);
     } else {
-      setItemsPerPage(newItemsPerPage);
-      setCurrentPage(1);
+      setLocalItemsPerPage(newItemsPerPage);
+      setLocalCurrentPage(1); // Reset to first page when items per page changes
     }
   };
 
@@ -292,7 +376,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
 
   // Enhanced CSV Export
   const downloadCSV = () => {
-    if (sortedReports.length === 0) {
+    if (processedReports.length === 0) {
       toast.error('No data to export');
       return;
     }
@@ -317,7 +401,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
         'Net Income'
       ];
 
-      const csvRows = sortedReports.map(report => {
+      const csvRows = processedReports.map(report => {
         const totalCollection = (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
         const netIncome = totalCollection - (Number(report.expenses) || 0);
         
@@ -338,7 +422,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
       // Enhanced summary
       csvContent.push('');
       csvContent.push('SUMMARY STATISTICS');
-      csvContent.push(`Total Records,${sortedReports.length}`);
+      csvContent.push(`Total Records,${totalItems}`);
       csvContent.push(`Total Collection,₹${getTotalCollection().toFixed(2)}`);
       csvContent.push(`Average Collection,₹${getAverageCollection().toFixed(2)}`);
       csvContent.push(`Total Expenses,₹${getTotalExpenses().toFixed(2)}`);
@@ -379,27 +463,65 @@ Net Income: ₹${netIncome.toFixed(2)}`;
       return;
     }
 
-    const selectedData = sortedReports.filter(r => selectedRows.has(r._id || r.id));
-    const originalData = sortedReports;
+    const selectedData = processedReports.filter(r => selectedRows.has(r._id || r.id));
     
     // Temporarily set filtered data for export
-    downloadCSV();
+    downloadCSV(); // This will now use selectedData if we pass it
   };
 
-  // Clear filters
+  // Apply quick date filter
+  const applyQuickDateFilter = (type) => {
+    const today = new Date();
+    let startDate = new Date();
+    
+    switch (type) {
+      case 'today':
+        startDate = new Date(today);
+        break;
+      case 'week':
+        startDate.setDate(today.getDate() - 7);
+        break;
+      case 'month':
+        startDate.setMonth(today.getMonth() - 1);
+        break;
+      case 'custom':
+        setDateFilter({ type: 'custom', startDate: '', endDate: '' });
+        return;
+      default:
+        setDateFilter({ type: 'all', startDate: '', endDate: '' });
+        return;
+    }
+
+    setDateFilter({
+      type,
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: today.toISOString().split('T')[0]
+    });
+    setLocalCurrentPage(1); // Reset to first page on filter change
+  };
+
+  // Clear all filters
   const clearFilters = () => {
     setSearchTerm('');
-    setDateFilter('');
-    setDateRangeStart('');
-    setDateRangeEnd('');
-    setCurrentPage(1);
+    setDateFilter({ type: 'all', startDate: '', endDate: '' });
+    setLocalCurrentPage(1);
     setSelectedRows(new Set());
+    setSortField('date'); // Reset sort field
+    setSortOrder('desc'); // Reset sort order
   };
 
   const SortIcon = ({ field }) => {
     if (sortField !== field) return <ArrowUpDown className="w-3 h-3" />;
     return sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />;
   };
+
+  const dateFilters = [
+    { key: 'all', label: 'All Time' },
+    { key: 'today', label: 'Today' },
+    { key: 'week', label: 'Last 7 Days' },
+    { key: 'month', label: 'Last 30 Days' },
+    { key: 'custom', label: 'Custom Range' }
+  ];
 
   // Loading state
   if (loading && dailyReports.length === 0) {
@@ -453,8 +575,8 @@ Net Income: ₹${netIncome.toFixed(2)}`;
               <p className={`text-xs ${
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
               }`}>
-                Showing {currentReports.length} of {sortedReports.length} report{sortedReports.length !== 1 ? 's' : ''}
-                {sortedReports.length !== dailyReports.length && ` (filtered from ${dailyReports.length})`}
+                Showing {startIndex + 1} to {endIndex} of {totalItems} report{totalItems !== 1 ? 's' : ''}
+                {totalItems !== dailyReports.length && ` (filtered from ${totalItems})`}
                 {selectedRows.size > 0 && ` • ${selectedRows.size} selected`}
               </p>
             </div>
@@ -498,12 +620,12 @@ Net Income: ₹${netIncome.toFixed(2)}`;
             <div className="relative">
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                disabled={sortedReports.length === 0}
+                disabled={totalItems === 0}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                   theme === 'dark'
                     ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
                     : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-                } ${sortedReports.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${totalItems === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <Download className="w-4 h-4" />
                 <span>Export</span>
@@ -511,8 +633,8 @@ Net Income: ₹${netIncome.toFixed(2)}`;
 
               {showExportMenu && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-40" 
+                  <div
+                    className="fixed inset-0 z-40"
                     onClick={() => setShowExportMenu(false)}
                   />
                   <div className={`absolute right-0 top-full mt-1 w-64 rounded-lg shadow-lg border z-50 ${
@@ -549,120 +671,135 @@ Net Income: ₹${netIncome.toFixed(2)}`;
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Advanced Filters */}
-      {showFilters && (
-        <div className={`px-6 py-4 border-b ${
-          theme === 'dark' ? 'border-slate-700/50 bg-slate-900/30' : 'border-gray-200 bg-gray-50'
-        }`}>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Search */}
-            <div className="lg:col-span-2">
-              <label className={`block text-xs font-medium mb-1 ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+        {/* Advanced Filters */}
+        {showFilters && (
+          <div className={`mt-4 p-4 rounded-lg border ${
+            theme === 'dark'
+              ? 'bg-slate-700/50 border-slate-600'
+              : 'bg-gray-50 border-gray-200'
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className={`text-sm font-medium ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
               }`}>
-                Search
-              </label>
-              <div className="relative">
-                <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
-                  theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                }`} />
-                <input
-                  type="text"
-                  placeholder="Search by date, amount..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
-                    theme === 'dark'
-                      ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400'
-                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                  }`}
-                />
-              </div>
-            </div>
-
-            {/* Single Date Filter */}
-            <div>
-              <label className={`block text-xs font-medium mb-1 ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                Specific Date
-              </label>
-              <div className="relative">
-                <CalendarIcon className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
-                  theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                }`} />
-                <input
-                  type="date"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
-                    theme === 'dark'
-                      ? 'bg-slate-700 border-slate-600 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
-                  }`}
-                />
-              </div>
-            </div>
-
-            {/* Date Range Start */}
-            <div>
-              <label className={`block text-xs font-medium mb-1 ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                Date From
-              </label>
-              <input
-                type="date"
-                value={dateRangeStart}
-                onChange={(e) => setDateRangeStart(e.target.value)}
-                className={`w-full px-4 py-2 rounded-lg border ${
+                Filters
+              </h3>
+              <button
+                onClick={clearFilters}
+                className={`text-xs flex items-center gap-1 ${
                   theme === 'dark'
-                    ? 'bg-slate-700 border-slate-600 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
+                    ? 'text-gray-400 hover:text-gray-300'
+                    : 'text-gray-500 hover:text-gray-700'
                 }`}
-              />
+              >
+                <X className="w-3 h-3" />
+                Clear All
+              </button>
             </div>
 
-            {/* Date Range End */}
-            <div>
-              <label className={`block text-xs font-medium mb-1 ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                Date To
-              </label>
-              <input
-                type="date"
-                value={dateRangeEnd}
-                onChange={(e) => setDateRangeEnd(e.target.value)}
-                className={`w-full px-4 py-2 rounded-lg border ${
-                  theme === 'dark'
-                    ? 'bg-slate-700 border-slate-600 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-              />
-            </div>
-
-            {/* Clear Filters Button */}
-            {(searchTerm || dateFilter || dateRangeStart || dateRangeEnd) && (
-              <div className="flex items-end">
-                <button
-                  onClick={clearFilters}
-                  className={`w-full px-4 py-2 rounded-lg border transition-colors flex items-center justify-center gap-2 ${
-                    theme === 'dark'
-                      ? 'border-slate-600 text-gray-400 hover:text-white hover:bg-slate-700'
-                      : 'border-gray-300 text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  <X className="w-4 h-4" />
-                  Clear All Filters
-                </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Search */}
+              <div className="lg:col-span-2">
+                <label className={`block text-xs font-medium mb-1 ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  Search
+                </label>
+                <div className="relative">
+                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
+                  <input
+                    type="text"
+                    placeholder="Search by date, amount..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setLocalCurrentPage(1); // Reset to first page on search
+                    }}
+                    className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
+                      theme === 'dark'
+                        ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                    }`}
+                  />
+                </div>
               </div>
-            )}
+
+              {/* Date Filters */}
+              <div className="lg:col-span-2 space-y-2">
+                <label className={`text-sm font-medium ${
+                  theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Date Range
+                </label>
+                
+                {/* Quick Date Filters */}
+                <div className="flex flex-wrap gap-2">
+                  {dateFilters.map((filter) => (
+                    <button
+                      key={filter.key}
+                      onClick={() => applyQuickDateFilter(filter.key)}
+                      className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
+                        dateFilter.type === filter.key
+                          ? theme === 'dark'
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-emerald-500 text-white'
+                          : theme === 'dark'
+                          ? 'bg-slate-600 text-gray-300 hover:bg-slate-500'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Custom Date Range */}
+                {dateFilter.type === 'custom' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${
+                        theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                        Start Date
+                      </label>
+                      <input
+                        type="date"
+                        value={dateFilter.startDate}
+                        onChange={(e) => setDateFilter(prev => ({ ...prev, startDate: e.target.value }))}
+                        className={`w-full px-3 py-1.5 rounded border text-sm ${
+                          theme === 'dark'
+                            ? 'bg-slate-600 border-slate-500 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${
+                        theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                        End Date
+                      </label>
+                      <input
+                        type="date"
+                        value={dateFilter.endDate}
+                        onChange={(e) => setDateFilter(prev => ({ ...prev, endDate: e.target.value }))}
+                        className={`w-full px-3 py-1.5 rounded border text-sm ${
+                          theme === 'dark'
+                            ? 'bg-slate-600 border-slate-500 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Enhanced Stats Cards */}
       <div className={`px-6 py-4 border-b ${
@@ -828,7 +965,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                   className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                 />
               </th>
-              <th 
+              <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
                   theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
                 }`}
@@ -839,7 +976,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                   <SortIcon field="date" />
                 </div>
               </th>
-              <th 
+              <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
                   theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
                 }`}
@@ -850,7 +987,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                   <SortIcon field="gpay" />
                 </div>
               </th>
-              <th 
+              <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
                   theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
                 }`}
@@ -861,7 +998,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                   <SortIcon field="card" />
                 </div>
               </th>
-              <th 
+              <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
                   theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
                 }`}
@@ -872,7 +1009,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                   <SortIcon field="cash" />
                 </div>
               </th>
-              <th 
+              <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
                   theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
                 }`}
@@ -883,7 +1020,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                   <SortIcon field="expenses" />
                 </div>
               </th>
-              <th 
+              <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
                   theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
                 }`}
@@ -894,7 +1031,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                   <SortIcon field="total" />
                 </div>
               </th>
-              <th 
+              <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
                   theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
                 }`}
@@ -905,146 +1042,175 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                   <SortIcon field="netIncome" />
                 </div>
               </th>
-              <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className={`divide-y ${theme === 'dark' ? 'divide-slate-700/50' : 'divide-gray-200'}`}>
-            {currentReports.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="px-6 py-12 text-center">
-                  <div className="flex flex-col items-center justify-center">
-                    <Receipt className={`w-12 h-12 mb-3 ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`} />
-                    <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {sortedReports.length === 0 && dailyReports.length > 0 
-                        ? 'No reports match your filters' 
-                        : 'No daily reports found'
-                      }
-                    </p>
-                    <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
-                      {sortedReports.length === 0 && dailyReports.length > 0 
-                        ? 'Try adjusting your search or date filters'
-                        : 'Daily reports will appear here once created'
-                      }
-                    </p>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              currentReports.map((report, index) => {
-                const reportId = report._id || report.id || `report-${index}`;
-                const totalCollection = (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
-                const netIncome = totalCollection - (Number(report.expenses) || 0);
-                const isSelected = selectedRows.has(reportId);
-                const isCopied = copiedRow === reportId;
-                
-                return (
-                  <tr 
-                    key={reportId}
-                    className={`transition-colors ${
-                      isSelected 
-                        ? theme === 'dark' 
-                          ? 'bg-emerald-500/10' 
-                          : 'bg-emerald-50'
-                        : theme === 'dark' 
-                        ? 'hover:bg-slate-700/30' 
-                        : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleRowSelection(reportId)}
-                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                      />
-                    </td>
-                    <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-900'}`}>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        {report.date ? new Date(report.date).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        }) : 'N/A'}
-                      </div>
-                    </td>
-                    <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-900'}`}>
-                      ₹{(Number(report.gpay) || 0).toFixed(2)}
-                    </td>
-                    <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-900'}`}>
-                      ₹{(Number(report.card) || 0).toFixed(2)}
-                    </td>
-                    <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-900'}`}>
-                      ₹{(Number(report.cash) || 0).toFixed(2)}
-                    </td>
-                    <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-gray-300' : 'text-gray-900'}`}>
-                      ₹{(Number(report.expenses) || 0).toFixed(2)}
-                    </td>
-                    <td className={`px-6 py-4 whitespace-nowrap font-bold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                      ₹{totalCollection.toFixed(2)}
-                    </td>
-                    <td className={`px-6 py-4 whitespace-nowrap font-bold ${
-                      netIncome >= 0 
-                        ? theme === 'dark' ? 'text-green-400' : 'text-green-600'
-                        : theme === 'dark' ? 'text-red-400' : 'text-red-600'
-                    }`}>
-                      ₹{netIncome.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+          <tbody className={`divide-y ${
+            theme === 'dark' ? 'divide-slate-700/50' : 'divide-gray-200'
+          }`}>
+            {currentReports.map((report, index) => {
+              const totalCollection = (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
+              const netIncome = totalCollection - (Number(report.expenses) || 0);
+              const isSelected = selectedRows.has(report._id || report.id);
+              const isCopied = copiedRow === (report._id || report.id);
+
+              return (
+                <tr
+                  key={report._id || report.id}
+                  className={`transition-all duration-200 ${
+                    isSelected
+                      ? theme === 'dark'
+                        ? 'bg-emerald-500/10 border-l-4 border-l-emerald-500'
+                        : 'bg-emerald-50 border-l-4 border-l-emerald-500'
+                      : theme === 'dark'
+                      ? 'hover:bg-slate-700/30'
+                      : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <td className="px-6 py-4">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleRowSelection(report._id || report.id)}
+                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                  </td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
+                    theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="w-4 h-4 text-gray-400" />
+                      {report.date}
+                    </div>
+                  </td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    ₹{(Number(report.gpay) || 0).toFixed(2)}
+                  </td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    ₹{(Number(report.card) || 0).toFixed(2)}
+                  </td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    ₹{(Number(report.cash) || 0).toFixed(2)}
+                  </td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                    theme === 'dark' ? 'text-red-400' : 'text-red-600'
+                  }`}>
+                    ₹{(Number(report.expenses) || 0).toFixed(2)}
+                  </td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
+                    theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
+                  }`}>
+                    ₹{totalCollection.toFixed(2)}
+                  </td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
+                    netIncome >= 0
+                      ? theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                      : theme === 'dark' ? 'text-red-400' : 'text-red-600'
+                  }`}>
+                    ₹{netIncome.toFixed(2)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => copyRowData(report)}
-                        className={`p-2 rounded-lg transition-colors ${
+                        className={`p-1.5 rounded transition-colors ${
                           isCopied
                             ? theme === 'dark'
-                              ? 'bg-green-500/20 text-green-400'
-                              : 'bg-green-100 text-green-600'
+                               ? 'bg-green-500/20 text-green-400'
+                               : 'bg-green-100 text-green-700'
                             : theme === 'dark'
-                            ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
-                            : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                            ? 'hover:bg-slate-600 text-gray-400 hover:text-white'
+                            : 'hover:bg-gray-200 text-gray-600 hover:text-gray-900'
                         }`}
-                        title="Copy row data"
+                        title={isCopied ? 'Copied!' : 'Copy row data'}
                       >
-                        {isCopied ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        {isCopied ? (
+                          <CheckCircle2 className="w-4 h-4" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
                       </button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
+                      <button
+                        className={`p-1.5 rounded transition-colors ${
+                          theme === 'dark'
+                            ? 'hover:bg-slate-600 text-gray-400 hover:text-white'
+                            : 'hover:bg-gray-200 text-gray-600 hover:text-gray-900'
+                        }`}
+                        title="View details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
-      </div>
 
-      {/* Enhanced Pagination Footer */}
-      {sortedReports.length > 0 && (
-        <div className={`px-6 py-4 border-t flex flex-col sm:flex-row items-center justify-between gap-4 ${
-          theme === 'dark'
-            ? 'border-slate-700/50 bg-slate-900/30'
-            : 'border-gray-200 bg-gray-50'
-        }`}>
-          {/* Left side - Rows info and per page selector */}
-          <div className="flex items-center gap-4">
-            <div className={`text-sm ${
+        {/* Empty State */}
+        {currentReports.length === 0 && (
+          <div className="text-center py-12">
+            <div className={`mx-auto w-16 h-16 mb-4 rounded-full flex items-center justify-center ${
+              theme === 'dark'
+                ? 'bg-slate-700/50 text-gray-400'
+                : 'bg-gray-100 text-gray-400'
+            }`}>
+              <Receipt className="w-8 h-8" />
+            </div>
+            <h3 className={`text-lg font-medium mb-2 ${
+              theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
+            }`}>
+              No reports found
+            </h3>
+            <p className={`text-sm max-w-sm mx-auto ${
               theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
             }`}>
-              Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-              <span className="font-medium">{endIndex}</span> of{' '}
-              <span className="font-medium">{sortedReports.length}</span> entries
-            </div>
-            
-            {/* Items per page selector */}
-            <div className="flex items-center gap-2">
-              <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                Rows:
+              {totalItems === 0
+                ? 'No daily reports have been added yet.'
+                : 'No reports match your current filters. Try adjusting your search criteria.'}
+            </p>
+            {totalItems === 0 && !isManagerView && (
+              <button
+                onClick={() => window.location.href = '/branch-owner/add-sales'}
+                className={`mt-4 px-6 py-2 rounded-lg font-medium transition-colors ${
+                  theme === 'dark'
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                }`}
+              >
+                Add First Report
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Enhanced Pagination */}
+      {totalPages > 1 && (
+        <div className={`px-6 py-4 border-t ${
+          theme === 'dark' ? 'border-slate-700/50' : 'border-gray-200'
+        }`}>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            {/* Items per page */}
+            <div className="flex items-center gap-3">
+              <span className={`text-sm ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Show:
               </span>
               <select
                 value={itemsPerPage}
                 onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                className={`px-3 py-1 rounded-lg border text-sm ${
+                className={`px-3 py-1.5 rounded border text-sm ${
                   theme === 'dark'
                     ? 'bg-slate-700 border-slate-600 text-white'
                     : 'bg-white border-gray-300 text-gray-900'
@@ -1056,84 +1222,119 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                 <option value={50}>50</option>
                 <option value={100}>100</option>
               </select>
+              <span className={`text-sm ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                items per page
+              </span>
             </div>
-          </div>
 
-          {/* Right side - Pagination controls */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={goToFirstPage}
-              disabled={currentPage === 1}
-              className={`p-2 rounded-lg transition-colors ${
-                theme === 'dark'
-                  ? 'hover:bg-slate-700 text-gray-400 hover:text-white disabled:text-gray-600'
-                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900 disabled:text-gray-400'
-              } disabled:cursor-not-allowed`}
-              title="First page"
-            >
-              <ChevronsLeft className="w-4 h-4" />
-            </button>
+            {/* Page info */}
+            <div className={`text-sm ${
+              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+            }`}>
+              Showing {startIndex + 1} to {endIndex} of {totalItems} entries
+              {totalItems !== dailyReports.length && (
+                <span className="ml-1">
+                  (filtered from {totalItems} total)
+                </span>
+              )}
+            </div>
 
-            <button
-              onClick={goToPreviousPage}
-              disabled={currentPage === 1}
-              className={`p-2 rounded-lg transition-colors ${
-                theme === 'dark'
-                  ? 'hover:bg-slate-700 text-gray-400 hover:text-white disabled:text-gray-600'
-                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900 disabled:text-gray-400'
-              } disabled:cursor-not-allowed`}
-              title="Previous page"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-
-            {/* Page numbers */}
+            {/* Pagination Controls */}
             <div className="flex items-center gap-1">
+              {/* First Page */}
+              <button
+                onClick={goToFirstPage}
+                disabled={currentPage === 1}
+                className={`p-2 rounded ${
+                  currentPage === 1
+                    ? theme === 'dark'
+                      ? 'text-gray-600 cursor-not-allowed'
+                      : 'text-gray-400 cursor-not-allowed'
+                    : theme === 'dark'
+                    ? 'text-gray-400 hover:text-white hover:bg-slate-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+              >
+                <ChevronsLeft className="w-4 h-4" />
+              </button>
+
+              {/* Previous Page */}
+              <button
+                onClick={goToPreviousPage}
+                disabled={currentPage === 1}
+                className={`p-2 rounded ${
+                  currentPage === 1
+                    ? theme === 'dark'
+                      ? 'text-gray-600 cursor-not-allowed'
+                      : 'text-gray-400 cursor-not-allowed'
+                    : theme === 'dark'
+                    ? 'text-gray-400 hover:text-white hover:bg-slate-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {/* Page Numbers */}
               {getPageNumbers().map((page, index) => (
                 <button
                   key={index}
                   onClick={() => typeof page === 'number' && handlePageChange(page)}
                   disabled={page === '...'}
-                  className={`min-w-[2.5rem] h-9 px-3 rounded-lg text-sm font-medium transition-colors ${
+                  className={`min-w-[40px] h-10 px-3 rounded text-sm font-medium transition-colors ${
                     page === currentPage
                       ? theme === 'dark'
-                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                        : 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-emerald-600 text-white'
+                      : page === '...'
+                      ? theme === 'dark'
+                        ? 'text-gray-500 cursor-default'
+                        : 'text-gray-400 cursor-default'
                       : theme === 'dark'
                       ? 'text-gray-400 hover:text-white hover:bg-slate-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  } ${page === '...' ? 'cursor-default hover:bg-transparent' : ''}`}
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                  }`}
                 >
                   {page}
                 </button>
               ))}
+
+              {/* Next Page */}
+              <button
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+                className={`p-2 rounded ${
+                  currentPage === totalPages
+                    ? theme === 'dark'
+                      ? 'text-gray-600 cursor-not-allowed'
+                      : 'text-gray-400 cursor-not-allowed'
+                    : theme === 'dark'
+                    ? 'text-gray-400 hover:text-white hover:bg-slate-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              {/* Last Page */}
+              <button
+                onClick={goToLastPage}
+                disabled={currentPage === totalPages}
+                className={`p-2 rounded ${
+                  currentPage === totalPages
+                    ? theme === 'dark'
+                      ? 'text-gray-600 cursor-not-allowed'
+                      : 'text-gray-400 cursor-not-allowed'
+                    : theme === 'dark'
+                    ? 'text-gray-400 hover:text-white hover:bg-slate-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+              >
+                <ChevronsRight className="w-4 h-4" />
+              </button>
             </div>
-
-            <button
-              onClick={goToNextPage}
-              disabled={currentPage === totalPages}
-              className={`p-2 rounded-lg transition-colors ${
-                theme === 'dark'
-                  ? 'hover:bg-slate-700 text-gray-400 hover:text-white disabled:text-gray-600'
-                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900 disabled:text-gray-400'
-              } disabled:cursor-not-allowed`}
-              title="Next page"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={goToLastPage}
-              disabled={currentPage === totalPages}
-              className={`p-2 rounded-lg transition-colors ${
-                theme === 'dark'
-                  ? 'hover:bg-slate-700 text-gray-400 hover:text-white disabled:text-gray-600'
-                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900 disabled:text-gray-400'
-              } disabled:cursor-not-allowed`}
-              title="Last page"
-            >
-              <ChevronsRight className="w-4 h-4" />
-            </button>
           </div>
         </div>
       )}

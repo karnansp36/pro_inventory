@@ -20,7 +20,12 @@ import {
   Clock,
   Loader2,
   Edit,
-  Save
+  Save,
+  MoreVertical,
+  Eye,
+  FileText,
+  MapPin,
+  AlertCircle
 } from 'lucide-react';
 
 const TransportTable = ({ 
@@ -63,11 +68,21 @@ const TransportTable = ({
   const [editingTransportId, setEditingTransportId] = useState(null);
   const [receivedQuantities, setReceivedQuantities] = useState({});
   const [complaints, setComplaints] = useState({});
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Use props if provided (manager view), otherwise use Redux state (branch owner view)
   const transports = isManagerView ? (transportsData || []) : reduxTransports;
   const totalItems = isManagerView ? propTotalItems : reduxTotalItems;
   const loading = isManagerView ? propLoading : reduxLoading;
+
+  // Check mobile screen size
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Sync with prop changes for manager view
   useEffect(() => {
@@ -183,45 +198,14 @@ const TransportTable = ({
     }
   };
 
-  const goToFirstPage = () => {
-    const newPage = 1;
-    if (isManagerView && onPageChange) {
-      onPageChange(newPage);
-    } else {
-      setCurrentPage(newPage);
-    }
-  };
-
-  const goToLastPage = () => {
-    const newPage = totalPages;
-    if (isManagerView && onPageChange) {
-      onPageChange(newPage);
-    } else {
-      setCurrentPage(newPage);
-    }
-  };
-
-  const goToPreviousPage = () => {
-    const newPage = Math.max(1, currentPage - 1);
-    if (isManagerView && onPageChange) {
-      onPageChange(newPage);
-    } else {
-      setCurrentPage(newPage);
-    }
-  };
-
-  const goToNextPage = () => {
-    const newPage = Math.min(totalPages, currentPage + 1);
-    if (isManagerView && onPageChange) {
-      onPageChange(newPage);
-    } else {
-      setCurrentPage(newPage);
-    }
-  };
+  const goToFirstPage = () => handlePageChange(1);
+  const goToLastPage = () => handlePageChange(totalPages);
+  const goToPreviousPage = () => handlePageChange(Math.max(1, currentPage - 1));
+  const goToNextPage = () => handlePageChange(Math.min(totalPages, currentPage + 1));
 
   const getPageNumbers = () => {
     const pages = [];
-    const maxVisible = 5;
+    const maxVisible = isMobile ? 3 : 5;
     
     if (totalPages <= maxVisible) {
       for (let i = 1; i <= totalPages; i++) {
@@ -250,32 +234,174 @@ const TransportTable = ({
   const getStatusStyles = (transport) => {
     const isDelivered = transport.receivedQuantity !== undefined && transport.receivedQuantity !== null;
     const lightStyles = {
-      delivered: 'bg-green-100 text-green-800 border-green-200',
-      inTransit: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      delivered: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      inTransit: 'bg-amber-50 text-amber-700 border-amber-200',
+      withComplaints: 'bg-red-50 text-red-700 border-red-200',
     };
     const darkStyles = {
-      delivered: 'bg-green-900/30 text-green-300 border-green-700',
-      inTransit: 'bg-yellow-900/30 text-yellow-300 border-yellow-700',
+      delivered: 'bg-emerald-900/30 text-emerald-300 border-emerald-700',
+      inTransit: 'bg-amber-900/30 text-amber-300 border-amber-700',
+      withComplaints: 'bg-red-900/30 text-red-300 border-red-700',
     };
     const styles = isDark ? darkStyles : lightStyles;
-    return isDelivered ? styles.delivered : styles.inTransit;
+    
+    if (isDelivered) {
+      return transport.complaints ? styles.withComplaints : styles.delivered;
+    }
+    return styles.inTransit;
   };
 
   const getStatusText = (transport) => {
     if (transport.receivedQuantity !== undefined && transport.receivedQuantity !== null) {
-      return 'Delivered';
+      return transport.complaints ? 'With Complaints' : 'Delivered';
     }
     return 'In Transit';
   };
 
   const getStatusIcon = (transport) => {
     if (transport.receivedQuantity !== undefined && transport.receivedQuantity !== null) {
-      return <CheckCircle className="w-3 h-3" />;
+      return transport.complaints ? <AlertCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />;
     }
     return <Clock className="w-3 h-3" />;
   };
 
-  // CSV Export Function - exports current page data
+  // Mobile Card View Component
+  const TransportCard = ({ transport }) => (
+    <div className={`p-4 rounded-xl border transition-all duration-200 ${
+      isDark 
+        ? 'bg-slate-800/50 border-slate-700 hover:bg-slate-700/50' 
+        : 'bg-white border-gray-200 hover:bg-gray-50'
+    }`}>
+      {/* Header */}
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className={`p-2 rounded-lg ${
+            isDark ? 'bg-blue-500/20' : 'bg-blue-100'
+          }`}>
+            <Truck className={`w-4 h-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+          </div>
+          <div>
+            <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {transport.stockRequest?.productName || 'Unknown Product'}
+            </h3>
+            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              {new Date(transport.createdAt).toLocaleDateString()}
+            </p>
+          </div>
+        </div>
+        <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-medium ${getStatusStyles(transport)}`}>
+          {getStatusIcon(transport)}
+          {getStatusText(transport)}
+        </div>
+      </div>
+
+      {/* Details */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <MapPin className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+          <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+            {transport.from} → {transport.to}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>Sent:</span>
+            <span className={`font-medium ml-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {transport.quantity || 0}
+            </span>
+          </div>
+          <div>
+            <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>Received:</span>
+            {editingTransportId === transport._id ? (
+              <input
+                type="number"
+                min="0"
+                max={transport.quantity}
+                value={receivedQuantities[transport._id] || ''}
+                onChange={(e) => setReceivedQuantities(prev => ({
+                  ...prev,
+                  [transport._id]: e.target.value
+                }))}
+                className={`ml-1 w-16 px-2 py-1 text-sm rounded border ${
+                  isDark
+                    ? 'bg-slate-600 border-slate-500 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
+              />
+            ) : (
+              <span className={`font-medium ml-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                {transport.receivedQuantity || 0}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Complaints */}
+        <div>
+          <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            Complaints:
+          </span>
+          {editingTransportId === transport._id ? (
+            <textarea
+              value={complaints[transport._id] || ''}
+              onChange={(e) => setComplaints(prev => ({
+                ...prev,
+                [transport._id]: e.target.value
+              }))}
+              placeholder="Enter complaints..."
+              rows="2"
+              className={`mt-1 w-full px-2 py-1 text-sm rounded border ${
+                isDark
+                  ? 'bg-slate-600 border-slate-500 text-white placeholder-gray-400'
+                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+              }`}
+            />
+          ) : (
+            <p className={`text-sm mt-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              {transport.complaints || 'No complaints'}
+            </p>
+          )}
+        </div>
+
+        {/* Actions */}
+        {!isManagerView && (
+          <div className="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-slate-700">
+            {editingTransportId === transport._id ? (
+              <>
+                <button
+                  onClick={() => handleUpdateTransport(transport._id)}
+                  disabled={loading}
+                  className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-emerald-500 text-white rounded-lg text-sm hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  Save
+                </button>
+                <button
+                  onClick={() => setEditingTransportId(null)}
+                  disabled={loading}
+                  className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600 transition-colors disabled:opacity-50"
+                >
+                  <X className="w-4 h-4" />
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setEditingTransportId(transport._id)}
+                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors"
+              >
+                <Edit className="w-4 h-4" />
+                Edit
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // CSV Export Function
   const downloadCSV = () => {
     if (transports.length === 0) {
       toast.error('No data to export');
@@ -293,17 +419,8 @@ const TransportTable = ({
       };
 
       const headers = [
-        'Date',
-        'Product Name',
-        'From Location',
-        'To Location',
-        'Sent Quantity',
-        'Received Quantity',
-        'Complaints',
-        'Status',
-        'Transport ID',
-        'Branch ID',
-        'Created At'
+        'Date', 'Product Name', 'From Location', 'To Location', 'Sent Quantity',
+        'Received Quantity', 'Complaints', 'Status', 'Transport ID', 'Branch ID', 'Created At'
       ];
 
       const csvRows = transports.map(transport => [
@@ -327,33 +444,12 @@ const TransportTable = ({
       csvContent.push('');
       csvContent.push('Summary');
       csvContent.push(`Total Records (Current Page),${transports.length}`);
-      csvContent.push(`Delivered (Current Page),${(transports || []).filter(t => t.receivedQuantity !== undefined && t.receivedQuantity !== null).length}`);
-      csvContent.push(`In Transit (Current Page),${(transports || []).filter(t => t.receivedQuantity === undefined || t.receivedQuantity === null).length}`);
+      csvContent.push(`Delivered (Current Page),${transports.filter(t => t.receivedQuantity !== undefined && t.receivedQuantity !== null && !t.complaints).length}`);
+      csvContent.push(`With Complaints (Current Page),${transports.filter(t => t.complaints).length}`);
+      csvContent.push(`In Transit (Current Page),${transports.filter(t => t.receivedQuantity === undefined || t.receivedQuantity === null).length}`);
       csvContent.push(`Total Records (All Pages),${totalItems}`);
       csvContent.push(`Page,${currentPage} of ${totalPages}`);
       
-      if (!isManagerView && dateFilter.type !== 'all') {
-        csvContent.push(`Date Filter,${dateFilter.type}`);
-        if (dateFilter.type === 'custom' && dateFilter.startDate && dateFilter.endDate) {
-          csvContent.push(`Start Date,${dateFilter.startDate}`);
-          csvContent.push(`End Date,${dateFilter.endDate}`);
-        }
-      }
-      
-      if (!isManagerView && statusFilter !== 'all') {
-        csvContent.push(`Status Filter,${statusFilter}`);
-      }
-      
-      if (!isManagerView && locationFilter !== 'all') {
-        csvContent.push(`Location Filter,${locationFilter}`);
-      }
-      
-      if (!isManagerView && searchTerm) {
-        csvContent.push(`Search Term,${searchTerm}`);
-      }
-      
-      csvContent.push(`Export Date,${new Date().toLocaleDateString('en-US')}`);
-
       const blob = new Blob([csvContent.join('\n')], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
@@ -443,10 +539,10 @@ const TransportTable = ({
 
   if (loading && transports.length === 0) {
     return (
-      <div className={`rounded-xl p-8 transition-all duration-300 ${
+      <div className={`rounded-2xl p-8 transition-all duration-300 ${
         isDark
-          ? 'bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm'
-          : 'bg-white border border-gray-200 shadow-lg'
+          ? 'bg-slate-800/50 border border-slate-700 backdrop-blur-sm'
+          : 'bg-white border border-gray-200 shadow-xl'
       }`}>
         <div className="flex flex-col items-center justify-center py-12">
           <Loader2 className={`w-12 h-12 animate-spin mb-4 ${
@@ -463,46 +559,45 @@ const TransportTable = ({
   }
 
   return (
-    <div className={`rounded-xl overflow-hidden transition-all duration-300 ${
+    <div className={`rounded-2xl overflow-hidden transition-all duration-300 ${
       isDark
-        ? 'bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm'
-        : 'bg-white border border-gray-200 shadow-lg'
+        ? 'bg-slate-800/50 border border-slate-700 backdrop-blur-sm'
+        : 'bg-white border border-gray-200 shadow-xl'
     }`}>
       {/* Header */}
-      <div className={`px-6 py-4 border-b ${
-        isDark ? 'border-slate-700/50' : 'border-gray-200'
+      <div className={`px-6 py-5 border-b ${
+        isDark ? 'border-slate-700' : 'border-gray-200'
       }`}>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${
+            <div className={`p-3 rounded-xl ${
               isDark
                 ? 'bg-blue-500/20 border border-blue-500/30'
                 : 'bg-blue-50 border border-blue-200'
             }`}>
-              <Truck className={`w-5 h-5 ${
+              <Truck className={`w-6 h-6 ${
                 isDark ? 'text-blue-400' : 'text-blue-600'
               }`} />
             </div>
             <div>
-              <h2 className={`text-lg font-semibold ${
+              <h2 className={`text-xl font-bold ${
                 isDark ? 'text-white' : 'text-gray-900'
               }`}>
                 {isManagerView ? 'Transport Overview' : 'Transport History'}
               </h2>
-              <p className={`text-xs ${
+              <p className={`text-sm ${
                 isDark ? 'text-gray-400' : 'text-gray-600'
               }`}>
-                Showing {transports.length} of {totalItems} transport{totalItems !== 1 ? 's' : ''}
-                {!isManagerView && (dateFilter.type !== 'all' || statusFilter !== 'all' || locationFilter !== 'all' || searchTerm) && ' (filtered)'}
-                {isManagerView && ' (read-only)'}
+                {totalItems} total transport{totalItems !== 1 ? 's' : ''}
+                {!isManagerView && (dateFilter.type !== 'all' || statusFilter !== 'all' || locationFilter !== 'all' || searchTerm) && ' • Filters applied'}
               </p>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {/* Search - Only for branch owner view */}
             {!isManagerView && (
-              <div className="relative">
+              <div className="relative flex-1 lg:flex-none">
                 <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
                   isDark ? 'text-gray-400' : 'text-gray-500'
                 }`} />
@@ -514,7 +609,7 @@ const TransportTable = ({
                     setSearchTerm(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className={`pl-10 pr-4 py-2 rounded-lg border transition-colors text-sm ${
+                  className={`w-full lg:w-64 pl-10 pr-4 py-2.5 rounded-xl border transition-colors text-sm ${
                     isDark
                       ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400 focus:border-blue-500'
                       : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-blue-500'
@@ -527,14 +622,14 @@ const TransportTable = ({
             {!isManagerView && (
               <button 
                 onClick={() => setShowFilters(!showFilters)}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`p-2.5 rounded-xl transition-all duration-200 ${
                   showFilters
                     ? isDark
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-blue-500 text-white'
+                      ? 'bg-blue-500 text-white shadow-lg'
+                      : 'bg-blue-500 text-white shadow-lg'
                     : isDark
-                    ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
-                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                    ? 'hover:bg-slate-700 text-gray-400 hover:text-white border border-slate-600'
+                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900 border border-gray-300'
                 }`}
               >
                 <Filter className="w-4 h-4" />
@@ -546,10 +641,10 @@ const TransportTable = ({
               <button 
                 onClick={() => setShowExportMenu(!showExportMenu)}
                 disabled={transports.length === 0}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`p-2.5 rounded-xl transition-all duration-200 ${
                   isDark
-                    ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
-                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                    ? 'hover:bg-slate-700 text-gray-400 hover:text-white border border-slate-600'
+                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900 border border-gray-300'
                 } ${transports.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <Download className="w-4 h-4" />
@@ -557,7 +652,7 @@ const TransportTable = ({
 
               {/* Export Dropdown Menu */}
               {showExportMenu && (
-                <div className={`absolute right-0 top-full mt-1 w-56 rounded-lg shadow-lg border z-50 ${
+                <div className={`absolute right-0 top-full mt-2 w-56 rounded-xl shadow-lg border z-50 ${
                   isDark
                     ? 'bg-slate-800 border-slate-700'
                     : 'bg-white border-gray-200'
@@ -572,8 +667,9 @@ const TransportTable = ({
                       <button
                         key={format.key}
                         onClick={format.handler}
-                        className={`w-full flex items-center justify-center gap-3 px-3 py-2 rounded text-sm text-white font-medium transition-all mb-1 last:mb-0 ${format.color}`}
+                        className={`w-full flex items-center justify-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white font-medium transition-all mb-1 last:mb-0 ${format.color}`}
                       >
+                        <FileText className="w-4 h-4" />
                         {format.label}
                       </button>
                     ))}
@@ -586,33 +682,33 @@ const TransportTable = ({
 
         {/* Filters Panel - Only for branch owner view */}
         {showFilters && !isManagerView && (
-          <div className={`mt-4 p-4 rounded-lg border ${
+          <div className={`mt-4 p-5 rounded-xl border ${
             isDark
               ? 'bg-slate-700/50 border-slate-600'
               : 'bg-gray-50 border-gray-200'
           }`}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className={`text-sm font-medium ${
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-sm font-semibold ${
                 isDark ? 'text-gray-300' : 'text-gray-700'
               }`}>
                 Filters
               </h3>
               <button
                 onClick={clearFilters}
-                className={`text-xs flex items-center gap-1 ${
+                className={`text-sm flex items-center gap-2 px-3 py-1.5 rounded-lg ${
                   isDark 
-                    ? 'text-gray-400 hover:text-gray-300' 
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'text-gray-400 hover:text-gray-300 hover:bg-slate-600' 
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                <X className="w-3 h-3" />
+                <X className="w-4 h-4" />
                 Clear All
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Status Filter */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className={`text-sm font-medium ${
                   isDark ? 'text-gray-300' : 'text-gray-700'
                 }`}>
@@ -624,7 +720,7 @@ const TransportTable = ({
                     setStatusFilter(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className={`w-full px-3 py-2 rounded border text-sm ${
+                  className={`w-full px-3 py-2.5 rounded-lg border text-sm ${
                     isDark
                       ? 'bg-slate-600 border-slate-500 text-white'
                       : 'bg-white border-gray-300 text-gray-900'
@@ -633,11 +729,12 @@ const TransportTable = ({
                   <option value="all">All Status</option>
                   <option value="in-transit">In Transit</option>
                   <option value="delivered">Delivered</option>
+                  <option value="with-complaints">With Complaints</option>
                 </select>
               </div>
 
               {/* Location Filter */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className={`text-sm font-medium ${
                   isDark ? 'text-gray-300' : 'text-gray-700'
                 }`}>
@@ -649,7 +746,7 @@ const TransportTable = ({
                     setLocationFilter(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className={`w-full px-3 py-2 rounded border text-sm ${
+                  className={`w-full px-3 py-2.5 rounded-lg border text-sm ${
                     isDark
                       ? 'bg-slate-600 border-slate-500 text-white'
                       : 'bg-white border-gray-300 text-gray-900'
@@ -662,7 +759,7 @@ const TransportTable = ({
               </div>
 
               {/* Date Filters */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className={`text-sm font-medium ${
                   isDark ? 'text-gray-300' : 'text-gray-700'
                 }`}>
@@ -675,11 +772,11 @@ const TransportTable = ({
                     <button
                       key={filter.key}
                       onClick={() => applyQuickDateFilter(filter.key)}
-                      className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                         dateFilter.type === filter.key
                           ? isDark
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-blue-500 text-white'
+                            ? 'bg-blue-500 text-white shadow-lg'
+                            : 'bg-blue-500 text-white shadow-lg'
                           : isDark
                           ? 'bg-slate-600 text-gray-300 hover:bg-slate-500'
                           : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -694,7 +791,7 @@ const TransportTable = ({
                 {dateFilter.type === 'custom' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                     <div>
-                      <label className={`block text-xs font-medium mb-1 ${
+                      <label className={`block text-xs font-medium mb-2 ${
                         isDark ? 'text-gray-400' : 'text-gray-600'
                       }`}>
                         Start Date
@@ -703,7 +800,7 @@ const TransportTable = ({
                         type="date"
                         value={dateFilter.startDate}
                         onChange={(e) => setDateFilter(prev => ({ ...prev, startDate: e.target.value }))}
-                        className={`w-full px-3 py-1.5 rounded border text-sm ${
+                        className={`w-full px-3 py-2 rounded-lg border text-sm ${
                           isDark
                             ? 'bg-slate-600 border-slate-500 text-white'
                             : 'bg-white border-gray-300 text-gray-900'
@@ -711,7 +808,7 @@ const TransportTable = ({
                       />
                     </div>
                     <div>
-                      <label className={`block text-xs font-medium mb-1 ${
+                      <label className={`block text-xs font-medium mb-2 ${
                         isDark ? 'text-gray-400' : 'text-gray-600'
                       }`}>
                         End Date
@@ -720,7 +817,7 @@ const TransportTable = ({
                         type="date"
                         value={dateFilter.endDate}
                         onChange={(e) => setDateFilter(prev => ({ ...prev, endDate: e.target.value }))}
-                        className={`w-full px-3 py-1.5 rounded border text-sm ${
+                        className={`w-full px-3 py-2 rounded-lg border text-sm ${
                           isDark
                             ? 'bg-slate-600 border-slate-500 text-white'
                             : 'bg-white border-gray-300 text-gray-900'
@@ -736,14 +833,14 @@ const TransportTable = ({
       </div>
 
       {/* Stats Cards */}
-      <div className={`px-6 py-4 border-b ${
-        isDark ? 'border-slate-700/50' : 'border-gray-200'
+      <div className={`px-6 py-5 border-b ${
+        isDark ? 'border-slate-700' : 'border-gray-200'
       }`}>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className={`p-4 rounded-lg ${
+          <div className={`p-4 rounded-xl border transition-all duration-200 ${
             isDark
-              ? 'bg-slate-900/50 border border-slate-700/50'
-              : 'bg-gradient-to-br from-gray-50 to-white border border-gray-200'
+              ? 'bg-slate-900/50 border-slate-700 hover:border-blue-500/50'
+              : 'bg-gradient-to-br from-blue-50 to-white border-blue-200 hover:border-blue-300'
           }`}>
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${
@@ -759,30 +856,30 @@ const TransportTable = ({
                 <p className={`text-xs ${
                   isDark ? 'text-gray-400' : 'text-gray-600'
                 }`}>
-                  Total Transports (Page)
+                  Total Transports
                 </p>
-                <p className={`text-lg font-bold ${
+                <p className={`text-xl font-bold ${
                   isDark ? 'text-blue-400' : 'text-blue-600'
                 }`}>
-                  {transports.length}
+                  {totalItems}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className={`p-4 rounded-lg ${
+          <div className={`p-4 rounded-xl border transition-all duration-200 ${
             isDark
-              ? 'bg-slate-900/50 border border-slate-700/50'
-              : 'bg-gradient-to-br from-gray-50 to-white border border-gray-200'
+              ? 'bg-slate-900/50 border-slate-700 hover:border-emerald-500/50'
+              : 'bg-gradient-to-br from-emerald-50 to-white border-emerald-200 hover:border-emerald-300'
           }`}>
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${
                 isDark
-                  ? 'bg-green-500/20'
-                  : 'bg-green-100'
+                  ? 'bg-emerald-500/20'
+                  : 'bg-emerald-100'
               }`}>
                 <CheckCircle className={`w-4 h-4 ${
-                  isDark ? 'text-green-400' : 'text-green-600'
+                  isDark ? 'text-emerald-400' : 'text-emerald-600'
                 }`} />
               </div>
               <div>
@@ -791,28 +888,28 @@ const TransportTable = ({
                 }`}>
                   Delivered
                 </p>
-                <p className={`text-lg font-bold ${
+                <p className={`text-xl font-bold ${
                   isDark ? 'text-white' : 'text-gray-900'
                 }`}>
-                  {(transports || []).filter(t => t.receivedQuantity !== undefined && t.receivedQuantity !== null).length}
+                  {transports.filter(t => t.receivedQuantity !== undefined && t.receivedQuantity !== null && !t.complaints).length}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className={`p-4 rounded-lg ${
+          <div className={`p-4 rounded-xl border transition-all duration-200 ${
             isDark
-              ? 'bg-slate-900/50 border border-slate-700/50'
-              : 'bg-gradient-to-br from-gray-50 to-white border border-gray-200'
+              ? 'bg-slate-900/50 border-slate-700 hover:border-amber-500/50'
+              : 'bg-gradient-to-br from-amber-50 to-white border-amber-200 hover:border-amber-300'
           }`}>
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${
                 isDark
-                  ? 'bg-yellow-500/20'
-                  : 'bg-yellow-100'
+                  ? 'bg-amber-500/20'
+                  : 'bg-amber-100'
               }`}>
                 <Clock className={`w-4 h-4 ${
-                  isDark ? 'text-yellow-400' : 'text-yellow-600'
+                  isDark ? 'text-amber-400' : 'text-amber-600'
                 }`} />
               </div>
               <div>
@@ -821,10 +918,10 @@ const TransportTable = ({
                 }`}>
                   In Transit
                 </p>
-                <p className={`text-lg font-bold ${
+                <p className={`text-xl font-bold ${
                   isDark ? 'text-white' : 'text-gray-900'
                 }`}>
-                  {(transports || []).filter(t => t.receivedQuantity === undefined || t.receivedQuantity === null).length}
+                  {transports.filter(t => t.receivedQuantity === undefined || t.receivedQuantity === null).length}
                 </p>
               </div>
             </div>
@@ -832,253 +929,216 @@ const TransportTable = ({
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className={`${
-              isDark
-                ? 'bg-slate-900/50 border-b border-slate-700/50'
-                : 'bg-gray-50 border-b border-gray-200'
+      {/* Table Content */}
+      {isMobile ? (
+        // Mobile Card View
+        <div className="p-4 space-y-4">
+          {currentItems.map((transport) => (
+            <TransportCard key={transport._id} transport={transport} />
+          ))}
+        </div>
+      ) : (
+        // Desktop Table View
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className={`${
+                isDark
+                  ? 'bg-slate-900/50 border-b border-slate-700'
+                  : 'bg-gray-50 border-b border-gray-200'
+              }`}>
+                <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
+                  isDark ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  Transport Details
+                </th>
+                <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
+                  isDark ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  Product
+                </th>
+                <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
+                  isDark ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  Quantity
+                </th>
+                <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
+                  isDark ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  Status
+                </th>
+                {!isManagerView && (
+                  <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
+                    isDark ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
+                    Actions
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody className={`divide-y ${
+              isDark ? 'divide-slate-700/50' : 'divide-gray-200'
             }`}>
-              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                isDark ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                Transport Details
-              </th>
-              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                isDark ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                Product
-              </th>
-              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                isDark ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                Quantity
-              </th>
-              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                isDark ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                Status
-              </th>
-              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                isDark ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className={`divide-y ${
-            isDark ? 'divide-slate-700/50' : 'divide-gray-200'
-          }`}>
-            {currentItems.map((transport) => (
-              <tr 
-                key={transport._id}
-                className={`transition-colors ${
-                  isDark
-                    ? 'hover:bg-slate-700/30'
-                    : 'hover:bg-gray-50'
-                }`}
-              >
-                {/* Transport Details */}
-                <td className="px-6 py-4">
-                  <div className="space-y-1">
+              {currentItems.map((transport) => (
+                <tr 
+                  key={transport._id}
+                  className={`transition-all duration-200 ${
+                    isDark
+                      ? 'hover:bg-slate-700/30'
+                      : 'hover:bg-gray-50'
+                  }`}
+                >
+                  {/* Transport Details */}
+                  <td className="px-6 py-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Calendar className={`w-4 h-4 ${
+                          isDark ? 'text-gray-400' : 'text-gray-500'
+                        }`} />
+                        <span className={`text-sm font-medium ${
+                          isDark ? 'text-white' : 'text-gray-900'
+                        }`}>
+                          {new Date(transport.createdAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <MapPin className={`w-4 h-4 ${
+                            isDark ? 'text-gray-400' : 'text-gray-500'
+                          }`} />
+                          <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>
+                            {transport.from} → {transport.to}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Product */}
+                  <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <Calendar className={`w-4 h-4 ${
+                      <Package className={`w-4 h-4 ${
                         isDark ? 'text-gray-400' : 'text-gray-500'
                       }`} />
                       <span className={`text-sm font-medium ${
                         isDark ? 'text-white' : 'text-gray-900'
                       }`}>
-                        {new Date(transport.createdAt).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
+                        {transport.stockRequest?.productName || 'Unknown Product'}
                       </span>
                     </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
+                  </td>
+
+                  {/* Quantity */}
+                  <td className="px-6 py-4">
+                    <div className="space-y-2">
+                      <div>
                         <span className={`text-xs ${
                           isDark ? 'text-gray-400' : 'text-gray-600'
                         }`}>
-                          From:
+                          Sent:
                         </span>
-                        <span className={`text-xs font-medium ${
+                        <span className={`text-sm font-medium ml-1 ${
                           isDark ? 'text-white' : 'text-gray-900'
                         }`}>
-                          {transport.from || 'N/A'}
+                          {transport.quantity || 0}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      
+                      <div>
                         <span className={`text-xs ${
                           isDark ? 'text-gray-400' : 'text-gray-600'
                         }`}>
-                          To:
+                          Received:
                         </span>
-                        <span className={`text-xs font-medium ${
-                          isDark ? 'text-white' : 'text-gray-900'
-                        }`}>
-                          {transport.to || 'N/A'}
-                        </span>
+                        {editingTransportId === transport._id ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max={transport.quantity}
+                            value={receivedQuantities[transport._id] || ''}
+                            onChange={(e) => setReceivedQuantities(prev => ({
+                              ...prev,
+                              [transport._id]: e.target.value
+                            }))}
+                            className={`ml-1 w-20 px-2 py-1 text-sm rounded-lg border ${
+                              isDark
+                                ? 'bg-slate-600 border-slate-500 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
+                            }`}
+                          />
+                        ) : (
+                          <span className={`text-sm font-medium ml-1 ${
+                            isDark ? 'text-white' : 'text-gray-900'
+                          }`}>
+                            {transport.receivedQuantity || 0}
+                          </span>
+                        )}
                       </div>
                     </div>
-                  </div>
-                </td>
+                  </td>
 
-                {/* Product */}
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <Package className={`w-4 h-4 ${
-                      isDark ? 'text-gray-400' : 'text-gray-500'
-                    }`} />
-                    <span className={`text-sm font-medium ${
-                      isDark ? 'text-white' : 'text-gray-900'
-                    }`}>
-                      {transport.stockRequest?.productName || 'Unknown Product'}
-                    </span>
-                  </div>
-                </td>
-
-                {/* Quantity */}
-                <td className="px-6 py-4">
-                  <div className="space-y-2">
-                    {/* Sent Quantity */}
-                    <div>
-                      <span className={`text-xs ${
-                        isDark ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                        Sent:
-                      </span>
-                      <span className={`text-sm font-medium ml-1 ${
-                        isDark ? 'text-white' : 'text-gray-900'
-                      }`}>
-                        {transport.quantity || 0}
-                      </span>
+                  {/* Status */}
+                  <td className="px-6 py-4">
+                    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${getStatusStyles(transport)}`}>
+                      {getStatusIcon(transport)}
+                      {getStatusText(transport)}
                     </div>
-                    
-                    {/* Received Quantity */}
-                    <div>
-                      <span className={`text-xs ${
-                        isDark ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                        Received:
-                      </span>
-                      {editingTransportId === transport._id ? (
-                        <input
-                          type="number"
-                          min="0"
-                          max={transport.quantity}
-                          value={receivedQuantities[transport._id] || ''}
-                          onChange={(e) => setReceivedQuantities(prev => ({
-                            ...prev,
-                            [transport._id]: e.target.value
-                          }))}
-                          className={`ml-1 w-20 px-2 py-1 text-sm rounded border ${
-                            isDark
-                              ? 'bg-slate-600 border-slate-500 text-white'
-                              : 'bg-white border-gray-300 text-gray-900'
-                          }`}
-                        />
-                      ) : (
-                        <span className={`text-sm font-medium ml-1 ${
-                          isDark ? 'text-white' : 'text-gray-900'
-                        }`}>
-                          {transport.receivedQuantity || 0}
-                        </span>
-                      )}
-                    </div>
+                  </td>
 
-                    {/* Complaints */}
-                    <div>
-                      <span className={`text-xs ${
-                        isDark ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                        Complaints:
-                      </span>
-                      {editingTransportId === transport._id ? (
-                        <textarea
-                          value={complaints[transport._id] || ''}
-                          onChange={(e) => setComplaints(prev => ({
-                            ...prev,
-                            [transport._id]: e.target.value
-                          }))}
-                          placeholder="Enter complaints..."
-                          rows="2"
-                          className={`ml-1 w-full px-2 py-1 text-sm rounded border ${
-                            isDark
-                              ? 'bg-slate-600 border-slate-500 text-white placeholder-gray-400'
-                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                          }`}
-                        />
-                      ) : (
-                        <span className={`text-sm font-medium ml-1 ${
-                          isDark ? 'text-white' : 'text-gray-900'
-                        }`}>
-                          {transport.complaints || 'No complaints'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </td>
-
-                {/* Status */}
-                <td className="px-6 py-4">
-                  <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${getStatusStyles(transport)}`}>
-                    {getStatusIcon(transport)}
-                    {getStatusText(transport)}
-                  </div>
-                </td>
-
-                {/* Actions */}
-                <td className="px-6 py-4">
+                  {/* Actions */}
                   {!isManagerView && (
-                    <div className="flex items-center gap-2">
-                      {editingTransportId === transport._id ? (
-                        <>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        {editingTransportId === transport._id ? (
+                          <>
+                            <button
+                              onClick={() => handleUpdateTransport(transport._id)}
+                              disabled={loading}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                            >
+                              <Save className="w-3 h-3" />
+                              {loading ? 'Saving...' : 'Save'}
+                            </button>
+                            <button
+                              onClick={() => setEditingTransportId(null)}
+                              disabled={loading}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs hover:bg-gray-600 transition-colors disabled:opacity-50"
+                            >
+                              <X className="w-3 h-3" />
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
                           <button
-                            onClick={() => handleUpdateTransport(transport._id)}
-                            disabled={loading}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors disabled:opacity-50"
+                            onClick={() => setEditingTransportId(transport._id)}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs hover:bg-blue-600 transition-colors"
                           >
-                            <Save className="w-3 h-3" />
-                            {loading ? 'Saving...' : 'Save'}
+                            <Edit className="w-3 h-3" />
+                            Edit
                           </button>
-                          <button
-                            onClick={() => setEditingTransportId(null)}
-                            disabled={loading}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 transition-colors disabled:opacity-50"
-                          >
-                            <X className="w-3 h-3" />
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          onClick={() => setEditingTransportId(transport._id)}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
-                        >
-                          <Edit className="w-3 h-3" />
-                          Edit
-                        </button>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    </td>
                   )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Empty State */}
       {currentItems.length === 0 && !loading && (
-        <div className="py-12 text-center">
+        <div className="py-16 text-center">
           <div className="flex flex-col items-center justify-center">
-            <Truck className={`w-16 h-16 mb-4 ${
+            <Truck className={`w-20 h-20 mb-4 ${
               isDark ? 'text-gray-600' : 'text-gray-400'
             }`} />
-            <h3 className={`text-lg font-medium mb-2 ${
+            <h3 className={`text-lg font-semibold mb-2 ${
               isDark ? 'text-gray-300' : 'text-gray-700'
             }`}>
               No Transport Records Found
@@ -1097,7 +1157,7 @@ const TransportTable = ({
       {/* Pagination */}
       {currentItems.length > 0 && (
         <div className={`px-6 py-4 border-t ${
-          isDark ? 'border-slate-700/50' : 'border-gray-200'
+          isDark ? 'border-slate-700' : 'border-gray-200'
         }`}>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             {/* Items per page */}
@@ -1110,7 +1170,7 @@ const TransportTable = ({
               <select
                 value={itemsPerPage}
                 onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                className={`px-2 py-1 rounded border text-sm ${
+                className={`px-3 py-1.5 rounded-lg border text-sm ${
                   isDark
                     ? 'bg-slate-700 border-slate-600 text-white'
                     : 'bg-white border-gray-300 text-gray-900'
@@ -1141,7 +1201,7 @@ const TransportTable = ({
               <button
                 onClick={goToFirstPage}
                 disabled={currentPage === 1}
-                className={`p-2 rounded ${
+                className={`p-2 rounded-lg transition-all ${
                   currentPage === 1
                     ? isDark
                       ? 'text-gray-600 cursor-not-allowed'
@@ -1158,7 +1218,7 @@ const TransportTable = ({
               <button
                 onClick={goToPreviousPage}
                 disabled={currentPage === 1}
-                className={`p-2 rounded ${
+                className={`p-2 rounded-lg transition-all ${
                   currentPage === 1
                     ? isDark
                       ? 'text-gray-600 cursor-not-allowed'
@@ -1177,11 +1237,11 @@ const TransportTable = ({
                   key={index}
                   onClick={() => typeof page === 'number' ? handlePageChange(page) : null}
                   disabled={page === '...'}
-                  className={`min-w-[2rem] px-2 py-1 rounded text-sm font-medium ${
+                  className={`min-w-[2.5rem] px-2 py-1.5 rounded-lg text-sm font-medium transition-all ${
                     page === currentPage
                       ? isDark
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-blue-500 text-white'
+                        ? 'bg-blue-500 text-white shadow-lg'
+                        : 'bg-blue-500 text-white shadow-lg'
                       : isDark
                       ? 'text-gray-400 hover:text-white hover:bg-slate-700'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
@@ -1195,7 +1255,7 @@ const TransportTable = ({
               <button
                 onClick={goToNextPage}
                 disabled={currentPage === totalPages}
-                className={`p-2 rounded ${
+                className={`p-2 rounded-lg transition-all ${
                   currentPage === totalPages
                     ? isDark
                       ? 'text-gray-600 cursor-not-allowed'
@@ -1212,7 +1272,7 @@ const TransportTable = ({
               <button
                 onClick={goToLastPage}
                 disabled={currentPage === totalPages}
-                className={`p-2 rounded ${
+                className={`p-2 rounded-lg transition-all ${
                   currentPage === totalPages
                     ? isDark
                       ? 'text-gray-600 cursor-not-allowed'

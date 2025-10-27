@@ -14,17 +14,11 @@ export const createDailyReport = createAsyncThunk(
 
 export const getDailyReportsByBranch = createAsyncThunk(
   'dailyReport/getByBranch',
-  async ({ branchId }, { rejectWithValue }) => {
+  async ({ branchId, page, limit, filters }, { rejectWithValue }) => {
     try {
-      console.log('getDailyReportsByBranch thunk - branchId:', branchId);
-      const response = await dailyReportService.getDailyReportsByBranch(branchId);
-      console.log('getDailyReportsByBranch thunk - API response:', response);
-      console.log('getDailyReportsByBranch thunk - Response type:', typeof response);
-      console.log('getDailyReportsByBranch thunk - Is array?:', Array.isArray(response));
-      console.log('getDailyReportsByBranch thunk - Response length:', response.length);
-      return response; // This should be the array
+      const response = await dailyReportService.getDailyReportsByBranch(branchId, page, limit, filters);
+      return response;
     } catch (err) {
-      console.error('Error in getDailyReportsByBranch thunk:', err);
       return rejectWithValue(err.response?.data?.message || err.message);
     }
   }
@@ -34,8 +28,15 @@ const dailyReportSlice = createSlice({
   name: 'dailyReport',
   initialState: {
     dailyReports: [],
+    totalItems: 0,
     loading: false,
     error: null,
+    currentPage: 1,
+    itemsPerPage: 10,
+    filters: {
+      searchTerm: '',
+      dateFilter: { type: 'all', startDate: '', endDate: '' }
+    }
   },
   reducers: {
     // Add a reducer to clear errors
@@ -45,6 +46,29 @@ const dailyReportSlice = createSlice({
     // Add a reducer to manually set reports (for debugging)
     setDailyReports: (state, action) => {
       state.dailyReports = action.payload;
+    }
+  },
+  reducers: {
+    clearError: (state) => {
+      state.error = null;
+    },
+    setCurrentPage: (state, action) => {
+      state.currentPage = action.payload;
+    },
+    setItemsPerPage: (state, action) => {
+      state.itemsPerPage = action.payload;
+      state.currentPage = 1; // Reset to first page when items per page changes
+    },
+    setFilters: (state, action) => {
+      state.filters = { ...state.filters, ...action.payload };
+      state.currentPage = 1; // Reset to first page when filters change
+    },
+    clearFilters: (state) => {
+      state.filters = {
+        searchTerm: '',
+        dateFilter: { type: 'all', startDate: '', endDate: '' }
+      };
+      state.currentPage = 1;
     }
   },
   extraReducers: (builder) => {
@@ -68,32 +92,31 @@ const dailyReportSlice = createSlice({
       .addCase(getDailyReportsByBranch.pending, (state) => {
         state.loading = true;
         state.error = null;
-        console.log('getDailyReportsByBranch - pending - current state:', state.dailyReports);
       })
       .addCase(getDailyReportsByBranch.fulfilled, (state, action) => {
         state.loading = false;
-        console.log('getDailyReportsByBranch.fulfilled - action.payload:', action.payload);
-        console.log('getDailyReportsByBranch.fulfilled - action.payload type:', typeof action.payload);
-        console.log('getDailyReportsByBranch.fulfilled - is Array?:', Array.isArray(action.payload));
-        
-        // DIRECT ASSIGNMENT - No complex logic
-        if (action.payload && Array.isArray(action.payload)) {
-          state.dailyReports = action.payload;
-          console.log('getDailyReportsByBranch.fulfilled - state.dailyReports set to:', state.dailyReports);
+        if (action.payload) {
+          state.dailyReports = action.payload.dailyReports;
+          state.totalItems = action.payload.totalItems;
         } else {
-          console.warn('Unexpected response format - not an array:', action.payload);
           state.dailyReports = [];
+          state.totalItems = 0;
         }
-        
         state.error = null;
       })
       .addCase(getDailyReportsByBranch.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        console.log('getDailyReportsByBranch.rejected - error:', action.payload);
       });
   }
 });
 
-export const { clearError, setDailyReports } = dailyReportSlice.actions;
+export const {
+  clearError,
+  setDailyReports,
+  setCurrentPage,
+  setItemsPerPage,
+  setFilters,
+  clearFilters
+} = dailyReportSlice.actions;
 export default dailyReportSlice.reducer;
