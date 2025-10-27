@@ -33,11 +33,9 @@ const BranchOwnerSidebar = ({ isOpen, onClose }) => {
   const menuItems = [
     { path: '/dashboard/branch-owner/dashboard', icon: Activity, label: 'Dashboard', category: 'main' },
     { path: '/dashboard/branch-owner/sales', icon: TrendingUp, label: 'Sales', category: 'operations', state: { branchOwnerId } },
-    { path: '/dashboard/branch-owner/expenses', icon: FileText, label: 'Expenses', category: 'operations', state: { branchOwnerId } },
     { path: '/dashboard/branch-owner/stock-requests', icon: Package, label: 'Stock Requests', category: 'operations', state: { branchOwnerId } },
     { path: '/dashboard/branch-owner/transport', icon: Truck, label: 'Transport', category: 'operations', state: { branchOwnerId } },
     { path: '/dashboard/branch-owner/daily-store-images', icon: Camera, label: 'Store Images', category: 'monitoring', state: { branchOwnerId } },
-    { path: '/dashboard/branch-owner/reports', icon: FileText, label: 'Reports', category: 'monitoring', state: { branchOwnerId } },
     { path: '/dashboard/branch-owner/profile', icon: Users, label: 'Profile', category: 'main' },
   ];
 

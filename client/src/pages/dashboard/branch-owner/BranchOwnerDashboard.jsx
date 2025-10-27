@@ -73,18 +73,6 @@ const BranchDashboard = () => {
       path: '/dashboard/branch-owner/sales',
     },
     {
-      id: 'expenses',
-      label: 'Expenses',
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-      ),
-      color: 'rose',
-      description: 'View and manage expenses',
-      path: '/dashboard/branch-owner/expenses',
-    },
-    {
       id: 'stock',
       label: 'Stock Requests',
       icon: (
@@ -119,18 +107,6 @@ const BranchDashboard = () => {
       color: 'pink',
       description: 'View daily store photos',
       path: '/dashboard/branch-owner/daily-store-images',
-    },
-    {
-      id: 'reports',
-      label: 'Reports',
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      ),
-      color: 'orange',
-      description: 'View detailed reports',
-      path: '/dashboard/branch-owner/reports',
     },
   ];
 
@@ -200,21 +176,6 @@ const BranchDashboard = () => {
     });
   };
 
-  // Show loading or error if no branchOwnerId
-  if (!branchOwnerId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-500 text-lg font-semibold">
-            No branch ID found. Please navigate properly to this page.
-          </div>
-          <p className="text-gray-600 mt-2">
-            Unable to retrieve branch information.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8">
@@ -290,13 +251,13 @@ const BranchDashboard = () => {
         </div>
 
         {/* Shop Profile */}
-        <div className={`rounded-2xl overflow-hidden ${
+        {/* <div className={`rounded-2xl overflow-hidden ${
           isDark 
             ? 'bg-slate-800/50 border border-slate-700' 
             : 'bg-white border border-gray-200'
         } shadow-lg`}>
           <ShopProfile />
-        </div>
+        </div> */}
 
         {/* Overview Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
