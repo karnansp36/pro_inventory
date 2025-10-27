@@ -3,7 +3,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
-import { useSelector } from 'react-redux'; // Import useSelector
+import { useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import { getStockRequestsByBranch } from '../../../store/slices/stockRequestsSlice';
+import { getTransportsByBranch } from '../../../store/slices/transportSlice';
+import { getDailyReportsByBranch } from '../../../store/slices/dailyReportSlice';
 import ShopProfile from './ShopProfile';
 
 const BranchDashboard = () => {
@@ -11,9 +15,48 @@ const BranchDashboard = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   
-  // Get user from Redux store like in your sidebar
+  // Get user from Redux store
   const { user } = useSelector((state) => state.auth);
   const branchOwnerId = user?._id;
+  const dispatch = useDispatch();
+
+  const {
+    stockRequests,
+    isLoading: stockRequestsLoading,
+    error: stockRequestsError,
+  } = useSelector((state) => state.stockRequests);
+
+  const {
+    transport: transports, // Direct access to transport array
+    loading: transportsLoading,
+    error: transportsError,
+  } = useSelector((state) => state.transport);
+
+  const {
+    dailyReports,
+    isLoading: dailyReportsLoading,
+    error: dailyReportsError,
+  } = useSelector((state) => state.dailyReport);
+
+  React.useEffect(() => {
+    if (branchOwnerId) {
+      dispatch(getStockRequestsByBranch({ branchId: branchOwnerId }));
+      dispatch(getTransportsByBranch({ branchId: branchOwnerId }));
+      dispatch(getDailyReportsByBranch({ branchId: branchOwnerId }));
+    }
+  }, [branchOwnerId, dispatch]);
+
+  // Calculate totals
+  const totalSales = dailyReports.reduce((acc, report) => 
+    acc + (report.gpay || 0) + (report.card || 0) + (report.cash || 0), 0
+  );
+
+  const totalExpenses = dailyReports.reduce((acc, report) => 
+    acc + (report.expenses || 0), 0
+  );
+
+  // Get the count of transport documents instead of quantity sum
+  const transportCount = transports?.length || 0;
 
   // Quick action buttons
   const quickActions = [
@@ -271,7 +314,9 @@ const BranchDashboard = () => {
               </div>
               <div>
                 <p className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>Total Sales</p>
-                <p className={`text-2xl font-bold ${isDark ? 'text-slate-200' : 'text-gray-900'}`}>$12,345</p>
+                <p className={`text-2xl font-bold ${isDark ? 'text-slate-200' : 'text-gray-900'}`}>
+                  {dailyReportsLoading ? 'Loading...' : dailyReportsError ? 'Error' : `$${totalSales.toFixed(2)}`}
+                </p>
               </div>
             </div>
           </div>
@@ -290,7 +335,9 @@ const BranchDashboard = () => {
               </div>
               <div>
                 <p className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>Total Expenses</p>
-                <p className={`text-2xl font-bold ${isDark ? 'text-slate-200' : 'text-gray-900'}`}>$2,100</p>
+                <p className={`text-2xl font-bold ${isDark ? 'text-slate-200' : 'text-gray-900'}`}>
+                  {dailyReportsLoading ? 'Loading...' : dailyReportsError ? 'Error' : `$${totalExpenses.toFixed(2)}`}
+                </p>
               </div>
             </div>
           </div>
@@ -309,7 +356,9 @@ const BranchDashboard = () => {
               </div>
               <div>
                 <p className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>Stock Requests</p>
-                <p className={`text-2xl font-bold ${isDark ? 'text-slate-200' : 'text-gray-900'}`}>15</p>
+                <p className={`text-2xl font-bold ${isDark ? 'text-slate-200' : 'text-gray-900'}`}>
+                  {stockRequestsLoading ? 'Loading...' : stockRequestsError ? 'Error' : stockRequests.length}
+                </p>
               </div>
             </div>
           </div>
@@ -327,8 +376,13 @@ const BranchDashboard = () => {
                 </svg>
               </div>
               <div>
-                <p className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>Total Transport</p>
-                <p className={`text-2xl font-bold ${isDark ? 'text-slate-200' : 'text-gray-900'}`}>7</p>
+                <p className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>Total Transports</p>
+                <p className={`text-2xl font-bold ${isDark ? 'text-slate-200' : 'text-gray-900'}`}>
+                  {transportsLoading ? 'Loading...' : transportsError ? 'Error' : transportCount}
+                </p>
+                <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                  {transportCount === 1 ? 'transport' : 'transports'} made
+                </p>
               </div>
             </div>
           </div>

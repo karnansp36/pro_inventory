@@ -13,7 +13,6 @@ const BranchOwnerLayout = () => {
   const location = useLocation();
 
   // Determine branchOwnerId based on user or potentially from URL if navigating from a specific branch context
-  console.log("BranchOwnerLayout - user object:", user);
   const branchOwnerId = user?._id || null; // Correctly extract _id from the user object
 
   return (
