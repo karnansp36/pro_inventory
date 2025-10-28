@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   uploadDailyStoreImage,
@@ -21,8 +21,8 @@ import {
 } from 'lucide-react';
 
 const ManagerDailyStore = () => {
-  const location = useLocation();
-  const { branchOwnerId } = location.state || {};
+  const { branchId } = useParams(); // Get branchId from URL params
+  const branchOwnerId = branchId; // Use branchId from URL params
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [dragActive, setDragActive] = useState(false);
@@ -136,7 +136,7 @@ const ManagerDailyStore = () => {
         setImagePreview(null);
         // Refresh the first page to show the newly uploaded image
         setCurrentPage(1);
-        dispatch(getDailyStoreImagesForBranchOwner({ page: 1, limit: itemsPerPage }));
+        dispatch(getDailyStoreImagesByBranch({ branchId: branchOwnerId, page: 1, limit: itemsPerPage }));
       })
       .catch((error) => {
         toast.error(error);

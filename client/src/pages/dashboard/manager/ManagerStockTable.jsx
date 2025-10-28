@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTheme } from '../../../context/ThemeContext';
-import { getStockRequestsByBranch, getStockRequestsByManager } from '../../../store/slices/stockRequestsSlice';
+import { getStockRequestsByBranch } from '../../../store/slices/stockRequestsSlice';
 import { toast } from 'react-toastify';
 import {
   Search,
@@ -100,8 +100,8 @@ const ManagerStockTable = ({
         statusFilter,
         priorityFilter
       };
-      dispatch(getStockRequestsByManager({
-        managerId: branchOwnerId,
+      dispatch(getStockRequestsByBranch({
+        branchId: branchOwnerId,
         page: currentPage,
         limit: itemsPerPage,
         filters: filters

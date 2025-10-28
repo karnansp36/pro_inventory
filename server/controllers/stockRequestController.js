@@ -237,6 +237,7 @@ const getStockRequestsByManagerId = asyncHandler(async (req, res) => {
 // @access  Private (Admin, BrandOwner, Manager)
 const getStockRequestsByBranchId = asyncHandler(async (req, res) => {
   let { branchOwnerId } = req.params;
+  console.log(branchOwnerId)
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
@@ -281,16 +282,24 @@ const getStockRequestsByBranchId = asyncHandler(async (req, res) => {
     const branchOwner = await User.findById(branchOwnerId);
     console.log("Auth Check: BrandOwner - Found Branch Owner:", branchOwner?._id.toString());
     console.log("Auth Check: BrandOwner - Assigned Brand Owner:", branchOwner?.assignedBrandOwner?.toString());
-    if (!branchOwner || branchOwner.assignedBrandOwner.toString() !== user._id.toString()) {
+    if (!branchOwner || branchOwner.assignedBrandOwner?.toString() !== user._id.toString()) {
       console.log("Auth Error: BrandOwner not authorized for this branch owner's requests.");
       res.status(403);
       throw new Error('Not authorized to view this branch owner\'s stock requests');
     }
   } else if (user.role === 'Manager') {
-    const branchOwner = await User.findById(branchOwnerId);
-    console.log("Auth Check: Manager - Found Branch Owner:", branchOwner?._id.toString());
-    console.log("Auth Check: Manager - Assigned Manager:", branchOwner?.assignedManager?.toString());
-    if (!branchOwner || branchOwner.assignedManager.toString() !== user._id.toString()) {
+    // FIX: Check if the branchOwnerId exists in the manager's assignedBranchOwners array
+    console.log("Auth Check: Manager - assignedBranchOwners:", user.assignedBranchOwners);
+    console.log("Auth Check: Manager - checking if branchOwnerId exists in assignedBranchOwners");
+    
+    const branchOwnerIdString = branchOwnerId.toString();
+    const isAuthorized = user.assignedBranchOwners?.some(
+      ownerId => ownerId.toString() === branchOwnerIdString
+    );
+    
+    console.log("Auth Check: Manager - Is authorized:", isAuthorized);
+    
+    if (!isAuthorized) {
       console.log("Auth Error: Manager not authorized for this branch owner's requests.");
       res.status(403);
       throw new Error('Not authorized to view this branch owner\'s stock requests');

@@ -12,7 +12,7 @@ import {
   ChevronRight,
   LogOut
 } from 'lucide-react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSelector } from 'react-redux';
@@ -22,21 +22,22 @@ const ManagerSidebar = ({ isOpen, onClose }) => {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
-  const branchOwnerId = user?._id;
+  const { branchId } = useParams(); // Get branchId from URL params
 
   const handleLogout = () => {
     logout();
     navigate('/login');
     onClose();
   };
-  
+
+  // Use branchId from URL params to build navigation paths
   const menuItems = [
-    { path: '/dashboard/branch-owner/dashboard', icon: Activity, label: 'Dashboard', category: 'main' },
-    { path: '/dashboard/branch-owner/sales', icon: TrendingUp, label: 'Sales', category: 'operations', state: { branchOwnerId } },
-    { path: '/dashboard/branch-owner/stock-requests', icon: Package, label: 'Stock Requests', category: 'operations', state: { branchOwnerId } },
-    { path: '/dashboard/branch-owner/transport', icon: Truck, label: 'Transport', category: 'operations', state: { branchOwnerId } },
-    { path: '/dashboard/branch-owner/daily-store-images', icon: Camera, label: 'Store Images', category: 'monitoring', state: { branchOwnerId } },
-    { path: '/dashboard/branch-owner/profile', icon: Users, label: 'Profile', category: 'main' },
+    { path: `/dashboard/manager/branch/${branchId}`, icon: Activity, label: 'Dashboard', category: 'main' },
+    { path: `/dashboard/manager/branch/${branchId}/sales`, icon: TrendingUp, label: 'Sales', category: 'operations' },
+    { path: `/dashboard/manager/branch/${branchId}/stock-requests`, icon: Package, label: 'Stock Requests', category: 'operations' },
+    { path: `/dashboard/manager/branch/${branchId}/transport`, icon: Truck, label: 'Transport', category: 'operations' },
+    { path: `/dashboard/manager/branch/${branchId}/daily-store-images`, icon: Camera, label: 'Store Images', category: 'monitoring' },
+    { path: `/dashboard/manager/branch/${branchId}/profile`, icon: Users, label: 'Profile', category: 'main' },
   ];
 
   const categories = {
@@ -93,7 +94,7 @@ const ManagerSidebar = ({ isOpen, onClose }) => {
                   Branch Panel
                 </h1>
                 <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
-                  Management System
+                  {branchId ? `Branch: ${branchId}` : 'Management System'}
                 </p>
               </div>
             </div>
@@ -123,7 +124,6 @@ const ManagerSidebar = ({ isOpen, onClose }) => {
                 <NavLink
                   key={item.path}
                   to={item.path}
-                  state={item.state} // Pass state here
                   className={({ isActive }) => `
                     group flex items-center justify-between px-3 py-2.5 rounded-xl
                     transition-all duration-200 relative overflow-hidden

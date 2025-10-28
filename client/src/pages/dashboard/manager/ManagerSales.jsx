@@ -1,6 +1,6 @@
 // pages/dashboard/branch-owner/ManagerSales.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import SalesForm from '../../../components/forms/SalesForm';
 import ManagerSalesTable from './ManagerSalesTable';
 import { useDispatch, useSelector } from 'react-redux';
@@ -10,8 +10,8 @@ import { DollarSign, X, Plus, Wallet, CreditCard, Banknote, Receipt, TrendingUp,
 import Modal from '../../../components/Modal';
 
 const ManagerSales = () => {
-  const location = useLocation();
-  const { branchOwnerId } = location.state || {};
+  const { branchId } = useParams(); // Get branchId from URL params
+  const branchOwnerId = branchId; // Use branchId from URL params
   const dispatch = useDispatch();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -43,6 +43,8 @@ const ManagerSales = () => {
         filters
       }));
     }
+    // If branchOwnerId is not available, you might want to handle this case,
+    // e.g., by not fetching reports or showing an error.
   }, [branchOwnerId, dispatch, currentPage, itemsPerPage, filters]);
 
   useEffect(() => {
@@ -97,7 +99,7 @@ const ManagerSales = () => {
   // Actually save after confirmation
   const confirmSaveReport = async () => {
     if (!branchOwnerId) {
-      console.error('No branchOwnerId found');
+      console.error('No branch ID found in URL parameters.');
       setShowConfirmModal(false);
       return;
     }
@@ -478,7 +480,7 @@ const ManagerSales = () => {
                 }`}>
                   <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
                   <p className={isDark ? 'text-yellow-300' : 'text-yellow-700'}>
-                    No branch ID found. Please navigate properly to this page.
+                    No branch ID found in the URL. Please ensure you are navigating from a branch-specific link.
                   </p>
                 </div>
               )}

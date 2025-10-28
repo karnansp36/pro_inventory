@@ -108,28 +108,47 @@ const getDailyStoreImagesByBranch = asyncHandler(async (req, res) => {
     throw new Error('User not found');
   }
 
+  console.log("Auth Check: User Role:", user.role, "User ID:", user._id.toString());
+  console.log("Auth Check: Requested BranchId:", branchId);
+
   // Authorization checks
   if (user.role === 'BranchOwner') {
     // Branch owners can only view their own images
     if (user._id.toString() !== branchId) {
+      console.log("Auth Error: BranchOwner trying to access other branch's images.");
       res.status(403);
       throw new Error('Not authorized to view images for other branches');
     }
   } else if (user.role === 'BrandOwner') {
     // Brand owners can only view images from their assigned branches
     const branchOwner = await User.findById(branchId);
+    console.log("Auth Check: BrandOwner - Found Branch Owner:", branchOwner?._id.toString());
+    console.log("Auth Check: BrandOwner - Assigned Brand Owner:", branchOwner?.assignedBrandOwner?.toString());
     if (!branchOwner || branchOwner.assignedBrandOwner?.toString() !== user._id.toString()) {
+      console.log("Auth Error: BrandOwner not authorized for this branch owner's images.");
       res.status(403);
       throw new Error('Not authorized to view this branch owner\'s images');
     }
   } else if (user.role === 'Manager') {
-    // Managers can only view images from their assigned branches
-    const branchOwner = await User.findById(branchId);
-    if (!branchOwner || !branchOwner.assignedManager?.includes(user._id.toString())) {
+    // FIXED: Managers can only view images from their assigned branches
+    // Check if the branchId exists in the manager's assignedBranchOwners array
+    console.log("Auth Check: Manager - assignedBranchOwners:", user.assignedBranchOwners);
+    console.log("Auth Check: Manager - checking if branchId exists in assignedBranchOwners");
+    
+    const branchIdString = branchId.toString();
+    const isAuthorized = user.assignedBranchOwners?.some(
+      ownerId => ownerId.toString() === branchIdString
+    );
+    
+    console.log("Auth Check: Manager - Is authorized:", isAuthorized);
+    
+    if (!isAuthorized) {
+      console.log("Auth Error: Manager not authorized for this branch owner's images.");
       res.status(403);
       throw new Error('Not authorized to view this branch owner\'s images');
     }
   } else if (user.role !== 'Admin') {
+    console.log("Auth Error: User role not authorized.");
     res.status(403);
     throw new Error('Not authorized to view daily store images');
   }

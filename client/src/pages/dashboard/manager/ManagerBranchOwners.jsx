@@ -198,7 +198,7 @@ const ManagerBranchOwners = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     <Link
-                      to={`/dashboard/manager/branch-owners/${branch._id}`}
+                      to={`/dashboard/manager/branch/${branch._id}`}
                       className={`inline-flex items-center justify-center p-2 rounded-lg transition-all duration-200 hover:scale-110 ${
                         theme === 'dark'
                           ? 'text-slate-400 hover:bg-slate-800 hover:text-slate-300'

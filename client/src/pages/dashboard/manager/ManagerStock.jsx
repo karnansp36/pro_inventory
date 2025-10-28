@@ -3,7 +3,7 @@
 // ============================================
 
 import React, { useState, useEffect } from 'react';
-import { useLocation, useOutletContext } from 'react-router-dom';
+import { useLocation, useOutletContext, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTheme } from '../../../context/ThemeContext';
 import ManagerStockForm from './ManagerStockForm';
@@ -11,7 +11,8 @@ import ManagerStockTable from './ManagerStockTable';
 import { getStockRequestsByBranch } from '../../../store/slices/stockRequestsSlice';
 
 const ManagerStock = () => {
-  const { branchOwnerId } = useOutletContext();
+  const { branchId } = useParams(); // Get branchId from URL params
+  const branchOwnerId = branchId; // Use branchId from URL params
   const dispatch = useDispatch();
   const { stockRequests, loading, error } = useSelector((state) => state.stockRequests);
   const { theme } = useTheme();

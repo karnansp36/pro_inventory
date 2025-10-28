@@ -13,7 +13,7 @@ router.route('/:id/approve')
 router.route('/:id')
   .delete(protect, authorizeRoles('Admin', 'BrandOwner'), deleteStockRequest);
 
-router.route('/branch/:branchId')
+router.route('/branch/:branchOwnerId')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager', 'BranchOwner'), getStockRequestsByBranchId);
 router.route('/manager/:managerId').get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getStockRequestsByManagerId);
 

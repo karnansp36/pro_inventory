@@ -6,23 +6,23 @@ import ManagerSales from '../pages/dashboard/manager/ManagerSales';
 import ManagerStock from '../pages/dashboard/manager/ManagerStock';
 import ManagerTransport from '../pages/dashboard/manager/ManagerTransport';
 import ManagerBranchOwners from '../pages/dashboard/manager/ManagerBranchOwners';
-import ManagerBranchDetails from '../pages/dashboard/manager/ManagerBranchDetails';
 import ManagerDailyStore from '../pages/dashboard/manager/ManagerDailyStore';
 import UserProfilePage from '../pages/dashboard/UserProfilePage';
+import ManagerBranchDashboard from '../pages/dashboard/manager/ManagerBranchDashboard';
 
 const ManagerRoutes = () => {
   return (
     <Routes>
-      <Route element={<ManagerLayout />}>
-        <Route index element={<ManagerDashboard />} />
+      <Route path="/" element={<ManagerDashboard />} />
+      {/* Add ManagerLayout as the main layout for branch-specific routes */}
+      <Route path="/branch/:branchId" element={<ManagerLayout />}>
+        <Route index element={<ManagerBranchDashboard />} />
         <Route path="sales" element={<ManagerSales />} />
-        <Route path="stock-requests/:managerId" element={<ManagerStock />} />
+        <Route path="stock-requests" element={<ManagerStock />} />
         <Route path="transport" element={<ManagerTransport />} />
-         <Route path="branch-owners" element={<ManagerBranchOwners />} />
-        <Route path="branch-owners/:branchId" element={<ManagerBranchDetails />} />
+        <Route path="branch-owners" element={<ManagerBranchOwners />} />
         <Route path="daily-store-images" element={<ManagerDailyStore />} />
         <Route path="profile" element={<UserProfilePage />} />
-        <Route path="*" element={<ManagerDashboard />} />
       </Route>
     </Routes>
   );

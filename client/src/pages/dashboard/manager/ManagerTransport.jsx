@@ -1,6 +1,6 @@
 // TransportPage.jsx
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import ManagerTransportTable from './ManagerTransportTable';
 import { useTheme } from '../../../context/ThemeContext';
@@ -9,8 +9,8 @@ import { Truck, X, Plus } from 'lucide-react';
 import TransportForm from '../../../components/forms/TransportForm';
 
 const ManagerTransport = () => {
-  const location = useLocation();
-  const { branchOwnerId } = location.state || {};
+  const { branchId } = useParams(); // Get branchId from URL params
+  const branchOwnerId = branchId; // Use branchId from URL params
   const dispatch = useDispatch();
   const { transport: transports, totalItems, loading, error } = useSelector((state) => state.transport);
   const { theme } = useTheme();

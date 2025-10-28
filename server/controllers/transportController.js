@@ -464,10 +464,18 @@ const getTransportsByBranchOwnerId = asyncHandler(async (req, res) => {
       throw new Error('Not authorized to view this branch owner\'s transports');
     }
   } else if (user.role === 'Manager') {
-    const branchOwner = await User.findById(branchOwnerId);
-    console.log("Auth Check: Manager - Found Branch Owner:", branchOwner?._id.toString());
-    console.log("Auth Check: Manager - Assigned Manager:", branchOwner?.assignedManager?.toString());
-    if (!branchOwner || branchOwner.assignedManager?.toString() !== user._id.toString()) {
+    // FIXED: Check if the branchOwnerId exists in the manager's assignedBranchOwners array
+    console.log("Auth Check: Manager - assignedBranchOwners:", user.assignedBranchOwners);
+    console.log("Auth Check: Manager - checking if branchOwnerId exists in assignedBranchOwners");
+    
+    const branchOwnerIdString = branchOwnerId.toString();
+    const isAuthorized = user.assignedBranchOwners?.some(
+      ownerId => ownerId.toString() === branchOwnerIdString
+    );
+    
+    console.log("Auth Check: Manager - Is authorized:", isAuthorized);
+    
+    if (!isAuthorized) {
       console.log("Auth Error: Manager not authorized for this branch owner's transports.");
       res.status(403);
       throw new Error('Not authorized to view this branch owner\'s transports');
