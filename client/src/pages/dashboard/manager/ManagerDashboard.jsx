@@ -32,6 +32,8 @@ import { useTheme } from '../../../context/ThemeContext';
 import { Link } from 'react-router-dom';
 import Navbar from '../../../components/layout/Navbar';
 
+const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 const ManagerDashboard = () => {
   const dispatch = useDispatch();
   const { theme } = useTheme();
@@ -64,10 +66,10 @@ const ManagerDashboard = () => {
   // Set initial images from user data
   useEffect(() => {
     if (user?.bannerImage) {
-      setBannerPreview(user.bannerImage);
+      setBannerPreview(`${VITE_API_BASE_URL}${user.bannerImage}`);
     }
     if (user?.profileImage) {
-      setProfilePreview(user.profileImage);
+      setProfilePreview(`${VITE_API_BASE_URL}${user.profileImage}`);
     }
   }, [user]);
 
@@ -93,15 +95,15 @@ const ManagerDashboard = () => {
   const assignedBranches = branchesByManager || [];
   const assignedBranchIds = assignedBranches.map(branch => branch._id);
 
-  const branchSales = sales?.filter(sale => 
+  const branchSales = sales?.filter(sale =>
     assignedBranchIds.includes(sale.branchOwner?._id)
   ) || [];
 
-  const branchExpenses = expenses?.filter(expense => 
+  const branchExpenses = expenses?.filter(expense =>
     assignedBranchIds.includes(expense.branchOwner?._id)
   ) || [];
 
-  const branchStockRequests = stockRequests?.filter(request => 
+  const branchStockRequests = stockRequests?.filter(request =>
     assignedBranchIds.includes(request.branchOwner?._id)
   ) || [];
 
@@ -206,7 +208,7 @@ const ManagerDashboard = () => {
   const handleBannerCancel = () => {
     setIsEditingBanner(false);
     setBannerImage(null);
-    setBannerPreview(user?.bannerImage || null);
+    setBannerPreview(user?.bannerImage ? `${VITE_API_BASE_URL}/${user.bannerImage}` : null);
   };
 
   const handleBannerFileSelect = (event) => {
@@ -242,7 +244,7 @@ const ManagerDashboard = () => {
   const handleProfileCancel = () => {
     setIsEditingProfile(false);
     setProfileImage(null);
-    setProfilePreview(user?.profileImage || null);
+    setProfilePreview(user?.profileImage ? `${VITE_API_BASE_URL}/${user.profileImage}` : null);
   };
 
   const handleProfileFileSelect = (event) => {
@@ -340,8 +342,8 @@ const handleSaveImages = async () => {
       <div className="relative">
         {/* Banner Image */}
         <div className={`h-48 sm:h-64 lg:h-80 relative overflow-hidden ${
-          theme === 'dark' 
-            ? 'bg-gradient-to-r from-blue-900 via-purple-900 to-pink-900' 
+          theme === 'dark'
+            ? 'bg-gradient-to-r from-blue-900 via-purple-900 to-pink-900'
             : 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500'
         }`}>
           {/* Banner Image or Gradient Background */}
@@ -504,8 +506,8 @@ const handleSaveImages = async () => {
 
                 {/* Status Indicator */}
                 <div className={`absolute bottom-2 left-2 w-8 h-8 rounded-full border-4 flex items-center justify-center ${
-                  theme === 'dark' 
-                    ? 'bg-green-500 border-slate-900' 
+                  theme === 'dark'
+                    ? 'bg-green-500 border-slate-900'
                     : 'bg-green-500 border-white'
                 }`}>
                   <Award className="w-4 h-4 text-white" />
@@ -631,11 +633,11 @@ const handleSaveImages = async () => {
                     </p>
                     <div className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${
                       isPositive
-                        ? theme === 'dark' 
-                          ? 'bg-green-600/20 text-green-400 ring-1 ring-green-500/20' 
+                        ? theme === 'dark'
+                          ? 'bg-green-600/20 text-green-400 ring-1 ring-green-500/20'
                           : 'bg-green-50 text-green-700 ring-1 ring-green-500/10'
-                        : theme === 'dark' 
-                          ? 'bg-red-600/20 text-red-400 ring-1 ring-red-500/20' 
+                        : theme === 'dark'
+                          ? 'bg-red-600/20 text-red-400 ring-1 ring-red-500/20'
                           : 'bg-red-50 text-red-700 ring-1 ring-red-500/10'
                     }`}>
                       {isPositive ? (

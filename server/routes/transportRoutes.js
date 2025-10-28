@@ -14,7 +14,7 @@ import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 router.route('/')
   .get(protect, authorizeRoles('Admin'), getTransports)
-  .post(express.json(), protect, authorizeRoles('Admin', 'BrandOwner'), createTransport);
+  .post(express.json(), protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), createTransport);
 
 router.route('/:id/receive')
   .put(express.json(), protect, authorizeRoles('BranchOwner'), confirmReceivedTransport);

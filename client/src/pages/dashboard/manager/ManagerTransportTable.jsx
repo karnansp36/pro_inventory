@@ -28,7 +28,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 
-const TransportTable = ({ 
+const ManagerTransportTable = ({ 
   branchOwnerId,
   // Manager view props
   transportsData = null,
@@ -1292,4 +1292,4 @@ const TransportTable = ({
   );
 };
 
-export default TransportTable;
+export default ManagerTransportTable;

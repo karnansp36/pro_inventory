@@ -177,7 +177,11 @@ const createTransport = asyncHandler(async (req, res) => {
     throw new Error('User not found');
   }
 
-  if (user.role !== 'BrandOwner' && user.role !== 'Admin') {
+  console.log('DEBUG: createTransport - req.user.id:', req.user.id);
+  console.log('DEBUG: createTransport - User from DB _id:', user._id);
+  console.log('DEBUG: createTransport - User from DB role:', user.role);
+
+  if (user.role !== 'BrandOwner' && user.role !== 'Admin' && user.role !== 'Manager') {
     res.status(403);
     throw new Error('Not authorized to create transport details');
   }
@@ -195,6 +199,12 @@ const createTransport = asyncHandler(async (req, res) => {
     if (!branchOwner || branchOwner.assignedBrandOwner?.toString() !== user._id.toString()) {
       res.status(403);
       throw new Error('Not authorized to create transport for this stock request');
+    }
+  } else if (user.role === 'Manager') {
+    const branchOwner = await User.findById(stockRequestDetails.branchOwner._id);
+    if (!branchOwner || !user.assignedBranchOwners.includes(branchOwner._id)) {
+      res.status(403);
+      throw new Error('Not authorized to create transport for this stock request as it is not assigned to your branch owners');
     }
   }
 

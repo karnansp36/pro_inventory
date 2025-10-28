@@ -4,23 +4,31 @@ import { useLocation, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import ManagerTransportTable from './ManagerTransportTable';
 import { useTheme } from '../../../context/ThemeContext';
-import { getTransportsByBranch } from '../../../store/slices/transportSlice';
+import { createTransport, getTransportsByBranch } from '../../../store/slices/transportSlice';
+import { getStockRequestsByBranch } from '../../../store/slices/stockRequestsSlice'; // Import stock requests action
 import { Truck, X, Plus } from 'lucide-react';
-import TransportForm from '../../../components/forms/TransportForm';
+import ManagerTransportForm from './ManagerTransportForm';
 
 const ManagerTransport = () => {
   const { branchId } = useParams(); // Get branchId from URL params
   const branchOwnerId = branchId; // Use branchId from URL params
   const dispatch = useDispatch();
   const { transport: transports, totalItems, loading, error } = useSelector((state) => state.transport);
+  const { stockRequests } = useSelector((state) => state.stockRequests); // Select stock requests
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [refreshTable, setRefreshTable] = useState(0);
   const [showForm, setShowForm] = useState(false);
 
+  useEffect(() => {
+    if (branchOwnerId) {
+      dispatch(getStockRequestsByBranch({ branchId: branchOwnerId, filters: { statusFilter: 'pending' } })); // Fetch pending stock requests
+    }
+  }, [dispatch, branchOwnerId]);
 
-  const handleTransportAdded = () => {
-    setRefreshTable(prev => prev + 1);
+  const handleTransportAdded = async (formData) => {
+    await dispatch(createTransport(formData));
+    setRefreshTable((prev) => prev + 1);
     setShowForm(false);
   };
 
@@ -86,9 +94,10 @@ const ManagerTransport = () => {
                   ? 'bg-gradient-to-br from-slate-900/80 to-slate-800/80 backdrop-blur-xl border-slate-700/50'
                   : 'bg-white border-gray-200 shadow-lg'
               }`}>
-                <TransportForm
-                  onClose={handleTransportAdded}
+                <ManagerTransportForm
+                  onSubmit={handleTransportAdded}
                   branchOwnerId={branchOwnerId}
+                  stockRequests={stockRequests} // Pass stock requests to the form
                 />
               </div>
             </div>
