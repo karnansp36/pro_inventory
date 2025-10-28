@@ -13,14 +13,15 @@ import {
   getBranchesByManagerId,
 } from '../controllers/userController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
-import { profileImageUpload } from '../middleware/profileImageUploadMiddleware.js';
+import { combinedUpload } from '../middleware/combinedUploadMiddleware.js';
 
 router.route('/')
   .get(protect, authorizeRoles('Admin', 'Manager'), getUsers)
-  .post(protect, authorizeRoles('Admin'), profileImageUpload.single('profileImage'), createUserByAdmin);
+  .post(protect, authorizeRoles('Admin'), combinedUpload, createUserByAdmin);
 
+// Simple and clean profile route
 router.route('/profile')
-  .put(protect, profileImageUpload.fields([{ name: 'profileImage', maxCount: 1 }]), updateUserProfile);
+  .put(protect, combinedUpload, updateUserProfile);
 
 router.route('/role/:role')
   .get(protect, authorizeRoles('Admin', 'BrandOwner'), getUsersByRole);
