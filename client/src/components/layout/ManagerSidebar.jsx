@@ -32,7 +32,8 @@ const ManagerSidebar = ({ isOpen, onClose }) => {
 
   // Use branchId from URL params to build navigation paths
   const menuItems = [
-    { path: `/dashboard/manager/branch/${branchId}`, icon: Activity, label: 'Dashboard', category: 'main' },
+    { path: '/', icon: Activity, label: 'Manager Dashboard', category: 'main' }, // New item for root path
+    { path: `/dashboard/manager/branch/${branchId}`, icon: Activity, label: 'Branch Dashboard', category: 'main' },
     { path: `/dashboard/manager/branch/${branchId}/sales`, icon: TrendingUp, label: 'Sales', category: 'operations' },
     { path: `/dashboard/manager/branch/${branchId}/stock-requests`, icon: Package, label: 'Stock Requests', category: 'operations' },
     { path: `/dashboard/manager/branch/${branchId}/transport`, icon: Truck, label: 'Transport', category: 'operations' },
