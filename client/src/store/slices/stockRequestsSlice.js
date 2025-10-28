@@ -120,6 +120,21 @@ export const getStockRequestsByBrandOwner = createAsyncThunk(
   }
 );
 
+// Thunk to reject a stock request
+export const rejectStockRequest = createAsyncThunk(
+  "stockRequests/reject",
+  async (requestId, { rejectWithValue }) => {
+    try {
+      return await stockRequestService.rejectStockRequest(requestId);
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data || { message: "Failed to reject stock request" }
+      );
+    }
+  }
+);
+
+
 const stockRequestsSlice = createSlice({
   name: "stockRequests",
   initialState: {
@@ -303,7 +318,23 @@ const stockRequestsSlice = createSlice({
       .addCase(getStockRequestsByBrandOwner.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || "Failed to fetch stock requests by brand owner";
-      });
+      })
+      .addCase(rejectStockRequest.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(rejectStockRequest.fulfilled, (state, action) => {
+        state.loading = false;
+        const updated = action.payload;
+        const idx = state.stockRequests.findIndex((r) => r._id === updated._id);
+        if (idx !== -1) {
+          state.stockRequests[idx] = updated;
+        }
+      })
+      .addCase(rejectStockRequest.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || "Failed to reject stock request";
+      })
   },
 });
 

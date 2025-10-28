@@ -1,12 +1,11 @@
 // pages/dashboard/branch-owner/ManagerSales.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
-import SalesForm from '../../../components/forms/SalesForm';
+import { useParams } from 'react-router-dom';
 import ManagerSalesTable from './ManagerSalesTable';
 import { useDispatch, useSelector } from 'react-redux';
 import { getDailyReportsByBranch, createDailyReport } from '../../../store/slices/dailyReportSlice';
 import { useTheme } from '../../../context/ThemeContext';
-import { DollarSign, X, Plus, Wallet, CreditCard, Banknote, Receipt, TrendingUp, Calendar, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { DollarSign, Wallet, CreditCard, Banknote, Receipt, TrendingUp, Calendar, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import Modal from '../../../components/Modal';
 
 const ManagerSales = () => {
@@ -16,7 +15,6 @@ const ManagerSales = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const [showForm, setShowForm] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   
@@ -27,10 +25,10 @@ const ManagerSales = () => {
   const [expenses, setExpenses] = useState('');
   const [savingReport, setSavingReport] = useState(false);
 
-  // Pagination and filter states for ManagerSalesTable (when not in ManagerView)
+  // Pagination and filter states for ManagerSalesTable
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [filters, setFilters] = useState({}); // This will hold search, date filters, sort field/order
+  const [filters, setFilters] = useState({});
 
   const { dailyReports, totalItems, loading: dailyReportLoading, error: dailyReportError } = useSelector((state) => state.dailyReport);
   
@@ -43,8 +41,6 @@ const ManagerSales = () => {
         filters
       }));
     }
-    // If branchOwnerId is not available, you might want to handle this case,
-    // e.g., by not fetching reports or showing an error.
   }, [branchOwnerId, dispatch, currentPage, itemsPerPage, filters]);
 
   useEffect(() => {
@@ -57,16 +53,11 @@ const ManagerSales = () => {
 
   const handleItemsPerPageChange = (limit) => {
     setItemsPerPage(limit);
-    setCurrentPage(1); // Reset to first page when items per page changes
+    setCurrentPage(1);
   };
 
   const handleSalesTableRefresh = () => {
     fetchReports();
-  };
-
-  const handleSaleAdded = () => {
-    setRefreshTable(prev => prev + 1);
-    setShowForm(false);
   };
 
   // Calculate total income
@@ -119,7 +110,7 @@ const ManagerSales = () => {
       setExpenses('');
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 3000);
-      setRefreshTable(prev => prev + 1);
+      fetchReports();
     } catch (error) {
       console.error('Failed to save report:', error);
     } finally {
@@ -166,26 +157,6 @@ const ManagerSales = () => {
                   Track and manage all your daily sales transactions
                 </p>
               </div>
-              <button
-                onClick={() => setShowForm(!showForm)}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-                  showForm
-                    ? 'bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm'
-                    : 'bg-white text-emerald-600 hover:bg-gray-50 hover:shadow-2xl shadow-lg'
-                }`}
-              >
-                {showForm ? (
-                  <>
-                    <X className="w-5 h-5" />
-                    Close Form
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-5 h-5" />
-                    Add Sale
-                  </>
-                )}
-              </button>
             </div>
           </div>
         </div>
@@ -488,38 +459,19 @@ const ManagerSales = () => {
           </div>
         </div>
 
-        {/* Existing Sales Form and Table */}
-        <div className={`grid grid-cols-1 ${showForm ? 'lg:grid-cols-3' : ''} gap-6`}>
-          {/* Form - Conditional */}
-          {showForm && (
-            <div className="lg:col-span-1">
-              <div className={`rounded-2xl overflow-hidden transition-all duration-300 border ${
-                isDark
-                  ? 'bg-gradient-to-br from-slate-900/80 to-slate-800/80 backdrop-blur-xl border-slate-700/50'
-                  : 'bg-white border-gray-200 shadow-lg'
-              }`}>
-                <SalesForm 
-                  onClose={handleSaleAdded} 
-                  branchOwnerId={branchOwnerId}
-                />
-              </div>
-            </div>
-          )}
-          
-          {/* Table */}
-          <div className={showForm ? 'lg:col-span-2' : ''}>
-            <ManagerSalesTable
-              salesData={dailyReports}
-              totalItems={totalItems}
-              loading={dailyReportLoading}
-              branchOwnerId={branchOwnerId}
-              currentPage={currentPage}
-              itemsPerPage={itemsPerPage}
-              onPageChange={handlePageChange}
-              onItemsPerPageChange={handleItemsPerPageChange}
-              onRefresh={handleSalesTableRefresh}
-            />
-          </div>
+        {/* Sales Table */}
+        <div>
+          <ManagerSalesTable
+            salesData={dailyReports}
+            totalItems={totalItems}
+            loading={dailyReportLoading}
+            branchOwnerId={branchOwnerId}
+            currentPage={currentPage}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+            onRefresh={handleSalesTableRefresh}
+          />
         </div>
 
         {/* Enhanced Confirm Save Modal */}

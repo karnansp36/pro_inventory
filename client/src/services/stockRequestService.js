@@ -90,6 +90,11 @@ const stockRequestService = {
     return response.data;
   },
   getStockRequestsByBrandOwner,
+  getStockRequestsByBrandOwner,
+  rejectStockRequest: async (requestId) => {
+    const response = await api.put(`${STOCK_REQUEST_URL}/${requestId}/reject`);
+    return response.data;
+  },
 };
 
 export default stockRequestService;

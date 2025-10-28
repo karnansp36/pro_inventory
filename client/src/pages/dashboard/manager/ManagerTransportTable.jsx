@@ -967,13 +967,7 @@ const ManagerTransportTable = ({
                 }`}>
                   Status
                 </th>
-                {!isManagerView && (
-                  <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
-                    isDark ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                    Actions
-                  </th>
-                )}
+                
               </tr>
             </thead>
             <tbody className={`divide-y ${
@@ -1089,41 +1083,7 @@ const ManagerTransportTable = ({
                     </div>
                   </td>
 
-                  {/* Actions */}
-                  {!isManagerView && (
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        {editingTransportId === transport._id ? (
-                          <>
-                            <button
-                              onClick={() => handleUpdateTransport(transport._id)}
-                              disabled={loading}
-                              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs hover:bg-emerald-600 transition-colors disabled:opacity-50"
-                            >
-                              <Save className="w-3 h-3" />
-                              {loading ? 'Saving...' : 'Save'}
-                            </button>
-                            <button
-                              onClick={() => setEditingTransportId(null)}
-                              disabled={loading}
-                              className="flex items-center gap-1 px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs hover:bg-gray-600 transition-colors disabled:opacity-50"
-                            >
-                              <X className="w-3 h-3" />
-                              Cancel
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => setEditingTransportId(transport._id)}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs hover:bg-blue-600 transition-colors"
-                          >
-                            <Edit className="w-3 h-3" />
-                            Edit
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  )}
+                  
                 </tr>
               ))}
             </tbody>

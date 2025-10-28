@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTheme } from '../../../context/ThemeContext';
+import { approveStockRequest , rejectStockRequest} from '../../../store/slices/stockRequestsSlice';
 import { getStockRequestsByBranch } from '../../../store/slices/stockRequestsSlice';
 import { toast } from 'react-toastify';
 import {
@@ -71,6 +72,30 @@ const ManagerStockTable = ({
       setItemsPerPage(propItemsPerPage);
     }
   }, [propCurrentPage, propItemsPerPage, isManagerView]);
+  // Handle approve request
+  const handleApprove = (requestId) => {
+    dispatch(approveStockRequest(requestId))
+      .unwrap()
+      .then(() => {
+        toast.success('Stock request approved successfully');
+      })
+      .catch((error) => {
+        toast.error(error.message || 'Failed to approve request');
+      });
+  };
+
+  // Handle reject request
+  // Handle reject request
+  const handleReject = (requestId) => {
+    dispatch(rejectStockRequest(requestId))
+      .unwrap()
+      .then(() => {
+        toast.success('Stock request approved successfully');
+      })
+      .catch((error) => {
+        toast.error(error.message || 'Failed to approve request');
+      });
+  };
 
   // For branch owner view: fetch data when filters/pagination change
   useEffect(() => {
@@ -842,6 +867,11 @@ const ManagerStockTable = ({
               }`}>
                 Status
               </th>
+              <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className={`divide-y ${
@@ -937,6 +967,36 @@ const ManagerStockTable = ({
                       {getStatusIcon(request.approved)}
                       {request.approved ? 'Approved' : 'Pending'}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      {!request.approved && (
+                        <>
+                          <button
+                            onClick={() => handleApprove(request._id)}
+                            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              isDark
+                                ? 'bg-green-600/20 text-green-400 hover:bg-green-600/30 border border-green-600/30'
+                                : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-200'
+                            }`}
+                          >
+                            <CheckCircle className="w-3 h-3" />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleReject(request._id)}
+                            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              isDark
+                                ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/30'
+                                : 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-200'
+                            }`}
+                          >
+                            <X className="w-3 h-3" />
+                            Reject
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))

@@ -66,9 +66,9 @@ const getStockRequests = asyncHandler(async (req, res) => {
     totalPages: Math.ceil(totalItems / limit),
   });
 });
-// @desc    Create new stock request (BranchOwner only)
+// @desc    Create new stock request (BranchOwner, Admin, Manager)
 // @route   POST /api/stockrequests
-// @access  Private (BranchOwner)
+// @access  Private (BranchOwner, Admin, Manager)
 const createStockRequest = asyncHandler(async (req, res) => {
   const { productName, quantity, priority, branchOwner } = req.body;
 
@@ -85,9 +85,34 @@ const createStockRequest = asyncHandler(async (req, res) => {
   }
 
   let ownerId;
+
+  // Handle different user roles
   if (user.role === 'BranchOwner') {
+    // BranchOwner can only create requests for themselves
     ownerId = req.user.id;
+  } else if (user.role === 'Manager') {
+    // Manager needs to specify which branch owner they're creating the request for
+    if (!branchOwner) {
+      res.status(400);
+      throw new Error('branchOwner is required for Manager');
+    }
+    
+    // Validate that the manager is authorized to create requests for this branch owner
+    const branchOwnerUser = await User.findById(branchOwner);
+    if (!branchOwnerUser || branchOwnerUser.role !== 'BranchOwner') {
+      res.status(400);
+      throw new Error('Invalid branchOwner');
+    }
+
+    // Check if the manager is assigned to this branch owner
+    if (!user.assignedBranchOwners?.includes(branchOwnerUser._id.toString())) {
+      res.status(403);
+      throw new Error('Not authorized to create stock requests for this branch owner');
+    }
+
+    ownerId = branchOwner;
   } else if (user.role === 'Admin') {
+    // Admin needs to specify which branch owner they're creating the request for
     if (!branchOwner) {
       res.status(400);
       throw new Error('branchOwner is required for Admin');
@@ -113,9 +138,9 @@ const createStockRequest = asyncHandler(async (req, res) => {
   res.status(201).json(stockRequest);
 });
 
-// @desc    Approve stock request (BrandOwner only)
+// @desc    Approve stock request (BrandOwner, Admin, Manager)
 // @route   PUT /api/stockrequests/:id/approve
-// @access  Private (BrandOwner)
+// @access  Private (BrandOwner, Admin, Manager)
 const approveStockRequest = asyncHandler(async (req, res) => {
   const stockRequest = await StockRequest.findById(req.params.id);
 
@@ -131,12 +156,35 @@ const approveStockRequest = asyncHandler(async (req, res) => {
     throw new Error('User not found');
   }
 
-  if (user.role !== 'BrandOwner' && user.role !== 'Admin') {
+  // Allow Admin, BrandOwner, and Manager roles
+  if (!['Admin', 'BrandOwner', 'Manager'].includes(user.role)) {
     res.status(403);
     throw new Error('Not authorized to approve stock requests');
   }
 
+  // Additional authorization check for Manager
+  if (user.role === 'Manager') {
+    // Check if the manager has access to this branch owner's requests
+    const branchOwner = await User.findById(stockRequest.branchOwner);
+    
+    if (!branchOwner || !user.assignedBranchOwners?.includes(branchOwner._id.toString())) {
+      res.status(403);
+      throw new Error('Not authorized to approve this stock request');
+    }
+  }
+
+  // Additional authorization check for BrandOwner
+  if (user.role === 'BrandOwner') {
+    const branchOwner = await User.findById(stockRequest.branchOwner);
+    
+    if (!branchOwner || branchOwner.assignedBrandOwner?.toString() !== user._id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to approve this stock request');
+    }
+  }
+
   stockRequest.approved = true;
+  stockRequest.status = 'approved'; // Also update status if you have this field
   const updatedStockRequest = await stockRequest.save();
 
   res.status(200).json(updatedStockRequest);
@@ -481,6 +529,59 @@ const getStockRequestsByBrandOwner = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Reject stock request (BrandOwner, Admin, Manager)
+// @route   PUT /api/stockrequests/:id/reject
+// @access  Private (BrandOwner, Admin, Manager)
+const rejectStockRequest = asyncHandler(async (req, res) => {
+  const stockRequest = await StockRequest.findById(req.params.id);
+
+  if (!stockRequest) {
+    res.status(404);
+    throw new Error('Stock request not found');
+  }
+
+  const user = await User.findById(req.user.id);
+
+  if (!user) {
+    res.status(401);
+    throw new Error('User not found');
+  }
+
+  // Allow Admin, BrandOwner, and Manager roles
+  if (!['Admin', 'BrandOwner', 'Manager'].includes(user.role)) {
+    res.status(403);
+    throw new Error('Not authorized to reject stock requests');
+  }
+
+  // Additional authorization check for Manager
+  if (user.role === 'Manager') {
+    // Check if the manager has access to this branch owner's requests
+    const branchOwner = await User.findById(stockRequest.branchOwner);
+    
+    if (!branchOwner || !user.assignedBranchOwners?.includes(branchOwner._id.toString())) {
+      res.status(403);
+      throw new Error('Not authorized to reject this stock request');
+    }
+  }
+
+  // Additional authorization check for BrandOwner
+  if (user.role === 'BrandOwner') {
+    const branchOwner = await User.findById(stockRequest.branchOwner);
+    
+    if (!branchOwner || branchOwner.assignedBrandOwner?.toString() !== user._id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to reject this stock request');
+    }
+  }
+
+  stockRequest.status = 'rejected';
+  // You might also want to set approved to false if needed
+  // stockRequest.approved = false;
+  const updatedStockRequest = await stockRequest.save();
+
+  res.status(200).json(updatedStockRequest);
+});
+
 export {
   getStockRequests,
   createStockRequest,
@@ -489,4 +590,5 @@ export {
   getStockRequestsByBranchId,
   getStockRequestsByManagerId,
   getStockRequestsByBrandOwner,
+  rejectStockRequest,
 }
