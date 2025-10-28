@@ -68,12 +68,24 @@ export const getUsersByRole = createAsyncThunk(
   }
 );
 
+export const getBranchesByManagerId = createAsyncThunk(
+  'users/getBranchesByManagerId',
+  async (managerId, { rejectWithValue }) => {
+    try {
+      return await userService.getBranchesByManagerId(managerId);
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch branches by manager ID' });
+    }
+  }
+);
+ 
 const usersSlice = createSlice({
   name: 'users',
   initialState: {
     users: [],
     currentUser: null,
     usersByRole: {},
+    branchesByManager: [], // New state for branches by manager
     totalItems: 0,
     loading: false,
     error: null,
@@ -88,6 +100,9 @@ const usersSlice = createSlice({
     },
     clearCurrentUser: (state) => {
       state.currentUser = null;
+    },
+    clearBranchesByManager: (state) => { // New reducer to clear branches
+      state.branchesByManager = [];
     }
   },
   extraReducers: (builder) => {
@@ -184,9 +199,22 @@ const usersSlice = createSlice({
       .addCase(getUsersByRole.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to fetch users by role';
+      })
+      // Get Branches By Manager ID
+      .addCase(getBranchesByManagerId.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getBranchesByManagerId.fulfilled, (state, action) => {
+        state.loading = false;
+        state.branchesByManager = action.payload;
+      })
+      .addCase(getBranchesByManagerId.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch branches by manager ID';
       });
   }
 });
-
-export const { clearError, clearUsers, clearCurrentUser } = usersSlice.actions;
+ 
+export const { clearError, clearUsers, clearCurrentUser, clearBranchesByManager } = usersSlice.actions;
 export default usersSlice.reducer;

@@ -1,26 +1,28 @@
-// client/src/components/layout/ManagerSidebar.jsx
-import { 
-  Eye, 
-  TrendingUp, 
-  FileText, 
-  Package, 
+import {
+  Users,
+  Building2,
+  TrendingUp,
+  FileText,
+  Package,
   Truck,
   Activity,
+  Download,
+  Settings,
   Camera,
-  Building2,
   ChevronRight,
-  LogOut,
-  Settings
+  LogOut
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { useSelector } from 'react-redux';
 
 const ManagerSidebar = ({ isOpen, onClose }) => {
-  const auth = useAuth();
   const { theme } = useTheme();
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
+  const branchOwnerId = user?._id;
 
   const handleLogout = () => {
     logout();
@@ -29,14 +31,12 @@ const ManagerSidebar = ({ isOpen, onClose }) => {
   };
   
   const menuItems = [
-    { path: '/dashboard/manager', icon: Eye, label: 'Dashboard', category: 'main' },
-    { path: '/dashboard/manager/branch-owners', icon: Eye, label: 'Branch Owners', category: 'main' },
-    { path: '/dashboard/manager/sales', icon: TrendingUp, label: 'Sales', category: 'operations' },
-    { path: '/dashboard/manager/expenses', icon: FileText, label: 'Expenses', category: 'operations' },
-    { path: `/dashboard/manager/stock-requests/${auth.user._id}`, icon: Package, label: 'Stock Requests', category: 'operations' },
-    { path: '/dashboard/manager/transport', icon: Truck, label: 'Transport', category: 'operations' },
-    { path: '/dashboard/manager/daily-store-images', icon: Camera, label: 'Store Images', category: 'monitoring' },
-    { path: '/dashboard/manager/reports', icon: Activity, label: 'Reports', category: 'monitoring' },
+    { path: '/dashboard/branch-owner/dashboard', icon: Activity, label: 'Dashboard', category: 'main' },
+    { path: '/dashboard/branch-owner/sales', icon: TrendingUp, label: 'Sales', category: 'operations', state: { branchOwnerId } },
+    { path: '/dashboard/branch-owner/stock-requests', icon: Package, label: 'Stock Requests', category: 'operations', state: { branchOwnerId } },
+    { path: '/dashboard/branch-owner/transport', icon: Truck, label: 'Transport', category: 'operations', state: { branchOwnerId } },
+    { path: '/dashboard/branch-owner/daily-store-images', icon: Camera, label: 'Store Images', category: 'monitoring', state: { branchOwnerId } },
+    { path: '/dashboard/branch-owner/profile', icon: Users, label: 'Profile', category: 'main' },
   ];
 
   const categories = {
@@ -90,7 +90,7 @@ const ManagerSidebar = ({ isOpen, onClose }) => {
               </div>
               <div>
                 <h1 className="text-lg font-bold bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
-                  Manager Panel
+                  Branch Panel
                 </h1>
                 <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
                   Management System
@@ -103,7 +103,7 @@ const ManagerSidebar = ({ isOpen, onClose }) => {
                 theme === 'dark' ? 'hover:bg-slate-800/50' : 'hover:bg-gray-200'
               }`}
             >
-              <ChevronRight className={`h-5 w-5 ${theme === 'dark' ? 'text-slate-300' : 'text-gray-600'}`} />
+              <ChevronRight className="h-5 w-5 text-slate-300" />
             </button>
           </div>
         </div>
@@ -123,6 +123,7 @@ const ManagerSidebar = ({ isOpen, onClose }) => {
                 <NavLink
                   key={item.path}
                   to={item.path}
+                  state={item.state} // Pass state here
                   className={({ isActive }) => `
                     group flex items-center justify-between px-3 py-2.5 rounded-xl
                     transition-all duration-200 relative overflow-hidden

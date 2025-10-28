@@ -12,9 +12,7 @@ import {
   ArrowDownRight,
   Eye
 } from 'lucide-react';
-import { getSales } from '../../../store/slices/salesSlice';
-import { getExpenses } from '../../../store/slices/expensesSlice';
-import { getUsers } from '../../../store/slices/usersSlice';
+import { getBranchesByManagerId, clearBranchesByManager } from '../../../store/slices/usersSlice';
 import { useTheme } from '../../../context/ThemeContext';
 import { Link } from 'react-router-dom';
 
@@ -25,19 +23,19 @@ const ManagerDashboard = () => {
   const { sales } = useSelector((state) => state.sales);
   const { expenses } = useSelector((state) => state.expenses);
   const { stockRequests } = useSelector((state) => state.stockRequests);
-  const { users } = useSelector((state) => state.users);
-
+  const { branchesByManager, loading: branchesLoading, error: branchesError } = useSelector((state) => state.users);
+ 
   useEffect(() => {
-    dispatch(getSales());
-    dispatch(getExpenses());
-    dispatch(getUsers());
-  }, [dispatch]);
-
-  // Filter data for assigned branches only
-  const assignedBranches = users?.filter(u => 
-    u.role === 'BranchOwner' && 
-    u.assignedManager?._id === user?._id
-  ) || [];
+    if (user?._id) {
+      dispatch(getBranchesByManagerId(user._id));
+    }
+    return () => {
+      dispatch(clearBranchesByManager());
+    };
+  }, [dispatch, user?._id]);
+ 
+  // Use branches from the Redux store
+  const assignedBranches = branchesByManager || [];
 
   const assignedBranchIds = assignedBranches.map(branch => branch._id);
 

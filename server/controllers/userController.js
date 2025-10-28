@@ -646,7 +646,39 @@ export {
   refreshAccessToken,
   logoutUser,
   generateRefreshToken, // Export for testing if needed, but not for direct route use
+  getBranchesByManagerId,
 };
+
+// @desc    Get branches assigned to a specific manager
+// @route   GET /api/users/branches-by-manager/:managerId
+// @access  Private (Manager, Admin, BrandOwner)
+const getBranchesByManagerId = asyncHandler(async (req, res) => {
+  const { managerId } = req.params;
+  const currentUser = req.user;
+
+  // Ensure the current user is authorized to view these branches
+  if (currentUser.role === 'Manager' && currentUser._id.toString() !== managerId) {
+    res.status(403);
+    throw new Error('Not authorized to view branches for other managers');
+  }
+
+  const manager = await User.findById(managerId).populate({
+    path: 'assignedBranchOwners',
+    select: 'name email shopName fullAddress phoneNumbers', // Select relevant branch owner fields
+  });
+
+  if (!manager) {
+    res.status(404);
+    throw new Error('Manager not found');
+  }
+
+  if (manager.role !== 'Manager') {
+    res.status(400);
+    throw new Error('User is not a manager');
+  }
+
+  res.status(200).json(manager.assignedBranchOwners);
+});
 
 // @desc    Refresh Access Token
 // @route   POST /api/users/refresh-token

@@ -10,6 +10,7 @@ import {
   getUserHierarchy,
   createUserByAdmin,
   updateUserProfile,
+  getBranchesByManagerId,
 } from '../controllers/userController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 import { profileImageUpload } from '../middleware/profileImageUploadMiddleware.js';
@@ -26,6 +27,9 @@ router.route('/role/:role')
 
 router.route('/hierarchy')
   .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getUserHierarchy);
+
+router.route('/branches-by-manager/:managerId')
+  .get(protect, authorizeRoles('Admin', 'BrandOwner', 'Manager'), getBranchesByManagerId);
 
 router.route('/:id/assign')
   .put(express.json(), protect, authorizeRoles('Admin', 'BrandOwner'), assignUser);

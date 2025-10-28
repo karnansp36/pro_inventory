@@ -2,14 +2,12 @@
 import { Routes, Route } from 'react-router-dom';
 import ManagerLayout from '../components/layout/ManagerLayout';
 import ManagerDashboard from '../pages/dashboard/manager/ManagerDashboard';
-import ManagerSalesPage from '../pages/dashboard/manager/ManagerSalesPage';
-import ManagerExpensesPage from '../pages/dashboard/manager/ManagerExpensesPage';
-import ManagerStockRequestsPage from '../pages/dashboard/manager/ManagerStockRequestsPage';
-import ManagerTransportPage from '../pages/dashboard/manager/ManagerTransportPage';
-import ManagerReportsPage from '../pages/dashboard/manager/ManagerReportsPage';
+import ManagerSales from '../pages/dashboard/manager/ManagerSales';
+import ManagerStock from '../pages/dashboard/manager/ManagerStock';
+import ManagerTransport from '../pages/dashboard/manager/ManagerTransport';
 import ManagerBranchOwners from '../pages/dashboard/manager/ManagerBranchOwners';
 import ManagerBranchDetails from '../pages/dashboard/manager/ManagerBranchDetails';
-import DailyStoreImageManagerPage from '../pages/dashboard/manager/DailyStoreImageManagerPage';
+import ManagerDailyStore from '../pages/dashboard/manager/ManagerDailyStore';
 import UserProfilePage from '../pages/dashboard/UserProfilePage';
 
 const ManagerRoutes = () => {
@@ -17,14 +15,12 @@ const ManagerRoutes = () => {
     <Routes>
       <Route element={<ManagerLayout />}>
         <Route index element={<ManagerDashboard />} />
-        <Route path="sales" element={<ManagerSalesPage />} />
-        <Route path="expenses" element={<ManagerExpensesPage />} />
-        <Route path="stock-requests/:managerId" element={<ManagerStockRequestsPage />} />
-        <Route path="transport" element={<ManagerTransportPage />} />
-        <Route path="reports" element={<ManagerReportsPage />} />
+        <Route path="sales" element={<ManagerSales />} />
+        <Route path="stock-requests/:managerId" element={<ManagerStock />} />
+        <Route path="transport" element={<ManagerTransport />} />
          <Route path="branch-owners" element={<ManagerBranchOwners />} />
         <Route path="branch-owners/:branchId" element={<ManagerBranchDetails />} />
-        <Route path="daily-store-images" element={<DailyStoreImageManagerPage />} />
+        <Route path="daily-store-images" element={<ManagerDailyStore />} />
         <Route path="profile" element={<UserProfilePage />} />
         <Route path="*" element={<ManagerDashboard />} />
       </Route>

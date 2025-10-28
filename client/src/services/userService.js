@@ -55,6 +55,15 @@ const userService = {
     const response = await api.get(`/users/me`);
     return response.data;
   },
+  getUserProfile: async () => {
+    const response = await api.get(`/users/me`);
+    return response.data;
+  },
+
+  getBranchesByManagerId: async (managerId) => {
+    const response = await api.get(`/users/branches-by-manager/${managerId}`);
+    return response.data;
+  },
 };
 
 export default userService;
