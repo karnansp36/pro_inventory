@@ -27,6 +27,12 @@ const userService = {
     return response.data;
   },
 
+  // New method for creating branch owner
+  createBranchOwner: async (branchOwnerData) => {
+    const response = await api.post("/users/branch-owner", branchOwnerData);
+    return response.data;
+  },
+
   updateUser: async (id, userData) => {
     const response = await api.put(`/users/${id}`, userData);
     return response.data;
@@ -45,18 +51,14 @@ const userService = {
   },
 
   updateUserProfile: async (userData) => {
-  const response = await api.put(`/users/profile`, userData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
-  return response.data;
-},
-
-  getUserProfile: async () => {
-    const response = await api.get(`/users/me`);
+    const response = await api.put(`/users/profile`, userData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   },
+
   getUserProfile: async () => {
     const response = await api.get(`/users/me`);
     return response.data;

@@ -633,6 +633,7 @@ export {
   updateUser,
   deleteUser,
   // Admin create (no token)
+  createBranchOwner,
   createUserByAdmin,
   getUsersByRole,
   assignUser,
@@ -642,6 +643,7 @@ export {
   logoutUser,
   generateRefreshToken, // Export for testing if needed, but not for direct route use
   getBranchesByManagerId,
+
 };
 
 // @desc    Get branches assigned to a specific manager
@@ -734,4 +736,82 @@ const logoutUser = asyncHandler(async (req, res) => {
   });
 
   res.status(200).json({ message: 'Logged out successfully' });
+});
+
+
+// Add this function to userController.js
+// @desc    Create branch owner and assign to manager
+// @route   POST /api/users/branch-owner
+// @access  Private (Manager, Admin)
+const createBranchOwner = asyncHandler(async (req, res) => {
+  try {
+    const { name, email, password, shopName, fullAddress, phoneNumbers, assignedManager } = req.body;
+    const currentUser = req.user;
+
+    // Validation
+    if (!name || !email || !password || !shopName || !fullAddress) {
+      res.status(400);
+      throw new Error('Please add all required fields');
+    }
+
+    // Check if user already exists
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      res.status(400);
+      throw new Error('User already exists');
+    }
+
+    // Authorization check
+    if (currentUser.role === 'Manager' && currentUser._id.toString() !== assignedManager) {
+      res.status(403);
+      throw new Error('Not authorized to assign branches to other managers');
+    }
+
+    // Verify manager exists and is valid
+    const manager = await User.findById(assignedManager);
+    if (!manager || manager.role !== 'Manager') {
+      res.status(400);
+      throw new Error('Invalid manager assignment');
+    }
+
+    // Create branch owner
+    const branchOwner = await User.create({
+      name,
+      email,
+      password,
+      role: 'BranchOwner',
+      shopName,
+      fullAddress,
+      phoneNumbers: Array.isArray(phoneNumbers) ? phoneNumbers : [phoneNumbers],
+      assignedManager: assignedManager,
+      assignedBrandOwner: manager.assignedBrandOwner, // Inherit from manager
+    });
+
+    // Update manager's assignedBranchOwners
+    if (!manager.assignedBranchOwners.includes(branchOwner._id)) {
+      manager.assignedBranchOwners.push(branchOwner._id);
+      await manager.save();
+    }
+
+    // Return created branch owner without password
+    const createdBranchOwner = await User.findById(branchOwner._id).select('-password');
+
+    res.status(201).json({
+      success: true,
+      message: 'Branch owner created successfully',
+      branchOwner: createdBranchOwner,
+      manager: {
+        _id: manager._id,
+        name: manager.name,
+        assignedBranchOwners: manager.assignedBranchOwners
+      }
+    });
+
+  } catch (error) {
+    console.error('Create branch owner error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to create branch owner'
+    });
+  }
 });

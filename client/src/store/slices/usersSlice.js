@@ -34,6 +34,18 @@ export const createUser = createAsyncThunk(
   }
 );
 
+// New thunk for creating branch owner
+export const createBranchOwner = createAsyncThunk(
+  'users/createBranchOwner',
+  async (branchOwnerData, { rejectWithValue }) => {
+    try {
+      return await userService.createBranchOwner(branchOwnerData);
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to create branch owner' });
+    }
+  }
+);
+
 export const updateUser = createAsyncThunk(
   'users/update',
   async ({ id, userData }, { rejectWithValue }) => {
@@ -78,17 +90,20 @@ export const getBranchesByManagerId = createAsyncThunk(
     }
   }
 );
- 
+
 const usersSlice = createSlice({
   name: 'users',
   initialState: {
     users: [],
     currentUser: null,
     usersByRole: {},
-    branchesByManager: [], // New state for branches by manager
+    branchesByManager: [],
     totalItems: 0,
     loading: false,
     error: null,
+    createBranchOwnerLoading: false,
+    createBranchOwnerError: null,
+    createBranchOwnerSuccess: false,
   },
   reducers: {
     clearError: (state) => {
@@ -101,8 +116,13 @@ const usersSlice = createSlice({
     clearCurrentUser: (state) => {
       state.currentUser = null;
     },
-    clearBranchesByManager: (state) => { // New reducer to clear branches
+    clearBranchesByManager: (state) => {
       state.branchesByManager = [];
+    },
+    clearCreateBranchOwnerStatus: (state) => {
+      state.createBranchOwnerLoading = false;
+      state.createBranchOwnerError = null;
+      state.createBranchOwnerSuccess = false;
     }
   },
   extraReducers: (builder) => {
@@ -152,6 +172,25 @@ const usersSlice = createSlice({
       .addCase(createUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to create user';
+      })
+      // Create Branch Owner
+      .addCase(createBranchOwner.pending, (state) => {
+        state.createBranchOwnerLoading = true;
+        state.createBranchOwnerError = null;
+        state.createBranchOwnerSuccess = false;
+      })
+      .addCase(createBranchOwner.fulfilled, (state, action) => {
+        state.createBranchOwnerLoading = false;
+        state.createBranchOwnerSuccess = true;
+        // Add the new branch owner to branches list if it exists
+        if (action.payload.branchOwner) {
+          state.branchesByManager.push(action.payload.branchOwner);
+        }
+      })
+      .addCase(createBranchOwner.rejected, (state, action) => {
+        state.createBranchOwnerLoading = false;
+        state.createBranchOwnerError = action.payload?.message || 'Failed to create branch owner';
+        state.createBranchOwnerSuccess = false;
       })
       // Update User
       .addCase(updateUser.pending, (state) => {
@@ -215,6 +254,12 @@ const usersSlice = createSlice({
       });
   }
 });
- 
-export const { clearError, clearUsers, clearCurrentUser, clearBranchesByManager } = usersSlice.actions;
+
+export const { 
+  clearError, 
+  clearUsers, 
+  clearCurrentUser, 
+  clearBranchesByManager,
+  clearCreateBranchOwnerStatus 
+} = usersSlice.actions;
 export default usersSlice.reducer;

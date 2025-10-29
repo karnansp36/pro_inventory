@@ -21,9 +21,16 @@ import {
   X,
   Upload,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  PlusCircle
 } from 'lucide-react';
-import { getBranchesByManagerId, clearBranchesByManager, getUserById } from '../../../store/slices/usersSlice';
+import { 
+  getBranchesByManagerId, 
+  clearBranchesByManager, 
+  getUserById, 
+  createBranchOwner,
+  clearCreateBranchOwnerStatus
+} from '../../../store/slices/usersSlice';
 import {
   updateUserProfile,
   clearError,
@@ -43,7 +50,14 @@ const AdminManagerDashboard = () => {
   const { sales } = useSelector((state) => state.sales);
   const { expenses } = useSelector((state) => state.expenses);
   const { stockRequests } = useSelector((state) => state.stockRequests);
-  const { branchesByManager, loading: branchesLoading, userDetails: managerDetails } = useSelector((state) => state.users);
+  const { 
+    branchesByManager, 
+    loading: branchesLoading, 
+    userDetails: managerDetails,
+    createBranchOwnerLoading,
+    createBranchOwnerError,
+    createBranchOwnerSuccess
+  } = useSelector((state) => state.users);
   const { loading: profileLoading, error: profileError, success: profileSuccess } = useSelector((state) => state.profile);
 
   const [isEditingBanner, setIsEditingBanner] = useState(false);
@@ -53,17 +67,27 @@ const AdminManagerDashboard = () => {
   const [bannerPreview, setBannerPreview] = useState(null);
   const [profilePreview, setProfilePreview] = useState(null);
 
+  const [showAddBranchModal, setShowAddBranchModal] = useState(false);
+  const [newBranchData, setNewBranchData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    shopName: '',
+    phoneNumbers: '',
+    fullAddress: '',
+  });
+
   const bannerFileInputRef = useRef(null);
   const profileFileInputRef = useRef(null);
 
   useEffect(() => {
     if (managerId) {
       dispatch(getBranchesByManagerId(managerId));
-      dispatch(getUserById(managerId)); // Fetch manager's details
+      dispatch(getUserById(managerId));
     }
     return () => {
       dispatch(clearBranchesByManager());
-      // Optionally clear manager details if needed
+      dispatch(clearCreateBranchOwnerStatus());
     };
   }, [dispatch, managerId]);
 
@@ -81,7 +105,7 @@ const AdminManagerDashboard = () => {
     }
   }, [managerDetails]);
 
-  // Clear success/error messages after a delay
+  // Clear success/error messages
   useEffect(() => {
     if (profileSuccess) {
       const timer = setTimeout(() => {
@@ -99,6 +123,68 @@ const AdminManagerDashboard = () => {
       return () => clearTimeout(timer);
     }
   }, [profileError, dispatch]);
+
+  useEffect(() => {
+    if (createBranchOwnerSuccess) {
+      const timer = setTimeout(() => {
+        dispatch(clearCreateBranchOwnerStatus());
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [createBranchOwnerSuccess, dispatch]);
+
+  useEffect(() => {
+    if (createBranchOwnerError) {
+      const timer = setTimeout(() => {
+        dispatch(clearCreateBranchOwnerStatus());
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [createBranchOwnerError, dispatch]);
+
+  // Handle new branch form changes
+  const handleNewBranchChange = (e) => {
+    const { name, value } = e.target;
+    setNewBranchData((prevData) => ({ ...prevData, [name]: value }));
+  };
+
+  // Handle new branch submission using the new backend endpoint
+  const handleAddBranchSubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      const branchOwnerData = {
+        name: newBranchData.name,
+        email: newBranchData.email,
+        password: newBranchData.password,
+        shopName: newBranchData.shopName || newBranchData.name,
+        fullAddress: newBranchData.fullAddress,
+        phoneNumbers: newBranchData.phoneNumbers.split(',').map(p => p.trim()).filter(p => p),
+        assignedManager: managerId,
+      };
+
+      await dispatch(createBranchOwner(branchOwnerData)).unwrap();
+      
+      // Reset form and close modal
+      setNewBranchData({
+        name: '',
+        email: '',
+        password: '',
+        shopName: '',
+        phoneNumbers: '',
+        fullAddress: '',
+      });
+      setShowAddBranchModal(false);
+      
+      // Refresh branches data
+      dispatch(getBranchesByManagerId(managerId));
+      dispatch(getUserById(managerId));
+      
+    } catch (err) {
+      console.error('Failed to create branch owner:', err);
+      // Error is handled by Redux state
+    }
+  };
 
   const assignedBranches = branchesByManager || [];
   const assignedBranchIds = assignedBranches.map(branch => branch._id);
@@ -204,122 +290,95 @@ const AdminManagerDashboard = () => {
 
   // Get initials for avatar
   const getInitials = (name) => {
-    if (!name) return 'M';
+    if (!name) return 'O';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
   // Banner image handlers
-  const handleBannerEdit = () => {
-    setIsEditingBanner(true);
-  };
-
+  const handleBannerEdit = () => setIsEditingBanner(true);
   const handleBannerCancel = () => {
     setIsEditingBanner(false);
     setBannerImage(null);
-    setBannerPreview(managerDetails?.bannerImage ? `${VITE_API_BASE_URL}/${managerDetails.bannerImage}` : null);
+    setBannerPreview(managerDetails?.bannerImage ? `${VITE_API_BASE_URL}${managerDetails.bannerImage}` : null);
   };
 
   const handleBannerFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         alert('Please select an image file');
         return;
       }
-      
-      // Validate file size (max 10MB for banner)
       if (file.size > 10 * 1024 * 1024) {
         alert('Banner image must be less than 10MB');
         return;
       }
-      
       setBannerImage(file);
-      const previewUrl = URL.createObjectURL(file);
-      setBannerPreview(previewUrl);
+      setBannerPreview(URL.createObjectURL(file));
     }
   };
 
-  const triggerBannerFileInput = () => {
-    bannerFileInputRef.current?.click();
-  };
+  const triggerBannerFileInput = () => bannerFileInputRef.current?.click();
 
   // Profile image handlers
-  const handleProfileEdit = () => {
-    setIsEditingProfile(true);
-  };
-
+  const handleProfileEdit = () => setIsEditingProfile(true);
   const handleProfileCancel = () => {
     setIsEditingProfile(false);
     setProfileImage(null);
-    setProfilePreview(managerDetails?.profileImage ? `${VITE_API_BASE_URL}/${managerDetails.profileImage}` : null);
+    setProfilePreview(managerDetails?.profileImage ? `${VITE_API_BASE_URL}${managerDetails.profileImage}` : null);
   };
 
   const handleProfileFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         alert('Please select an image file');
         return;
       }
-      
-      // Validate file size (max 5MB for profile)
       if (file.size > 5 * 1024 * 1024) {
         alert('Profile image must be less than 5MB');
         return;
       }
-      
       setProfileImage(file);
-      const previewUrl = URL.createObjectURL(file);
-      setProfilePreview(previewUrl);
+      setProfilePreview(URL.createObjectURL(file));
     }
   };
 
-  const triggerProfileFileInput = () => {
-    profileFileInputRef.current?.click();
+  const triggerProfileFileInput = () => profileFileInputRef.current?.click();
+
+  // Save images
+  const handleSaveImages = async () => {
+    if (!bannerImage && !profileImage) {
+      setIsEditingBanner(false);
+      setIsEditingProfile(false);
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      
+      if (bannerImage) formData.append('bannerImage', bannerImage);
+      if (profileImage) formData.append('profileImage', profileImage);
+
+      if (managerDetails) {
+        Object.keys(managerDetails).forEach(key => {
+          if (key !== 'bannerImage' && key !== 'profileImage' && managerDetails[key] !== undefined) {
+            formData.append(key, managerDetails[key]);
+          }
+        });
+      }
+
+      await dispatch(updateUserProfile(formData)).unwrap();
+      
+      setIsEditingBanner(false);
+      setIsEditingProfile(false);
+      setBannerImage(null);
+      setProfileImage(null);
+      
+    } catch (error) {
+      console.error('Failed to update images:', error);
+    }
   };
-
-  // Save images
-  // Save images
-const handleSaveImages = async () => {
-  if (!bannerImage && !profileImage) {
-    setIsEditingBanner(false);
-    setIsEditingProfile(false);
-    return;
-  }
-
-  try {
-    const formData = new FormData();
-    
-    if (bannerImage) {
-      formData.append('bannerImage', bannerImage);
-    }
-    if (profileImage) {
-      formData.append('profileImage', profileImage);
-    }
-
-    // Include existing managerDetails data to maintain profile information
-    if (managerDetails) {
-      Object.keys(managerDetails).forEach(key => {
-        if (key !== 'bannerImage' && key !== 'profileImage' && managerDetails[key] !== undefined) {
-          formData.append(key, managerDetails[key]);
-        }
-      });
-    }
-
-    await dispatch(updateUserProfile(formData)).unwrap();
-    
-    // Reset editing states
-    setIsEditingBanner(false);
-    setIsEditingProfile(false);
-    setBannerImage(null);
-    setProfileImage(null);
-    
-  } catch (error) {
-    console.error('Failed to update images:', error);
-  }
-};
 
   const hasChanges = bannerImage || profileImage;
 
@@ -346,23 +405,34 @@ const handleSaveImages = async () => {
         </div>
       )}
 
+      {createBranchOwnerSuccess && (
+        <div className="fixed top-20 right-4 z-50 animate-in slide-in-from-right duration-300">
+          <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2">
+            <CheckCircle className="w-5 h-5" />
+            Branch created successfully!
+          </div>
+        </div>
+      )}
+
+      {createBranchOwnerError && (
+        <div className="fixed top-20 right-4 z-50 animate-in slide-in-from-right duration-300">
+          <div className="bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2">
+            <AlertCircle className="w-5 h-5" />
+            {createBranchOwnerError}
+          </div>
+        </div>
+      )}
+
       {/* YouTube-style Banner */}
       <div className="relative">
-        {/* Banner Image */}
         <div className={`h-48 sm:h-64 lg:h-80 relative overflow-hidden ${
           theme === 'dark'
             ? 'bg-gradient-to-r from-blue-900 via-purple-900 to-pink-900'
             : 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500'
         }`}>
-          {/* Banner Image or Gradient Background */}
           {bannerPreview ? (
-            <img
-              src={bannerPreview}
-              alt="Banner"
-              className="w-full h-full object-cover"
-            />
+            <img src={bannerPreview} alt="Banner" className="w-full h-full object-cover" />
           ) : (
-            // Animated background pattern
             <div className="absolute inset-0 opacity-20">
               <div className="absolute inset-0" style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
@@ -370,7 +440,6 @@ const handleSaveImages = async () => {
             </div>
           )}
           
-          {/* Gradient overlay */}
           <div className={`absolute inset-0 ${
             theme === 'dark'
               ? 'bg-gradient-to-b from-transparent via-transparent to-slate-900'
@@ -419,7 +488,6 @@ const handleSaveImages = async () => {
             )}
           </div>
 
-          {/* Banner Upload Instructions */}
           {isEditingBanner && !bannerPreview && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className={`text-center p-6 rounded-lg backdrop-blur-sm ${
@@ -432,7 +500,6 @@ const handleSaveImages = async () => {
             </div>
           )}
 
-          {/* Hidden file input for banner */}
           <input
             type="file"
             ref={bannerFileInputRef}
@@ -456,110 +523,105 @@ const handleSaveImages = async () => {
                     : 'bg-gradient-to-br from-blue-500 to-purple-500 text-white'
                 } shadow-2xl overflow-hidden relative`}>
                   {profilePreview ? (
-                    <img
-                      src={profilePreview}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={profilePreview} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
                     getInitials(managerDetails?.name)
                   )}
                    
-                   {/* Profile Upload Overlay */}
-                   {isEditingProfile && !profilePreview && (
-                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                       <Camera className="w-8 h-8 text-white" />
-                     </div>
-                   )}
-                 </div>
+                  {isEditingProfile && !profilePreview && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <Camera className="w-8 h-8 text-white" />
+                    </div>
+                  )}
+                </div>
                  
-                 {/* Profile Edit Button */}
-                 <div className="absolute bottom-2 right-2 z-10">
-                   {isEditingProfile ? (
-                     <div className="flex gap-1">
-                       <button
-                         onClick={triggerProfileFileInput}
-                         className={`p-2 rounded-full shadow-lg ${
-                           theme === 'dark'
-                             ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                             : 'bg-blue-500 hover:bg-blue-600 text-white'
-                         }`}
-                       >
-                         <Camera className="w-4 h-4" />
-                       </button>
-                       <button
-                         onClick={handleProfileCancel}
-                         className={`p-2 rounded-full shadow-lg ${
-                           theme === 'dark'
-                             ? 'bg-slate-700 hover:bg-slate-600 text-white'
-                             : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
-                         }`}
-                       >
-                         <X className="w-4 h-4" />
-                       </button>
-                     </div>
-                   ) : (
-                     <button
-                       onClick={handleProfileEdit}
-                       className={`p-2 rounded-full shadow-lg transition-all ${
-                         theme === 'dark'
-                           ? 'bg-slate-700 hover:bg-slate-600 text-white'
-                           : 'bg-white hover:bg-gray-100 text-gray-700'
-                       }`}
-                     >
-                       <Edit3 className="w-4 h-4" />
-                     </button>
-                   )}
-                 </div>
+                {/* Profile Edit Button */}
+                <div className="absolute bottom-2 right-2 z-10">
+                  {isEditingProfile ? (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={triggerProfileFileInput}
+                        className={`p-2 rounded-full shadow-lg ${
+                          theme === 'dark'
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                            : 'bg-blue-500 hover:bg-blue-600 text-white'
+                        }`}
+                      >
+                        <Camera className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={handleProfileCancel}
+                        className={`p-2 rounded-full shadow-lg ${
+                          theme === 'dark'
+                            ? 'bg-slate-700 hover:bg-slate-600 text-white'
+                            : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
+                        }`}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleProfileEdit}
+                      className={`p-2 rounded-full shadow-lg transition-all ${
+                        theme === 'dark'
+                          ? 'bg-slate-700 hover:bg-slate-600 text-white'
+                          : 'bg-white hover:bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
  
-                 {/* Status Indicator */}
-                 <div className={`absolute bottom-2 left-2 w-8 h-8 rounded-full border-4 flex items-center justify-center ${
-                   theme === 'dark'
-                     ? 'bg-green-500 border-slate-900'
-                     : 'bg-green-500 border-white'
-                 }`}>
-                   <Award className="w-4 h-4 text-white" />
-                 </div>
-               </div>
+                {/* Status Indicator */}
+                <div className={`absolute bottom-2 left-2 w-8 h-8 rounded-full border-4 flex items-center justify-center ${
+                  theme === 'dark'
+                    ? 'bg-green-500 border-slate-900'
+                    : 'bg-green-500 border-white'
+                }`}>
+                  <Award className="w-4 h-4 text-white" />
+                </div>
+              </div>
  
-               {/* Info */}
-               <div className="flex-1 text-center sm:text-left pb-2">
-                 <div className="flex flex-col sm:flex-row sm:items-center justify-center sm:justify-start gap-3 mb-2">
-                   <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-bold ${
-                     theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
-                   }`}>
-                     {managerDetails?.name || 'Manager'}
-                   </h1>
-                   <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                     theme === 'dark'
-                       ? 'bg-blue-600/20 text-blue-400 ring-1 ring-blue-500/30'
-                       : 'bg-blue-100 text-blue-700 ring-1 ring-blue-200'
-                   }`}>
-                     Manager
-                   </div>
-                 </div>
+              {/* Info */}
+              <div className="flex-1 text-center sm:text-left pb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-center sm:justify-start gap-3 mb-2">
+                  <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-bold ${
+                    theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
+                  }`}>
+                    {managerDetails?.name || 'Owner'}
+                  </h1>
+                  <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    theme === 'dark'
+                      ? 'bg-blue-600/20 text-blue-400 ring-1 ring-blue-500/30'
+                      : 'bg-blue-100 text-blue-700 ring-1 ring-blue-200'
+                  }`}>
+                    Owner
+                  </div>
+                </div>
                  
-                 <div className={`flex flex-wrap items-center justify-center sm:justify-start gap-4 text-sm ${
-                   theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
-                 }`}>
-                   <div className="flex items-center gap-2">
-                     <Mail className="w-4 h-4" />
-                     <span>{managerDetails?.email}</span>
-                   </div>
-                   <div className="flex items-center gap-2">
-                     <Building2 className="w-4 h-4" />
-                     <span>{assignedBranches.length} Branches</span>
-                   </div>
-                   <div className="flex items-center gap-2">
-                     <div className={`w-2 h-2 rounded-full ${
-                       theme === 'dark' ? 'bg-green-400' : 'bg-green-500'
-                     } animate-pulse`}></div>
-                     <span>Active Now</span>
-                   </div>
-                 </div>
+                <div className={`flex flex-wrap items-center justify-center sm:justify-start gap-4 text-sm ${
+                  theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    <span>{managerDetails?.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />
+                    <span>{assignedBranches.length} Branches</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${
+                      theme === 'dark' ? 'bg-green-400' : 'bg-green-500'
+                    } animate-pulse`}></div>
+                    <span>Active Now</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Save Button (shown when editing) */}
+              {/* Save Button */}
               {(isEditingBanner || isEditingProfile) && hasChanges && (
                 <div className="flex sm:justify-end">
                   <button
@@ -690,17 +752,30 @@ const handleSaveImages = async () => {
                   Assigned Branches ({assignedBranches.length})
                 </h2>
               </div>
-              <Link
-                to="/dashboard/manager/branch-owners"
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  theme === 'dark'
-                    ? 'text-blue-400 hover:bg-blue-600/20'
-                    : 'text-blue-600 hover:bg-blue-50'
-                }`}
-              >
-                <Eye className="h-4 w-4" />
-                <span>View All</span>
-              </Link>
+              <div className="flex items-center gap-4">
+                <Link
+                  to="/dashboard/manager/branch-owners"
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    theme === 'dark'
+                      ? 'text-blue-400 hover:bg-blue-600/20'
+                      : 'text-blue-600 hover:bg-blue-50'
+                  }`}
+                >
+                  <Eye className="h-4 w-4" />
+                  <span>View All</span>
+                </Link>
+                <button
+                  onClick={() => setShowAddBranchModal(true)}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    theme === 'dark'
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : 'bg-green-500 hover:bg-green-600 text-white'
+                  }`}
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  <span>Add Branch</span>
+                </button>
+              </div>
             </div>
           </div>
           <div className="p-6">
@@ -898,6 +973,267 @@ const handleSaveImages = async () => {
           </div>
         </div>
       </div>
+
+      {/* Add Branch Modal - Redesigned */}
+      {showAddBranchModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className={`relative rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200 ${
+            theme === 'dark' 
+              ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' 
+              : 'bg-gradient-to-br from-white via-gray-50 to-white'
+          }`}>
+            {/* Header with gradient */}
+            <div className={`relative p-8 border-b ${
+              theme === 'dark' 
+                ? 'border-slate-700/50 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10' 
+                : 'border-gray-200 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50'
+            }`}>
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-2xl ${
+                  theme === 'dark' 
+                    ? 'bg-gradient-to-br from-blue-600 to-purple-600' 
+                    : 'bg-gradient-to-br from-blue-500 to-purple-500'
+                } shadow-lg`}>
+                  <Building2 className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className={`text-2xl font-bold ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    Add New Branch
+                  </h3>
+                  <p className={`text-sm mt-1 ${
+                    theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                  }`}>
+                    Create a new branch owner account
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAddBranchModal(false)}
+                className={`absolute top-6 right-6 p-2 rounded-xl transition-all ${
+                  theme === 'dark'
+                    ? 'hover:bg-slate-700 text-slate-400 hover:text-white'
+                    : 'hover:bg-gray-200 text-gray-400 hover:text-gray-900'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleAddBranchSubmit} className="p-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Owner Name */}
+                <div className="space-y-2">
+                  <label htmlFor="name" className={`block text-sm font-semibold ${
+                    theme === 'dark' ? 'text-slate-200' : 'text-gray-700'
+                  }`}>
+                    Owner Name <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Users className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${
+                      theme === 'dark' ? 'text-slate-400' : 'text-gray-400'
+                    }`} />
+                    <input
+                      type="text"
+                      id="name"
+                      name="name"
+                      value={newBranchData.name}
+                      onChange={handleNewBranchChange}
+                      required
+                      placeholder="Enter owner's full name"
+                      className={`w-full pl-11 pr-4 py-3 rounded-xl border-2 transition-all focus:ring-4 ${
+                        theme === 'dark'
+                          ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-blue-500/20'
+                          : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500/20'
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                {/* Shop Name */}
+                <div className="space-y-2">
+                  <label htmlFor="shopName" className={`block text-sm font-semibold ${
+                    theme === 'dark' ? 'text-slate-200' : 'text-gray-700'
+                  }`}>
+                    Shop Name <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Building2 className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${
+                      theme === 'dark' ? 'text-slate-400' : 'text-gray-400'
+                    }`} />
+                    <input
+                      type="text"
+                      id="shopName"
+                      name="shopName"
+                      value={newBranchData.shopName}
+                      onChange={handleNewBranchChange}
+                      required
+                      placeholder="Enter shop name"
+                      className={`w-full pl-11 pr-4 py-3 rounded-xl border-2 transition-all focus:ring-4 ${
+                        theme === 'dark'
+                          ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-blue-500/20'
+                          : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500/20'
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                {/* Email */}
+                <div className="space-y-2">
+                  <label htmlFor="email" className={`block text-sm font-semibold ${
+                    theme === 'dark' ? 'text-slate-200' : 'text-gray-700'
+                  }`}>
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${
+                      theme === 'dark' ? 'text-slate-400' : 'text-gray-400'
+                    }`} />
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={newBranchData.email}
+                      onChange={handleNewBranchChange}
+                      required
+                      placeholder="owner@example.com"
+                      className={`w-full pl-11 pr-4 py-3 rounded-xl border-2 transition-all focus:ring-4 ${
+                        theme === 'dark'
+                          ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-blue-500/20'
+                          : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500/20'
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                {/* Password */}
+                <div className="space-y-2">
+                  <label htmlFor="password" className={`block text-sm font-semibold ${
+                    theme === 'dark' ? 'text-slate-200' : 'text-gray-700'
+                  }`}>
+                    Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Award className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${
+                      theme === 'dark' ? 'text-slate-400' : 'text-gray-400'
+                    }`} />
+                    <input
+                      type="password"
+                      id="password"
+                      name="password"
+                      value={newBranchData.password}
+                      onChange={handleNewBranchChange}
+                      required
+                      placeholder="Create a secure password"
+                      className={`w-full pl-11 pr-4 py-3 rounded-xl border-2 transition-all focus:ring-4 ${
+                        theme === 'dark'
+                          ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-blue-500/20'
+                          : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500/20'
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                {/* Phone Numbers */}
+                <div className="space-y-2 md:col-span-2">
+                  <label htmlFor="phoneNumbers" className={`block text-sm font-semibold ${
+                    theme === 'dark' ? 'text-slate-200' : 'text-gray-700'
+                  }`}>
+                    Phone Numbers
+                  </label>
+                  <div className="relative">
+                    <Phone className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${
+                      theme === 'dark' ? 'text-slate-400' : 'text-gray-400'
+                    }`} />
+                    <input
+                      type="text"
+                      id="phoneNumbers"
+                      name="phoneNumbers"
+                      value={newBranchData.phoneNumbers}
+                      onChange={handleNewBranchChange}
+                      placeholder="Enter phone numbers separated by commas"
+                      className={`w-full pl-11 pr-4 py-3 rounded-xl border-2 transition-all focus:ring-4 ${
+                        theme === 'dark'
+                          ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-blue-500/20'
+                          : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500/20'
+                      }`}
+                    />
+                  </div>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-gray-500'}`}>
+                    Separate multiple numbers with commas (e.g., +1234567890, +0987654321)
+                  </p>
+                </div>
+
+                {/* Full Address */}
+                <div className="space-y-2 md:col-span-2">
+                  <label htmlFor="fullAddress" className={`block text-sm font-semibold ${
+                    theme === 'dark' ? 'text-slate-200' : 'text-gray-700'
+                  }`}>
+                    Full Address <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <MapPin className={`absolute left-3 top-3 w-5 h-5 ${
+                      theme === 'dark' ? 'text-slate-400' : 'text-gray-400'
+                    }`} />
+                    <textarea
+                      id="fullAddress"
+                      name="fullAddress"
+                      value={newBranchData.fullAddress}
+                      onChange={handleNewBranchChange}
+                      rows="3"
+                      required
+                      placeholder="Enter complete address"
+                      className={`w-full pl-11 pr-4 py-3 rounded-xl border-2 transition-all focus:ring-4 resize-none ${
+                        theme === 'dark'
+                          ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-blue-500/20'
+                          : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500/20'
+                      }`}
+                    ></textarea>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="mt-8 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddBranchModal(false)}
+                  className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all ${
+                    theme === 'dark'
+                      ? 'bg-slate-700 hover:bg-slate-600 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createBranchOwnerLoading}
+                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all shadow-lg ${
+                    theme === 'dark'
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
+                      : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {createBranchOwnerLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      Creating Branch...
+                    </>
+                  ) : (
+                    <>
+                      <PlusCircle className="w-5 h-5" />
+                      Create Branch
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -11,6 +11,8 @@ import {
   createUserByAdmin,
   updateUserProfile,
   getBranchesByManagerId,
+  createBranchOwner,
+
 } from '../controllers/userController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 import { combinedUpload } from '../middleware/combinedUploadMiddleware.js';
@@ -18,6 +20,9 @@ import { combinedUpload } from '../middleware/combinedUploadMiddleware.js';
 router.route('/')
   .get(protect, authorizeRoles('Admin', 'Manager'), getUsers)
   .post(protect, authorizeRoles('Admin'), combinedUpload, createUserByAdmin);
+// Create branch owner route
+router.route('/branch-owner')
+  .post(protect, authorizeRoles('Admin', 'Manager'), createBranchOwner);
 
 // Simple and clean profile route
 router.route('/profile')
