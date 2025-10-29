@@ -59,7 +59,7 @@ const AdminDashboard = () => {
                 <h1 className={`text-2xl sm:text-3xl lg:text-4xl font-bold ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  Manager Dashboard
+                  Admin Dashboard
                 </h1>
               </div>
               <p className={`text-sm sm:text-base ml-14 ${
