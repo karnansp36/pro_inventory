@@ -1,24 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useTheme } from '../../../context/ThemeContext';
-import { createUser, updateUser, getUsersByRole } from '../../../store/slices/usersSlice';
+import { useTheme } from '../../context/ThemeContext';
+import { createUser, updateUser, getUsersByRole } from '../../store/slices/usersSlice';
 import { X, Save, Loader2 } from 'lucide-react';
 
-const UserForm = ({ user, onClose }) => {
+const UserForm = ({ user, onClose, onSubmit, initialData = {}, isSubmitting, submitError }) => {
   const dispatch = useDispatch();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const { loading } = useSelector((state) => state.users);
   const { user: currentUser } = useSelector((state) => state.auth);
 
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
+    name: initialData.name || '',
+    email: initialData.email || '',
     password: '',
-    role: '',
-    assignedManager: '',
-    assignedBrandOwner: '',
-    isActive: true
+    role: initialData.role || '',
+    assignedManager: initialData.assignedManager || '',
+    assignedBrandOwner: initialData.assignedBrandOwner || '',
+    isActive: initialData.isActive !== undefined ? initialData.isActive : true
   });
 
   const [managers, setManagers] = useState([]);
@@ -26,17 +25,18 @@ const UserForm = ({ user, onClose }) => {
 
   useEffect(() => {
     if (user) {
-      setFormData({
+      setFormData(prev => ({
+        ...prev,
         name: user.name || '',
         email: user.email || '',
         password: '',
-        role: user.role || '',
+        role: user.role || prev.role, // Prioritize initialData.role if set
         assignedManager: user.assignedManager?._id || '',
         assignedBrandOwner: user.assignedBrandOwner?._id || '',
         isActive: user.isActive !== undefined ? user.isActive : true
-      });
+      }));
     }
-  }, [user]);
+  }, [user, initialData]);
 
   useEffect(() => {
     // Load managers and brand owners for dropdowns
@@ -64,16 +64,19 @@ const UserForm = ({ user, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    try {
-      if (user) {
-        await dispatch(updateUser({ id: user._id, userData: formData })).unwrap();
-      } else {
-        await dispatch(createUser(formData)).unwrap();
+    if (onSubmit) {
+      onSubmit(formData);
+    } else {
+      try {
+        if (user) {
+          await dispatch(updateUser({ id: user._id, userData: formData })).unwrap();
+        } else {
+          await dispatch(createUser(formData)).unwrap();
+        }
+        onClose();
+      } catch (error) {
+        console.error('Error saving user:', error);
       }
-      onClose();
-    } catch (error) {
-      console.error('Error saving user:', error);
     }
   };
 
@@ -83,18 +86,20 @@ const UserForm = ({ user, onClose }) => {
     <div className={`p-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold">
-          {user ? 'Edit User' : 'Add New User'}
+          {user ? 'Edit User' : initialData.role === 'Manager' ? 'Add New Manager' : 'Add New User'}
         </h2>
-        <button
-          onClick={onClose}
-          className={`p-2 rounded-lg transition-colors duration-200 ${
-            isDark
-              ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
-              : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className={`p-2 rounded-lg transition-colors duration-200 ${
+              isDark
+                ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
+                : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -176,11 +181,12 @@ const UserForm = ({ user, onClose }) => {
               value={formData.role}
               onChange={handleChange}
               required
+              disabled={!!initialData.role} // Disable if initialData.role is provided
               className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 ${
                 isDark
                   ? 'bg-slate-700 border-slate-600 text-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'
                   : 'bg-white border-gray-300 text-gray-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'
-              }`}
+              } ${!!initialData.role ? 'cursor-not-allowed opacity-70' : ''}`}
             >
               <option value="">Select Role</option>
               {roles.map((role) => (
@@ -192,7 +198,7 @@ const UserForm = ({ user, onClose }) => {
           </div>
 
           {/* Assigned Brand Owner */}
-          {(formData.role === 'Manager' || formData.role === 'BranchOwner') && (
+          {formData.role === 'BranchOwner' && (
             <div>
               <label className={`block text-sm font-medium mb-2 ${
                 isDark ? 'text-gray-300' : 'text-gray-700'
@@ -270,32 +276,34 @@ const UserForm = ({ user, onClose }) => {
         <div className="flex gap-3 pt-4">
           <button
             type="submit"
-            disabled={loading}
+            disabled={isSubmitting}
             className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
               isDark
                 ? 'bg-emerald-500 text-white hover:bg-emerald-600 disabled:bg-emerald-500/50'
                 : 'bg-emerald-500 text-white hover:bg-emerald-600 disabled:bg-emerald-500/50'
             }`}
           >
-            {loading ? (
+            {isSubmitting ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Save className="w-4 h-4" />
             )}
-            {user ? 'Update User' : 'Create User'}
+            {user ? 'Update User' : initialData.role === 'Manager' ? 'Create Manager' : 'Create User'}
           </button>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
-              isDark
-                ? 'bg-slate-700 text-gray-300 hover:bg-slate-600'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Cancel
-          </button>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                isDark
+                  ? 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              Cancel
+            </button>
+          )}
         </div>
       </form>
     </div>
