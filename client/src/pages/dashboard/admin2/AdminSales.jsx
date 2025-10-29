@@ -6,7 +6,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getDailyReportsByBranch, createDailyReport } from '../../../store/slices/dailyReportSlice';
 import { useTheme } from '../../../context/ThemeContext';
 import { DollarSign, Wallet, CreditCard, Banknote, Receipt, TrendingUp, Calendar, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import Modal from '../../../components/Modal';
+import Modal2 from '../../../components/Modal2';
 
 const AdminSales = () => {
   const { branchId } = useParams(); // Get branchId from URL params
@@ -474,9 +474,9 @@ const AdminSales = () => {
           />
         </div>
 
-        {/* Enhanced Confirm Save Modal */}
+        {/* Enhanced Confirm Save Modal2 */}
         {showConfirmModal && (
-          <Modal onClose={() => setShowConfirmModal(false)} title="">
+          <Modal2 onClose={() => setShowConfirmModal(false)} title="">
             <div className="space-y-6 p-2">
               {/* Icon Section */}
               <div className="flex justify-center">
@@ -597,7 +597,7 @@ const AdminSales = () => {
                 This report will be saved to your daily records and can be viewed in the table below
               </p>
             </div>
-          </Modal>
+          </Modal2>
         )}
       </div>
     </div>
