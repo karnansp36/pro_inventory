@@ -1,34 +1,30 @@
 // routes/AdminRoutes.jsx
-import { Routes, Route } from 'react-router-dom';
-import AdminLayout from '../components/layout/AdminLayout';
-import AdminDashboard from '../pages/dashboard/admin/AdminDashboard';
-import UserManagement from '../pages/dashboard/admin/UserManagement';
-import UserView from '../pages/dashboard/admin/UserView';
-import SalesManagement from '../pages/dashboard/admin/SalesManagement';
-import ExpensesManagement from '../pages/dashboard/admin/ExpensesManagement';
-import StockRequestsManagement from '../pages/dashboard/admin/StockRequestsManagement';
-import TransportManagement from '../pages/dashboard/admin/TransportManagement';
-import Reports from '../pages/dashboard/admin/Reports';
-import Exports from '../pages/dashboard/admin/Exports';
-import ActivityLogs from '../pages/dashboard/admin/ActivityLogs';
-import DailyStoreImageAdminPage from '../pages/dashboard/admin/DailyStoreImageAdminPage';
-import UserProfilePage from '../pages/dashboard/UserProfilePage';
+import { Routes, Route } from "react-router-dom";
+import AdminLayout from "../components/layout/AdminLayout";
+import AdminDashboard from "../pages/dashboard/admin2/AdminDashboard";
+import UserProfilePage from "../pages/dashboard/UserProfilePage";
+import AdminManagerDashboard from "../pages/dashboard/admin2/AdminManagerDashboard";
+import AdminBranchDashboard from "../pages/dashboard/admin2/AdminBranchDashboard";
+import AdminSales from "../pages/dashboard/admin2/AdminSales";
+import AdminStock from "../pages/dashboard/admin2/AdminStock";
+import AdminTransport from "../pages/dashboard/admin2/AdminTransport";
+import AdminBranchOwners from "../pages/dashboard/admin2/AdminBranchOwners";
+import AdminDailyStore from "../pages/dashboard/admin2/AdminDailyStore";
 
 const AdminRoutes = () => {
   return (
     <Routes>
-      <Route element={<AdminLayout />}>
-        <Route index element={<AdminDashboard />} />
-        <Route path="users" element={<UserManagement />} />
-        <Route path="user-view/:id" element={<UserView />} />
-        <Route path="sales" element={<SalesManagement />} />
-        <Route path="expenses" element={<ExpensesManagement />} />
-        <Route path="stock-requests" element={<StockRequestsManagement />} />
-        <Route path="transport" element={<TransportManagement />} />
-        <Route path="reports" element={<Reports />} />
-        <Route path="exports" element={<Exports />} />
-        <Route path="activity-logs" element={<ActivityLogs />} />
-        <Route path="daily-store-images" element={<DailyStoreImageAdminPage />} />
+      <Route path="/" element={<AdminDashboard />} />
+
+      <Route path="/manager/:managerId" element={<AdminManagerDashboard />} />
+
+      <Route path="/branch/:branchId" element={<AdminLayout />}>
+        <Route index element={<AdminBranchDashboard />} />
+        <Route path="sales" element={<AdminSales />} />
+        <Route path="stock-requests" element={<AdminStock />} />
+        <Route path="transport" element={<AdminTransport />} />
+        <Route path="branch-owners" element={<AdminBranchOwners />} />
+        <Route path="daily-store-images" element={<AdminDailyStore />} />
         <Route path="profile" element={<UserProfilePage />} />
       </Route>
     </Routes>

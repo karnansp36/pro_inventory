@@ -1,15 +1,13 @@
 // components/layout/AdminLayout.jsx
 import { useState } from 'react';
-import { Outlet, useLocation, useParams } from 'react-router-dom';
-import AdminSidebar from './AdminSidebar';
+import { Outlet } from 'react-router-dom';
+import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import { useTheme } from '../../context/ThemeContext';
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme } = useTheme();
-  const location = useLocation();
-  const { branchId } = useParams(); // Get branchId from URL params
 
   return (
     <div className={`flex h-screen overflow-hidden transition-colors duration-300 ${
@@ -19,9 +17,9 @@ const AdminLayout = () => {
     }`}>
       {/* Sidebar - Fixed height */}
       <div className="h-screen">
-        <AdminSidebar
-          isOpen={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
+        <Sidebar 
+          isOpen={sidebarOpen} 
+          onClose={() => setSidebarOpen(false)} 
         />
       </div>
       
@@ -37,7 +35,7 @@ const AdminLayout = () => {
             : 'bg-gradient-to-br from-gray-50 via-white to-gray-50'
         }`}>
           <div className="min-h-full">
-            <Outlet context={{ branchId }} /> {/* Pass branchId as context */}
+            <Outlet />
           </div>
         </main>
       </div>
