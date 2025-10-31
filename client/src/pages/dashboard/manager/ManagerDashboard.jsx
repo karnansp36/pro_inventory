@@ -32,7 +32,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import { Link } from 'react-router-dom';
 import Navbar from '../../../components/layout/Navbar';
 
-const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL_IMG;
 
 const ManagerDashboard = () => {
   const dispatch = useDispatch();

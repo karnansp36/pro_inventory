@@ -39,7 +39,7 @@ import {
 import { useTheme } from '../../../context/ThemeContext';
 import Navbar from '../../../components/layout/Navbar';
 
-const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL_IMG;
 
 const AdminManagerDashboard = () => {
   const dispatch = useDispatch();
