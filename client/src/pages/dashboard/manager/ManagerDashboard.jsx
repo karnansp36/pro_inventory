@@ -11,7 +11,6 @@ import {
   ArrowDownRight,
   Eye,
   Mail,
-  Phone,
   MapPin,
   Award,
   Camera,
@@ -20,7 +19,10 @@ import {
   X,
   Upload,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Filter,
+  Calendar,
+  Truck
 } from 'lucide-react';
 import { getBranchesByManagerId, clearBranchesByManager } from '../../../store/slices/usersSlice';
 import { 
@@ -28,6 +30,9 @@ import {
   clearError, 
   clearSuccess 
 } from '../../../store/slices/profileSlice';
+import { getDailyReportsByBranch } from '../../../store/slices/dailyReportSlice';
+import { getStockRequestsByBranch } from '../../../store/slices/stockRequestsSlice';
+import { getTransportsByBranch } from '../../../store/slices/transportSlice';
 import { useTheme } from '../../../context/ThemeContext';
 import { Link } from 'react-router-dom';
 import Navbar from '../../../components/layout/Navbar';
@@ -50,6 +55,22 @@ const ManagerDashboard = () => {
   const [profileImage, setProfileImage] = useState(null);
   const [bannerPreview, setBannerPreview] = useState(null);
   const [profilePreview, setProfilePreview] = useState(null);
+  const [timeFilter, setTimeFilter] = useState('weekly');
+  const [customDateRange, setCustomDateRange] = useState({
+    startDate: '',
+    endDate: ''
+  });
+  const [branchData, setBranchData] = useState({});
+  const [loadingData, setLoadingData] = useState(false);
+  const [statsData, setStatsData] = useState({
+    totalSales: 0,
+    totalExpenses: 0,
+    netProfit: 0,
+    totalPendingRequests: 0,
+    totalUrgentRequests: 0,
+    totalTransports: 0,
+    pendingTransports: 0
+  });
   
   const bannerFileInputRef = useRef(null);
   const profileFileInputRef = useRef(null);
@@ -92,27 +113,212 @@ const ManagerDashboard = () => {
     }
   }, [profileError, dispatch]);
 
+  // Fetch data for all assigned branches when branches or filter changes
+  useEffect(() => {
+    const fetchBranchData = async () => {
+      if (!branchesByManager?.length) return;
+
+      setLoadingData(true);
+      try {
+        const filters = getFilters();
+        
+        const branchPromises = branchesByManager.map(async (branch) => {
+          try {
+            const [dailyReportsResult, stockRequestsResult, transportsResult] = await Promise.all([
+              dispatch(getDailyReportsByBranch({ 
+                branchId: branch._id, 
+                page: 1, 
+                limit: 100, 
+                filters 
+              })).unwrap(),
+              dispatch(getStockRequestsByBranch({ 
+                branchId: branch._id, 
+                page: 1, 
+                limit: 100, 
+                filters 
+              })).unwrap(),
+              dispatch(getTransportsByBranch({ 
+                branchId: branch._id, 
+                page: 1, 
+                limit: 100 
+              })).unwrap()
+            ]);
+
+            return {
+              branchId: branch._id,
+              dailyReports: dailyReportsResult?.dailyReports || dailyReportsResult?.data || [],
+              stockRequests: stockRequestsResult?.stockRequests || stockRequestsResult?.data || [],
+              transports: transportsResult?.transports || transportsResult?.data || []
+            };
+          } catch (error) {
+            console.error(`Error fetching data for branch ${branch._id}:`, error);
+            return {
+              branchId: branch._id,
+              dailyReports: [],
+              stockRequests: [],
+              transports: []
+            };
+          }
+        });
+
+        const results = await Promise.all(branchPromises);
+        
+        const newBranchData = {};
+        results.forEach(result => {
+          newBranchData[result.branchId] = {
+            dailyReports: result.dailyReports,
+            stockRequests: result.stockRequests,
+            transports: result.transports
+          };
+        });
+
+        setBranchData(newBranchData);
+        
+        // Calculate stats after data is fetched
+        calculateStats(newBranchData);
+      } catch (error) {
+        console.error('Error fetching branch data:', error);
+      } finally {
+        setLoadingData(false);
+      }
+    };
+
+    fetchBranchData();
+  }, [branchesByManager, timeFilter, customDateRange]);
+
+  // Helper function to get filters based on time selection
+  const getFilters = () => {
+    const now = new Date();
+    let startDate, endDate;
+
+    switch (timeFilter) {
+      case 'weekly':
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7);
+        endDate = now;
+        break;
+      case 'monthly':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        break;
+      case 'custom':
+        if (customDateRange.startDate && customDateRange.endDate) {
+          startDate = new Date(customDateRange.startDate);
+          endDate = new Date(customDateRange.endDate);
+        } else {
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        }
+        break;
+      default:
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7);
+        endDate = now;
+    }
+
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0]
+    };
+  };
+
+  // Calculate stats from assigned branches data with filters
   const assignedBranches = branchesByManager || [];
-  const assignedBranchIds = assignedBranches.map(branch => branch._id);
 
-  const branchSales = sales?.filter(sale =>
-    assignedBranchIds.includes(sale.branchOwner?._id)
-  ) || [];
+  // Calculate totals from all branch data for stats
+  const calculateStats = (branchDataObj = branchData) => {
+    let totalSales = 0;
+    let totalExpenses = 0;
+    let totalPendingRequests = 0;
+    let totalUrgentRequests = 0;
+    let totalTransports = 0;
+    let pendingTransports = 0;
 
-  const branchExpenses = expenses?.filter(expense =>
-    assignedBranchIds.includes(expense.branchOwner?._id)
-  ) || [];
+    console.log('Calculating stats from branch data:', branchDataObj);
 
-  const branchStockRequests = stockRequests?.filter(request =>
-    assignedBranchIds.includes(request.branchOwner?._id)
-  ) || [];
+    assignedBranches.forEach(branch => {
+      const branchDataItem = branchDataObj[branch._id];
+      
+      if (branchDataItem) {
+        // Calculate sales from daily reports - based on your API response structure
+        const branchSales = branchDataItem.dailyReports.reduce((sum, report) => {
+          const sales = (report.gpay || 0) + (report.card || 0) + (report.cash || 0);
+          console.log(`Branch ${branch._id} sales:`, sales, 'from report:', report);
+          return sum + sales;
+        }, 0);
+        totalSales += branchSales;
 
-  const totalSales = branchSales.reduce((sum, sale) => sum + sale.amount, 0);
-  const totalExpenses = branchExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const netProfit = totalSales - totalExpenses;
-  const pendingRequests = branchStockRequests.filter(req => !req.approved).length;
-  const urgentRequests = branchStockRequests.filter(req => req.priority === 'Urgent' && !req.approved).length;
+        // Calculate expenses from daily reports
+        const branchExpenses = branchDataItem.dailyReports.reduce((sum, report) => {
+          const expenses = report.expenses || 0;
+          console.log(`Branch ${branch._id} expenses:`, expenses, 'from report:', report);
+          return sum + expenses;
+        }, 0);
+        totalExpenses += branchExpenses;
 
+        // Count pending and urgent stock requests
+        // PENDING REQUESTS: where approved is false
+        const pendingRequests = branchDataItem.stockRequests.filter(req => 
+          req.approved === false // Only count if approved is false
+        ).length;
+        totalPendingRequests += pendingRequests;
+
+        // URGENT REQUESTS: where priority is 'Urgent' AND approved is false
+        const urgentRequests = branchDataItem.stockRequests.filter(req => 
+          req.priority === 'Urgent' && req.approved === false // Both conditions must be true
+        ).length;
+        totalUrgentRequests += urgentRequests;
+
+        // Count transports
+        const branchTransports = branchDataItem.transports.length;
+        totalTransports += branchTransports;
+
+        // Count pending transports (assuming status field exists)
+        const branchPendingTransports = branchDataItem.transports.filter(transport => 
+          transport.status === 'pending' || transport.status === 'in-progress' || !transport.completed
+        ).length;
+        pendingTransports += branchPendingTransports;
+
+        console.log(`Branch ${branch._id} Stock Requests:`, branchDataItem.stockRequests);
+        console.log(`Branch ${branch._id}:`, {
+          sales: branchSales,
+          expenses: branchExpenses,
+          pendingRequests,
+          urgentRequests,
+          transports: branchTransports,
+          pendingTransports: branchPendingTransports,
+          stockRequestsCount: branchDataItem.stockRequests.length,
+          approvedRequests: branchDataItem.stockRequests.filter(req => req.approved === true).length,
+          unapprovedRequests: branchDataItem.stockRequests.filter(req => req.approved === false).length,
+          urgentUnapprovedRequests: branchDataItem.stockRequests.filter(req => req.priority === 'Urgent' && req.approved === false).length
+        });
+      }
+    });
+
+    const netProfit = totalSales - totalExpenses;
+
+    console.log('Final stats:', {
+      totalSales,
+      totalExpenses,
+      netProfit,
+      totalPendingRequests,
+      totalUrgentRequests,
+      totalTransports,
+      pendingTransports
+    });
+
+    setStatsData({
+      totalSales,
+      totalExpenses,
+      netProfit,
+      totalPendingRequests,
+      totalUrgentRequests,
+      totalTransports,
+      pendingTransports
+    });
+  };
+
+  // Stats data using only assigned branches information
   const stats = [
     {
       title: 'Assigned Branches',
@@ -124,7 +330,7 @@ const ManagerDashboard = () => {
     },
     {
       title: 'Total Sales',
-      value: `$${totalSales.toLocaleString()}`,
+      value: `$${statsData.totalSales.toLocaleString()}`,
       icon: TrendingUp,
       color: 'green',
       change: '+8.2%',
@@ -132,7 +338,7 @@ const ManagerDashboard = () => {
     },
     {
       title: 'Total Expenses',
-      value: `$${totalExpenses.toLocaleString()}`,
+      value: `$${statsData.totalExpenses.toLocaleString()}`,
       icon: DollarSign,
       color: 'red',
       change: '-2.1%',
@@ -140,27 +346,43 @@ const ManagerDashboard = () => {
     },
     {
       title: 'Net Profit',
-      value: `$${netProfit.toLocaleString()}`,
+      value: `$${statsData.netProfit.toLocaleString()}`,
       icon: TrendingUp,
-      color: netProfit >= 0 ? 'green' : 'red',
-      change: netProfit >= 0 ? '+6.1%' : '-6.1%',
+      color: statsData.netProfit >= 0 ? 'green' : 'red',
+      change: statsData.netProfit >= 0 ? '+6.1%' : '-6.1%',
       link: '/dashboard/manager/reports'
     },
     {
       title: 'Pending Requests',
-      value: pendingRequests,
+      value: statsData.totalPendingRequests,
       icon: Package,
       color: 'orange',
-      change: `+${pendingRequests}`,
+      change: `+${statsData.totalPendingRequests}`,
       link: `/dashboard/manager/stock-requests/${user?._id}`
     },
     {
       title: 'Urgent Requests',
-      value: urgentRequests,
+      value: statsData.totalUrgentRequests,
       icon: AlertTriangle,
       color: 'red',
-      change: `+${urgentRequests}`,
+      change: `+${statsData.totalUrgentRequests}`,
       link: `/dashboard/manager/stock-requests/${user?._id}`
+    },
+    {
+      title: 'Total Transports',
+      value: statsData.totalTransports,
+      icon: Truck,
+      color: 'purple',
+      change: `+${statsData.totalTransports}`,
+      link: '/dashboard/manager/transports'
+    },
+    {
+      title: 'Pending Transports',
+      value: statsData.pendingTransports,
+      icon: Truck,
+      color: 'yellow',
+      change: `+${statsData.pendingTransports}`,
+      link: '/dashboard/manager/transports'
     }
   ];
 
@@ -189,6 +411,18 @@ const ManagerDashboard = () => {
         text: theme === 'dark' ? 'text-red-400' : 'text-red-600',
         gradient: 'from-red-500 to-rose-600',
         ring: theme === 'dark' ? 'ring-red-500/20' : 'ring-red-500/10'
+      },
+      purple: {
+        bg: theme === 'dark' ? 'bg-purple-600/20' : 'bg-purple-50',
+        text: theme === 'dark' ? 'text-purple-400' : 'text-purple-600',
+        gradient: 'from-purple-500 to-indigo-600',
+        ring: theme === 'dark' ? 'ring-purple-500/20' : 'ring-purple-500/10'
+      },
+      yellow: {
+        bg: theme === 'dark' ? 'bg-yellow-600/20' : 'bg-yellow-50',
+        text: theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600',
+        gradient: 'from-yellow-500 to-amber-600',
+        ring: theme === 'dark' ? 'ring-yellow-500/20' : 'ring-yellow-500/10'
       }
     };
     return colors[color];
@@ -214,13 +448,11 @@ const ManagerDashboard = () => {
   const handleBannerFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         alert('Please select an image file');
         return;
       }
       
-      // Validate file size (max 10MB for banner)
       if (file.size > 10 * 1024 * 1024) {
         alert('Banner image must be less than 10MB');
         return;
@@ -250,13 +482,11 @@ const ManagerDashboard = () => {
   const handleProfileFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         alert('Please select an image file');
         return;
       }
       
-      // Validate file size (max 5MB for profile)
       if (file.size > 5 * 1024 * 1024) {
         alert('Profile image must be less than 5MB');
         return;
@@ -273,47 +503,75 @@ const ManagerDashboard = () => {
   };
 
   // Save images
-  // Save images
-const handleSaveImages = async () => {
-  if (!bannerImage && !profileImage) {
-    setIsEditingBanner(false);
-    setIsEditingProfile(false);
-    return;
-  }
-
-  try {
-    const formData = new FormData();
-    
-    if (bannerImage) {
-      formData.append('bannerImage', bannerImage);
-    }
-    if (profileImage) {
-      formData.append('profileImage', profileImage);
+  const handleSaveImages = async () => {
+    if (!bannerImage && !profileImage) {
+      setIsEditingBanner(false);
+      setIsEditingProfile(false);
+      return;
     }
 
-    // Include existing user data to maintain profile information
-    if (user) {
-      Object.keys(user).forEach(key => {
-        if (key !== 'bannerImage' && key !== 'profileImage' && user[key] !== undefined) {
-          formData.append(key, user[key]);
-        }
-      });
-    }
+    try {
+      const formData = new FormData();
+      
+      if (bannerImage) {
+        formData.append('bannerImage', bannerImage);
+      }
+      if (profileImage) {
+        formData.append('profileImage', profileImage);
+      }
 
-    await dispatch(updateUserProfile(formData)).unwrap();
-    
-    // Reset editing states
-    setIsEditingBanner(false);
-    setIsEditingProfile(false);
-    setBannerImage(null);
-    setProfileImage(null);
-    
-  } catch (error) {
-    console.error('Failed to update images:', error);
-  }
-};
+      if (user) {
+        Object.keys(user).forEach(key => {
+          if (key !== 'bannerImage' && key !== 'profileImage' && user[key] !== undefined) {
+            formData.append(key, user[key]);
+          }
+        });
+      }
+
+      await dispatch(updateUserProfile(formData)).unwrap();
+      
+      setIsEditingBanner(false);
+      setIsEditingProfile(false);
+      setBannerImage(null);
+      setProfileImage(null);
+      
+    } catch (error) {
+      console.error('Failed to update images:', error);
+    }
+  };
 
   const hasChanges = bannerImage || profileImage;
+
+  // Get branch-specific data for display in branch cards
+  const getBranchStats = (branchId) => {
+    const data = branchData[branchId];
+    if (!data) return { 
+      sales: 0, 
+      pendingRequests: 0, 
+      urgentRequests: 0, 
+      transports: 0,
+      pendingTransports: 0 
+    };
+
+    const sales = data.dailyReports.reduce((sum, report) => 
+      sum + (report.gpay || 0) + (report.card || 0) + (report.cash || 0), 0
+    );
+    
+    // PENDING REQUESTS: where approved is false
+    const pendingRequests = data.stockRequests.filter(req => req.approved === false).length;
+    
+    // URGENT REQUESTS: where priority is 'Urgent' AND approved is false
+    const urgentRequests = data.stockRequests.filter(req => 
+      req.priority === 'Urgent' && req.approved === false
+    ).length;
+    
+    const transports = data.transports.length;
+    const pendingTransports = data.transports.filter(transport => 
+      transport.status === 'pending' || transport.status === 'in-progress' || !transport.completed
+    ).length;
+
+    return { sales, pendingRequests, urgentRequests, transports, pendingTransports };
+  };
 
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'bg-slate-950' : 'bg-gray-50'}`}>
@@ -346,7 +604,6 @@ const handleSaveImages = async () => {
             ? 'bg-gradient-to-r from-blue-900 via-purple-900 to-pink-900'
             : 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500'
         }`}>
-          {/* Banner Image or Gradient Background */}
           {bannerPreview ? (
             <img
               src={bannerPreview}
@@ -354,7 +611,6 @@ const handleSaveImages = async () => {
               className="w-full h-full object-cover"
             />
           ) : (
-            // Animated background pattern
             <div className="absolute inset-0 opacity-20">
               <div className="absolute inset-0" style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
@@ -362,7 +618,6 @@ const handleSaveImages = async () => {
             </div>
           )}
           
-          {/* Gradient overlay */}
           <div className={`absolute inset-0 ${
             theme === 'dark'
               ? 'bg-gradient-to-b from-transparent via-transparent to-slate-900'
@@ -411,7 +666,6 @@ const handleSaveImages = async () => {
             )}
           </div>
 
-          {/* Banner Upload Instructions */}
           {isEditingBanner && !bannerPreview && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className={`text-center p-6 rounded-lg backdrop-blur-sm ${
@@ -424,7 +678,6 @@ const handleSaveImages = async () => {
             </div>
           )}
 
-          {/* Hidden file input for banner */}
           <input
             type="file"
             ref={bannerFileInputRef}
@@ -457,7 +710,6 @@ const handleSaveImages = async () => {
                     getInitials(user?.name)
                   )}
                   
-                  {/* Profile Upload Overlay */}
                   {isEditingProfile && !profilePreview && (
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                       <Camera className="w-8 h-8 text-white" />
@@ -465,7 +717,6 @@ const handleSaveImages = async () => {
                   )}
                 </div>
                 
-                {/* Profile Edit Button */}
                 <div className="absolute bottom-2 right-2 z-10">
                   {isEditingProfile ? (
                     <div className="flex gap-1">
@@ -504,7 +755,6 @@ const handleSaveImages = async () => {
                   )}
                 </div>
 
-                {/* Status Indicator */}
                 <div className={`absolute bottom-2 left-2 w-8 h-8 rounded-full border-4 flex items-center justify-center ${
                   theme === 'dark'
                     ? 'bg-green-500 border-slate-900'
@@ -551,7 +801,6 @@ const handleSaveImages = async () => {
                 </div>
               </div>
 
-              {/* Save Button (shown when editing) */}
               {(isEditingBanner || isEditingProfile) && hasChanges && (
                 <div className="flex sm:justify-end">
                   <button
@@ -581,7 +830,6 @@ const handleSaveImages = async () => {
           </div>
         </div>
 
-        {/* Hidden file input for profile */}
         <input
           type="file"
           ref={profileFileInputRef}
@@ -591,7 +839,6 @@ const handleSaveImages = async () => {
         />
       </div>
 
-      {/* Loading Overlay */}
       {profileLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-slate-800 rounded-lg p-6 flex items-center gap-3 shadow-xl">
@@ -603,8 +850,96 @@ const handleSaveImages = async () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        {/* Filter Section */}
+        <div className={`rounded-2xl border shadow-lg p-6 ${
+          theme === 'dark'
+            ? 'bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800/50'
+            : 'bg-white border-gray-200'
+        }`}>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Filter className={`w-5 h-5 ${
+                theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+              }`} />
+              <h3 className={`font-semibold ${
+                theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
+              }`}>
+                Data Filter
+              </h3>
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className={`text-sm ${
+                  theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                }`}>
+                  Time Period:
+                </label>
+                <select
+                  value={timeFilter}
+                  onChange={(e) => setTimeFilter(e.target.value)}
+                  className={`px-3 py-2 rounded-lg border text-sm ${
+                    theme === 'dark'
+                      ? 'bg-slate-800 border-slate-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                >
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+              
+              {timeFilter === 'custom' && (
+                <div className="flex items-center gap-2">
+                  <Calendar className={`w-4 h-4 ${
+                    theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                  }`} />
+                  <input
+                    type="date"
+                    value={customDateRange.startDate}
+                    onChange={(e) => setCustomDateRange(prev => ({
+                      ...prev,
+                      startDate: e.target.value
+                    }))}
+                    className={`px-3 py-2 rounded-lg border text-sm ${
+                      theme === 'dark'
+                        ? 'bg-slate-800 border-slate-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  />
+                  <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>to</span>
+                  <input
+                    type="date"
+                    value={customDateRange.endDate}
+                    onChange={(e) => setCustomDateRange(prev => ({
+                      ...prev,
+                      endDate: e.target.value
+                    }))}
+                    className={`px-3 py-2 rounded-lg border text-sm ${
+                      theme === 'dark'
+                        ? 'bg-slate-800 border-slate-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  />
+                </div>
+              )}
+              
+              {loadingData && (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                  <span className={`text-sm ${
+                    theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                  }`}>
+                    Loading data...
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Grid - This shows the connected data */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {stats.map((stat, index) => {
             const colorClass = getColorClasses(stat.color);
             const isPositive = stat.change.startsWith('+');
@@ -658,7 +993,7 @@ const handleSaveImages = async () => {
           })}
         </div>
 
-        {/* Assigned Branches List */}
+        {/* Rest of your existing UI remains the same */}
         <div className={`rounded-2xl border shadow-lg ${
           theme === 'dark'
             ? 'bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800/50'
@@ -703,61 +1038,76 @@ const handleSaveImages = async () => {
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {assignedBranches.slice(0, 6).map((branch) => (
-                    <Link
-                      key={branch._id}
-                      to={`/dashboard/manager/branch/${branch._id}`}
-                      className={`p-6 rounded-xl border transition-all duration-200 hover:shadow-lg cursor-pointer block ${
-                        theme === 'dark'
-                          ? 'bg-slate-800/30 border-slate-700/50 hover:border-slate-600'
-                          : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3 mb-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                          theme === 'dark' ? 'bg-slate-700' : 'bg-white'
-                        }`}>
-                          <Building2 className={`h-6 w-6 ${
-                            theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
-                          }`} />
-                        </div>
-                        <div>
-                          <h3 className={`font-semibold ${
-                            theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
+                  {assignedBranches.slice(0, 6).map((branch) => {
+                    const branchStats = getBranchStats(branch._id);
+                    return (
+                      <Link
+                        key={branch._id}
+                        to={`/dashboard/manager/branch/${branch._id}`}
+                        className={`p-6 rounded-xl border transition-all duration-200 hover:shadow-lg cursor-pointer block ${
+                          theme === 'dark'
+                            ? 'bg-slate-800/30 border-slate-700/50 hover:border-slate-600'
+                            : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3 mb-4">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                            theme === 'dark' ? 'bg-slate-700' : 'bg-white'
                           }`}>
-                            {branch.shopName || branch.name}
-                          </h3>
-                          <p className={`text-sm ${
-                            theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
-                          }`}>
-                            {branch.email}
-                          </p>
+                            <Building2 className={`h-6 w-6 ${
+                              theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                            }`} />
+                          </div>
+                          <div>
+                            <h3 className={`font-semibold ${
+                              theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
+                            }`}>
+                              {branch.shopName || branch.name}
+                            </h3>
+                            <p className={`text-sm ${
+                              theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                            }`}>
+                              {branch.email}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>Sales:</span>
-                          <span className="font-semibold">
-                            ${branchSales.filter(s => s.branchOwner?._id === branch._id).reduce((sum, s) => sum + s.amount, 0).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>Pending Requests:</span>
-                          <span className="font-semibold">
-                            {branchStockRequests.filter(r => r.branchOwner?._id === branch._id && !r.approved).length}
-                          </span>
-                        </div>
-                        {branch.fullAddress && (
-                          <div className="flex items-start gap-2 text-sm pt-2 border-t border-slate-700/30">
-                            <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                            <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>
-                              {branch.fullAddress.split(',').slice(0, 2).join(',')}
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>Sales:</span>
+                            <span className="font-semibold">
+                              ${branchStats.sales.toLocaleString()}
                             </span>
                           </div>
-                        )}
-                      </div>
-                    </Link>
-                  ))}
+                          <div className="flex justify-between text-sm">
+                            <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>Pending Requests:</span>
+                            <span className="font-semibold">
+                              {branchStats.pendingRequests}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>Urgent Requests:</span>
+                            <span className="font-semibold">
+                              {branchStats.urgentRequests}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>Transports:</span>
+                            <span className="font-semibold">
+                              {branchStats.transports}
+                            </span>
+                          </div>
+                          {branch.fullAddress && (
+                            <div className="flex items-start gap-2 text-sm pt-2 border-t border-slate-700/30">
+                              <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                              <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>
+                                {branch.fullAddress.split(',').slice(0, 2).join(',')}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
                 {assignedBranches.length === 0 && (
                   <div className="text-center py-12">
@@ -841,7 +1191,7 @@ const handleSaveImages = async () => {
                 </div>
               </Link>
               <Link
-                to="/dashboard/manager/analytics"
+                to="/dashboard/manager/transports"
                 className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-lg cursor-pointer block ${
                   theme === 'dark'
                     ? 'bg-slate-800/30 border-slate-700/50 hover:border-slate-600'
@@ -850,16 +1200,16 @@ const handleSaveImages = async () => {
               >
                 <div className="flex items-center space-x-3">
                   <div className={`p-2 rounded-lg ${
-                    theme === 'dark' ? 'bg-blue-600/20' : 'bg-blue-50'
+                    theme === 'dark' ? 'bg-purple-600/20' : 'bg-purple-50'
                   }`}>
-                    <Building2 className={`h-5 w-5 ${
-                      theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                    <Truck className={`h-5 w-5 ${
+                      theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
                     }`} />
                   </div>
                   <span className={`font-medium ${
                     theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
                   }`}>
-                    Analytics
+                    Transports
                   </span>
                 </div>
               </Link>
@@ -873,10 +1223,10 @@ const handleSaveImages = async () => {
               >
                 <div className="flex items-center space-x-3">
                   <div className={`p-2 rounded-lg ${
-                    theme === 'dark' ? 'bg-purple-600/20' : 'bg-purple-50'
+                    theme === 'dark' ? 'bg-blue-600/20' : 'bg-blue-50'
                   }`}>
                     <Award className={`h-5 w-5 ${
-                      theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
+                      theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
                     }`} />
                   </div>
                   <span className={`font-medium ${
