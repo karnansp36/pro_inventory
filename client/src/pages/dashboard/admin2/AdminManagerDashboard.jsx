@@ -22,7 +22,10 @@ import {
   Upload,
   CheckCircle,
   AlertCircle,
-  PlusCircle
+  PlusCircle,
+  Filter,
+  Calendar,
+  Truck
 } from 'lucide-react';
 import { 
   getBranchesByManagerId, 
@@ -36,6 +39,9 @@ import {
   clearError,
   clearSuccess
 } from '../../../store/slices/profileSlice';
+import { getDailyReportsByBranch } from '../../../store/slices/dailyReportSlice';
+import { getStockRequestsByBranch } from '../../../store/slices/stockRequestsSlice';
+import { getTransportsByBranch } from '../../../store/slices/transportSlice';
 import { useTheme } from '../../../context/ThemeContext';
 import Navbar from '../../../components/layout/Navbar';
 
@@ -66,6 +72,23 @@ const AdminManagerDashboard = () => {
   const [profileImage, setProfileImage] = useState(null);
   const [bannerPreview, setBannerPreview] = useState(null);
   const [profilePreview, setProfilePreview] = useState(null);
+  
+  const [timeFilter, setTimeFilter] = useState('weekly');
+  const [customDateRange, setCustomDateRange] = useState({
+    startDate: '',
+    endDate: ''
+  });
+  const [branchData, setBranchData] = useState({});
+  const [loadingData, setLoadingData] = useState(false);
+  const [statsData, setStatsData] = useState({
+    totalSales: 0,
+    totalExpenses: 0,
+    netProfit: 0,
+    totalPendingRequests: 0,
+    totalUrgentRequests: 0,
+    totalTransports: 0,
+    pendingTransports: 0
+  });
 
   const [showAddBranchModal, setShowAddBranchModal] = useState(false);
   const [newBranchData, setNewBranchData] = useState({
@@ -142,6 +165,211 @@ const AdminManagerDashboard = () => {
     }
   }, [createBranchOwnerError, dispatch]);
 
+  // Fetch data for all assigned branches when branches or filter changes
+  useEffect(() => {
+    const fetchBranchData = async () => {
+      if (!branchesByManager?.length) return;
+
+      setLoadingData(true);
+      try {
+        const filters = getFilters();
+        
+        const branchPromises = branchesByManager.map(async (branch) => {
+          try {
+            const [dailyReportsResult, stockRequestsResult, transportsResult] = await Promise.all([
+              dispatch(getDailyReportsByBranch({ 
+                branchId: branch._id, 
+                page: 1, 
+                limit: 100, 
+                filters 
+              })).unwrap(),
+              dispatch(getStockRequestsByBranch({ 
+                branchId: branch._id, 
+                page: 1, 
+                limit: 100, 
+                filters 
+              })).unwrap(),
+              dispatch(getTransportsByBranch({ 
+                branchId: branch._id, 
+                page: 1, 
+                limit: 100 
+              })).unwrap()
+            ]);
+
+            return {
+              branchId: branch._id,
+              dailyReports: dailyReportsResult?.dailyReports || dailyReportsResult?.data || [],
+              stockRequests: stockRequestsResult?.stockRequests || stockRequestsResult?.data || [],
+              transports: transportsResult?.transports || transportsResult?.data || []
+            };
+          } catch (error) {
+            console.error(`Error fetching data for branch ${branch._id}:`, error);
+            return {
+              branchId: branch._id,
+              dailyReports: [],
+              stockRequests: [],
+              transports: []
+            };
+          }
+        });
+
+        const results = await Promise.all(branchPromises);
+        
+        const newBranchData = {};
+        results.forEach(result => {
+          newBranchData[result.branchId] = {
+            dailyReports: result.dailyReports,
+            stockRequests: result.stockRequests,
+            transports: result.transports
+          };
+        });
+
+        setBranchData(newBranchData);
+        
+        // Calculate stats after data is fetched
+        calculateStats(newBranchData);
+      } catch (error) {
+        console.error('Error fetching branch data:', error);
+      } finally {
+        setLoadingData(false);
+      }
+    };
+
+    fetchBranchData();
+  }, [branchesByManager, timeFilter, customDateRange]);
+
+  // Helper function to get filters based on time selection
+  const getFilters = () => {
+    const now = new Date();
+    let startDate, endDate;
+
+    switch (timeFilter) {
+      case 'weekly':
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7);
+        endDate = now;
+        break;
+      case 'monthly':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        break;
+      case 'custom':
+        if (customDateRange.startDate && customDateRange.endDate) {
+          startDate = new Date(customDateRange.startDate);
+          endDate = new Date(customDateRange.endDate);
+        } else {
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        }
+        break;
+      default:
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7);
+        endDate = now;
+    }
+
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0]
+    };
+  };
+
+  // Calculate stats from assigned branches data with filters
+  const assignedBranches = branchesByManager || [];
+
+  // Calculate totals from all branch data for stats
+  const calculateStats = (branchDataObj = branchData) => {
+    let totalSales = 0;
+    let totalExpenses = 0;
+    let totalPendingRequests = 0;
+    let totalUrgentRequests = 0;
+    let totalTransports = 0;
+    let pendingTransports = 0;
+
+    console.log('Calculating stats from branch data:', branchDataObj);
+
+    assignedBranches.forEach(branch => {
+      const branchDataItem = branchDataObj[branch._id];
+      
+      if (branchDataItem) {
+        // Calculate sales from daily reports - based on your API response structure
+        const branchSales = branchDataItem.dailyReports.reduce((sum, report) => {
+          const sales = (report.gpay || 0) + (report.card || 0) + (report.cash || 0);
+          console.log(`Branch ${branch._id} sales:`, sales, 'from report:', report);
+          return sum + sales;
+        }, 0);
+        totalSales += branchSales;
+
+        // Calculate expenses from daily reports
+        const branchExpenses = branchDataItem.dailyReports.reduce((sum, report) => {
+          const expenses = report.expenses || 0;
+          console.log(`Branch ${branch._id} expenses:`, expenses, 'from report:', report);
+          return sum + expenses;
+        }, 0);
+        totalExpenses += branchExpenses;
+
+        // Count pending and urgent stock requests
+        // PENDING REQUESTS: where approved is false
+        const pendingRequests = branchDataItem.stockRequests.filter(req => 
+          req.approved === false // Only count if approved is false
+        ).length;
+        totalPendingRequests += pendingRequests;
+
+        // URGENT REQUESTS: where priority is 'Urgent' AND approved is false
+        const urgentRequests = branchDataItem.stockRequests.filter(req => 
+          req.priority === 'Urgent' && req.approved === false // Both conditions must be true
+        ).length;
+        totalUrgentRequests += urgentRequests;
+
+        // Count transports
+        const branchTransports = branchDataItem.transports.length;
+        totalTransports += branchTransports;
+
+        // Count pending transports (assuming status field exists)
+        const branchPendingTransports = branchDataItem.transports.filter(transport => 
+          transport.status === 'pending' || transport.status === 'in-progress' || !transport.completed
+        ).length;
+        pendingTransports += branchPendingTransports;
+
+        console.log(`Branch ${branch._id} Stock Requests:`, branchDataItem.stockRequests);
+        console.log(`Branch ${branch._id}:`, {
+          sales: branchSales,
+          expenses: branchExpenses,
+          pendingRequests,
+          urgentRequests,
+          transports: branchTransports,
+          pendingTransports: branchPendingTransports,
+          stockRequestsCount: branchDataItem.stockRequests.length,
+          approvedRequests: branchDataItem.stockRequests.filter(req => req.approved === true).length,
+          unapprovedRequests: branchDataItem.stockRequests.filter(req => req.approved === false).length,
+          urgentUnapprovedRequests: branchDataItem.stockRequests.filter(req => req.priority === 'Urgent' && req.approved === false).length
+        });
+      }
+    });
+
+    const netProfit = totalSales - totalExpenses;
+
+    console.log('Final stats:', {
+      totalSales,
+      totalExpenses,
+      netProfit,
+      totalPendingRequests,
+      totalUrgentRequests,
+      totalTransports,
+      pendingTransports
+    });
+
+    setStatsData({
+      totalSales,
+      totalExpenses,
+      netProfit,
+      totalPendingRequests,
+      totalUrgentRequests,
+      totalTransports,
+      pendingTransports
+    });
+  };
+
   // Handle new branch form changes
   const handleNewBranchChange = (e) => {
     const { name, value } = e.target;
@@ -186,27 +414,7 @@ const AdminManagerDashboard = () => {
     }
   };
 
-  const assignedBranches = branchesByManager || [];
-  const assignedBranchIds = assignedBranches.map(branch => branch._id);
-
-  const branchSales = sales?.filter(sale =>
-    assignedBranchIds.includes(sale.branchOwner?._id)
-  ) || [];
-
-  const branchExpenses = expenses?.filter(expense =>
-    assignedBranchIds.includes(expense.branchOwner?._id)
-  ) || [];
-
-  const branchStockRequests = stockRequests?.filter(request =>
-    assignedBranchIds.includes(request.branchOwner?._id)
-  ) || [];
-
-  const totalSales = branchSales.reduce((sum, sale) => sum + sale.amount, 0);
-  const totalExpenses = branchExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const netProfit = totalSales - totalExpenses;
-  const pendingRequests = branchStockRequests.filter(req => !req.approved).length;
-  const urgentRequests = branchStockRequests.filter(req => req.priority === 'Urgent' && !req.approved).length;
-
+  // Stats data using only assigned branches information
   const stats = [
     {
       title: 'Assigned Branches',
@@ -218,7 +426,7 @@ const AdminManagerDashboard = () => {
     },
     {
       title: 'Total Sales',
-      value: `$${totalSales.toLocaleString()}`,
+      value: `$${statsData.totalSales.toLocaleString()}`,
       icon: TrendingUp,
       color: 'green',
       change: '+8.2%',
@@ -226,7 +434,7 @@ const AdminManagerDashboard = () => {
     },
     {
       title: 'Total Expenses',
-      value: `$${totalExpenses.toLocaleString()}`,
+      value: `$${statsData.totalExpenses.toLocaleString()}`,
       icon: DollarSign,
       color: 'red',
       change: '-2.1%',
@@ -234,27 +442,43 @@ const AdminManagerDashboard = () => {
     },
     {
       title: 'Net Profit',
-      value: `$${netProfit.toLocaleString()}`,
+      value: `$${statsData.netProfit.toLocaleString()}`,
       icon: TrendingUp,
-      color: netProfit >= 0 ? 'green' : 'red',
-      change: netProfit >= 0 ? '+6.1%' : '-6.1%',
+      color: statsData.netProfit >= 0 ? 'green' : 'red',
+      change: statsData.netProfit >= 0 ? '+6.1%' : '-6.1%',
       link: '/dashboard/manager/reports'
     },
     {
       title: 'Pending Requests',
-      value: pendingRequests,
+      value: statsData.totalPendingRequests,
       icon: Package,
       color: 'orange',
-      change: `+${pendingRequests}`,
+      change: `+${statsData.totalPendingRequests}`,
       link: `/dashboard/manager/stock-requests/${managerId}`
     },
     {
       title: 'Urgent Requests',
-      value: urgentRequests,
+      value: statsData.totalUrgentRequests,
       icon: AlertTriangle,
       color: 'red',
-      change: `+${urgentRequests}`,
+      change: `+${statsData.totalUrgentRequests}`,
       link: `/dashboard/manager/stock-requests/${managerId}`
+    },
+    {
+      title: 'Total Transports',
+      value: statsData.totalTransports,
+      icon: Truck,
+      color: 'purple',
+      change: `+${statsData.totalTransports}`,
+      link: '/dashboard/manager/transports'
+    },
+    {
+      title: 'Pending Transports',
+      value: statsData.pendingTransports,
+      icon: Truck,
+      color: 'yellow',
+      change: `+${statsData.pendingTransports}`,
+      link: '/dashboard/manager/transports'
     }
   ];
 
@@ -283,6 +507,18 @@ const AdminManagerDashboard = () => {
         text: theme === 'dark' ? 'text-red-400' : 'text-red-600',
         gradient: 'from-red-500 to-rose-600',
         ring: theme === 'dark' ? 'ring-red-500/20' : 'ring-red-500/10'
+      },
+      purple: {
+        bg: theme === 'dark' ? 'bg-purple-600/20' : 'bg-purple-50',
+        text: theme === 'dark' ? 'text-purple-400' : 'text-purple-600',
+        gradient: 'from-purple-500 to-indigo-600',
+        ring: theme === 'dark' ? 'ring-purple-500/20' : 'ring-purple-500/10'
+      },
+      yellow: {
+        bg: theme === 'dark' ? 'bg-yellow-600/20' : 'bg-yellow-50',
+        text: theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600',
+        gradient: 'from-yellow-500 to-amber-600',
+        ring: theme === 'dark' ? 'ring-yellow-500/20' : 'ring-yellow-500/10'
       }
     };
     return colors[color];
@@ -381,6 +617,37 @@ const AdminManagerDashboard = () => {
   };
 
   const hasChanges = bannerImage || profileImage;
+
+  // Get branch-specific data for display in branch cards
+  const getBranchStats = (branchId) => {
+    const data = branchData[branchId];
+    if (!data) return { 
+      sales: 0, 
+      pendingRequests: 0, 
+      urgentRequests: 0, 
+      transports: 0,
+      pendingTransports: 0 
+    };
+
+    const sales = data.dailyReports.reduce((sum, report) => 
+      sum + (report.gpay || 0) + (report.card || 0) + (report.cash || 0), 0
+    );
+    
+    // PENDING REQUESTS: where approved is false
+    const pendingRequests = data.stockRequests.filter(req => req.approved === false).length;
+    
+    // URGENT REQUESTS: where priority is 'Urgent' AND approved is false
+    const urgentRequests = data.stockRequests.filter(req => 
+      req.priority === 'Urgent' && req.approved === false
+    ).length;
+    
+    const transports = data.transports.length;
+    const pendingTransports = data.transports.filter(transport => 
+      transport.status === 'pending' || transport.status === 'in-progress' || !transport.completed
+    ).length;
+
+    return { sales, pendingRequests, urgentRequests, transports, pendingTransports };
+  };
 
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'bg-slate-950' : 'bg-gray-50'}`}>
@@ -590,14 +857,14 @@ const AdminManagerDashboard = () => {
                   <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-bold ${
                     theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
                   }`}>
-                    {managerDetails?.name || 'Owner'}
+                    {managerDetails?.name || 'Manager'}
                   </h1>
                   <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
                     theme === 'dark'
                       ? 'bg-blue-600/20 text-blue-400 ring-1 ring-blue-500/30'
                       : 'bg-blue-100 text-blue-700 ring-1 ring-blue-200'
                   }`}>
-                    Owner
+                    Manager
                   </div>
                 </div>
                  
@@ -666,15 +933,103 @@ const AdminManagerDashboard = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-slate-800 rounded-lg p-6 flex items-center gap-3 shadow-xl">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            <span className="text-gray-700 dark:text-white font-medium">Uploading images...</span>
+            <span className="text-gray-700 dark:text-white">Updating profile...</span>
           </div>
         </div>
       )}
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Filter Section */}
+        <div className={`rounded-2xl border shadow-lg p-6 ${
+          theme === 'dark'
+            ? 'bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800/50'
+            : 'bg-white border-gray-200'
+        }`}>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Filter className={`w-5 h-5 ${
+                theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+              }`} />
+              <h3 className={`font-semibold ${
+                theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
+              }`}>
+                Data Filter
+              </h3>
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className={`text-sm ${
+                  theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                }`}>
+                  Time Period:
+                </label>
+                <select
+                  value={timeFilter}
+                  onChange={(e) => setTimeFilter(e.target.value)}
+                  className={`px-3 py-2 rounded-lg border text-sm ${
+                    theme === 'dark'
+                      ? 'bg-slate-800 border-slate-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                >
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+              
+              {timeFilter === 'custom' && (
+                <div className="flex items-center gap-2">
+                  <Calendar className={`w-4 h-4 ${
+                    theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                  }`} />
+                  <input
+                    type="date"
+                    value={customDateRange.startDate}
+                    onChange={(e) => setCustomDateRange(prev => ({
+                      ...prev,
+                      startDate: e.target.value
+                    }))}
+                    className={`px-3 py-2 rounded-lg border text-sm ${
+                      theme === 'dark'
+                        ? 'bg-slate-800 border-slate-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  />
+                  <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>to</span>
+                  <input
+                    type="date"
+                    value={customDateRange.endDate}
+                    onChange={(e) => setCustomDateRange(prev => ({
+                      ...prev,
+                      endDate: e.target.value
+                    }))}
+                    className={`px-3 py-2 rounded-lg border text-sm ${
+                      theme === 'dark'
+                        ? 'bg-slate-800 border-slate-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  />
+                </div>
+              )}
+              
+              {loadingData && (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                  <span className={`text-sm ${
+                    theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                  }`}>
+                    Loading data...
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {stats.map((stat, index) => {
             const colorClass = getColorClasses(stat.color);
             const isPositive = stat.change.startsWith('+');
@@ -786,61 +1141,76 @@ const AdminManagerDashboard = () => {
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {assignedBranches.slice(0, 6).map((branch) => (
-                    <Link
-                      key={branch._id}
-                      to={`/dashboard/admin/branch/${branch._id}`}
-                      className={`p-6 rounded-xl border transition-all duration-200 hover:shadow-lg cursor-pointer block ${
-                        theme === 'dark'
-                          ? 'bg-slate-800/30 border-slate-700/50 hover:border-slate-600'
-                          : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3 mb-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                          theme === 'dark' ? 'bg-slate-700' : 'bg-white'
-                        }`}>
-                          <Building2 className={`h-6 w-6 ${
-                            theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
-                          }`} />
-                        </div>
-                        <div>
-                          <h3 className={`font-semibold ${
-                            theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
+                  {assignedBranches.slice(0, 6).map((branch) => {
+                    const branchStats = getBranchStats(branch._id);
+                    return (
+                      <Link
+                        key={branch._id}
+                        to={`/dashboard/admin/branch/${branch._id}`}
+                        className={`p-6 rounded-xl border transition-all duration-200 hover:shadow-lg cursor-pointer block ${
+                          theme === 'dark'
+                            ? 'bg-slate-800/30 border-slate-700/50 hover:border-slate-600'
+                            : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3 mb-4">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                            theme === 'dark' ? 'bg-slate-700' : 'bg-white'
                           }`}>
-                            {branch.shopName || branch.name}
-                          </h3>
-                          <p className={`text-sm ${
-                            theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
-                          }`}>
-                            {branch.email}
-                          </p>
+                            <Building2 className={`h-6 w-6 ${
+                              theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                            }`} />
+                          </div>
+                          <div>
+                            <h3 className={`font-semibold ${
+                              theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
+                            }`}>
+                              {branch.shopName || branch.name}
+                            </h3>
+                            <p className={`text-sm ${
+                              theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                            }`}>
+                              {branch.email}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>Sales:</span>
-                          <span className="font-semibold">
-                            ${branchSales.filter(s => s.branchOwner?._id === branch._id).reduce((sum, s) => sum + s.amount, 0).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>Pending Requests:</span>
-                          <span className="font-semibold">
-                            {branchStockRequests.filter(r => r.branchOwner?._id === branch._id && !r.approved).length}
-                          </span>
-                        </div>
-                        {branch.fullAddress && (
-                          <div className="flex items-start gap-2 text-sm pt-2 border-t border-slate-700/30">
-                            <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                            <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>
-                              {branch.fullAddress.split(',').slice(0, 2).join(',')}
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>Sales:</span>
+                            <span className="font-semibold">
+                              ${branchStats.sales.toLocaleString()}
                             </span>
                           </div>
-                        )}
-                      </div>
-                    </Link>
-                  ))}
+                          <div className="flex justify-between text-sm">
+                            <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>Pending Requests:</span>
+                            <span className="font-semibold">
+                              {branchStats.pendingRequests}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>Urgent Requests:</span>
+                            <span className="font-semibold">
+                              {branchStats.urgentRequests}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>Transports:</span>
+                            <span className="font-semibold">
+                              {branchStats.transports}
+                            </span>
+                          </div>
+                          {branch.fullAddress && (
+                            <div className="flex items-start gap-2 text-sm pt-2 border-t border-slate-700/30">
+                              <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                              <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}>
+                                {branch.fullAddress.split(',').slice(0, 2).join(',')}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
                 {assignedBranches.length === 0 && (
                   <div className="text-center py-12">
@@ -924,7 +1294,7 @@ const AdminManagerDashboard = () => {
                 </div>
               </Link>
               <Link
-                to="/dashboard/manager/analytics"
+                to="/dashboard/manager/transports"
                 className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-lg cursor-pointer block ${
                   theme === 'dark'
                     ? 'bg-slate-800/30 border-slate-700/50 hover:border-slate-600'
@@ -933,16 +1303,16 @@ const AdminManagerDashboard = () => {
               >
                 <div className="flex items-center space-x-3">
                   <div className={`p-2 rounded-lg ${
-                    theme === 'dark' ? 'bg-blue-600/20' : 'bg-blue-50'
+                    theme === 'dark' ? 'bg-purple-600/20' : 'bg-purple-50'
                   }`}>
-                    <Building2 className={`h-5 w-5 ${
-                      theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                    <Truck className={`h-5 w-5 ${
+                      theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
                     }`} />
                   </div>
                   <span className={`font-medium ${
                     theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
                   }`}>
-                    Analytics
+                    Transports
                   </span>
                 </div>
               </Link>
@@ -956,10 +1326,10 @@ const AdminManagerDashboard = () => {
               >
                 <div className="flex items-center space-x-3">
                   <div className={`p-2 rounded-lg ${
-                    theme === 'dark' ? 'bg-purple-600/20' : 'bg-purple-50'
+                    theme === 'dark' ? 'bg-blue-600/20' : 'bg-blue-50'
                   }`}>
                     <Award className={`h-5 w-5 ${
-                      theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
+                      theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
                     }`} />
                   </div>
                   <span className={`font-medium ${
