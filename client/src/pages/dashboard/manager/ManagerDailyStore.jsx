@@ -19,6 +19,7 @@ import {
   Search,
   X
 } from 'lucide-react';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_IMG;
 
 const ManagerDailyStore = () => {
   const { branchId } = useParams(); // Get branchId from URL params
@@ -428,7 +429,7 @@ const ManagerDailyStore = () => {
                     >
                       <div className="aspect-video overflow-hidden">
                         <img
-                          src={`http://localhost:5000${normalizeImagePath(img.img)}`}
+                          src={`${API_BASE_URL}${normalizeImagePath(img.img)}`}
                           alt="Daily Store"
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                           onError={handleImageError}
@@ -590,7 +591,7 @@ const ManagerDailyStore = () => {
               <X className="w-6 h-6" />
             </button>
             <img
-              src={`http://localhost:5000${normalizeImagePath(selectedImage.img)}`}
+              src={`${API_BASE_URL}${normalizeImagePath(selectedImage.img)}`}
               alt="Daily Store"
               className="w-full h-auto rounded-2xl shadow-2xl"
               onError={handleImageError}

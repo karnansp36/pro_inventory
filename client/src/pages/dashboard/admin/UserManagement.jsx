@@ -22,6 +22,7 @@ import {
 import { getUsers, deleteUser, createUser, updateUser, getUsersByRole, clearUsers } from '../../../store/slices/usersSlice';
 import { useTheme } from '../../../context/ThemeContext';
 import UserView from './UserView';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_IMG;
 
 const UserManagement = () => {
   const dispatch = useDispatch();

@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import { Image, Calendar, User, ImageOff } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import Spinner from '../../../../src/components/Spinner';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_IMG;
 
 const DailyStoreImageAdminPage = ({ branchOwnerId }) => {
   const dispatch = useDispatch();
@@ -110,7 +111,7 @@ const DailyStoreImageAdminPage = ({ branchOwnerId }) => {
                   {/* Image Container */}
                   <div className="relative h-56 overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800">
                     <img
-                      src={`http://localhost:5000${img.img.startsWith('/') ? img.img : '/' + img.img}`}
+                      src={`${API_BASE_URL}${img.img.startsWith('/') ? img.img : '/' + img.img}`}
                       alt="Daily Store"
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                       onError={(e) => {

@@ -29,7 +29,7 @@ const upload = multer({
   },
 }).single('image'); // field name = image
 
-// Middleware to compress image after upload
+// uploadMiddleware.js - Updated compressImage function
 const compressImage = async (req, res, next) => {
   console.log('req.file in compressImage:', req.file);
   console.log('req.body in compressImage:', req.body);
@@ -42,19 +42,32 @@ const compressImage = async (req, res, next) => {
 
   try {
     await sharp(req.file.path)
-      .resize({ width: 1280, height: 720, fit: 'inside' }) // Compress to ~720p
+      .resize({ width: 1280, height: 720, fit: 'inside' })
       .jpeg({ quality: 80 })
       .toFile(outputPath);
 
-    // Remove temp file
-    fs.unlinkSync(req.file.path);
-
-    // Replace file info with compressed version
-    req.file.path = outputPath;
-    req.file.filename = `compressed-${req.file.filename}`;
-    next();
+    // Remove temp file asynchronously with error handling
+    fs.unlink(req.file.path, (err) => {
+      if (err) {
+        console.warn('Warning: Could not delete temp file:', err.message);
+        // Continue anyway - this is not a critical error
+      }
+      
+      // Replace file info with compressed version
+      req.file.path = outputPath;
+      req.file.filename = `compressed-${req.file.filename}`;
+      next();
+    });
   } catch (err) {
     console.error('Image compression error:', err);
+    
+    // Try to clean up the output file if it was created
+    if (fs.existsSync(outputPath)) {
+      fs.unlink(outputPath, (unlinkErr) => {
+        if (unlinkErr) console.warn('Could not clean up output file:', unlinkErr.message);
+      });
+    }
+    
     res.status(500).json({ message: 'Failed to process image' });
   }
 };

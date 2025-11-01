@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   ArrowRight
 } from 'lucide-react';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_IMG;
 
 const DailyStoreImageBrandOwnerPage = () => {
   const dispatch = useDispatch();
@@ -146,7 +147,7 @@ const DailyStoreImageBrandOwnerPage = () => {
                   <div key={img._id} className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
                     <div className="relative">
                       <img
-                        src={`http://localhost:5000${img.img.startsWith('/') ? img.img : '/' + img.img}`}
+                        src={`${API_BASE_URL}${img.img.startsWith('/') ? img.img : '/' + img.img}`}
                         alt="Daily Store"
                         className="w-full h-48 object-cover"
                         onError={(e) => {
