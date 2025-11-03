@@ -111,4 +111,3 @@ The backend generally aligns well with the features outlined in the `Readme.md`,
 The backend provides a robust foundation for the described inventory management system with strong role-based access control. The primary areas for potential enhancement are:
 1.  Adding explicit "update" functionalities for Sales, Stock Requests, and Transport for Admin and Brand Owners, as currently only "delete" is widely available for these resources (except for Expenses).
 2.  Clarifying or implementing "System-wide configuration" if it's intended to be a backend-driven feature.
-3.  While Brand Owners can view their assigned Branch Owners, direct editing of Branch Owner details is restricted to Admin. If Brand Owners are expected to modify details of their assigned Branch Owners, this would require an update to the `userController.js` and `userRoutes.js` to allow Brand Owners to update users under their hierarchy.
