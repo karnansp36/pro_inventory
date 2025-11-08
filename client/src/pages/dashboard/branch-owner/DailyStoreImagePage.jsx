@@ -21,6 +21,10 @@ import {
   RotateCcw,
   Check,
   Clock,
+  Video,
+  VideoOff,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_IMG;
@@ -32,6 +36,9 @@ const DailyStoreImagePage = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [captureTimestamp, setCaptureTimestamp] = useState(null);
+  const [cameraError, setCameraError] = useState(null);
+  const [isFrontCamera, setIsFrontCamera] = useState(false);
+  const [isLoadingCamera, setIsLoadingCamera] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -93,30 +100,105 @@ const DailyStoreImagePage = () => {
     };
   }, []);
 
+  const getCameraConstraints = () => {
+    const constraints = {
+      video: {
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        facingMode: isFrontCamera ? "user" : "environment"
+      },
+      audio: false,
+    };
+    return constraints;
+  };
+
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-        audio: false,
-      });
+      setCameraError(null);
+      setIsLoadingCamera(true);
+      
+      // Stop existing stream if any
+      if (streamRef.current) {
+        stopCamera();
+      }
+
+      // Add a small delay to ensure cleanup
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const constraints = getCameraConstraints();
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
         setCameraActive(true);
+        
+        // Wait for video to be ready
+        videoRef.current.onloadedmetadata = () => {
+          setIsLoadingCamera(false);
+        };
+        
+        // Fallback in case loadedmetadata doesn't fire
+        setTimeout(() => {
+          setIsLoadingCamera(false);
+        }, 1000);
       }
     } catch (error) {
       console.error("Error accessing camera:", error);
-      toast.error("Unable to access camera. Please check permissions.");
+      setIsLoadingCamera(false);
+      handleCameraError(error);
     }
+  };
+
+  const handleCameraError = (error) => {
+    let errorMessage = "Unable to access camera. Please check permissions.";
+    
+    switch (error.name) {
+      case 'NotAllowedError':
+      case 'PermissionDeniedError':
+        errorMessage = "Camera access denied. Please allow camera permissions in your browser settings and refresh the page.";
+        break;
+      case 'NotFoundError':
+      case 'OverconstrainedError':
+      case 'ConstraintNotSatisfiedError':
+        errorMessage = "No suitable camera found. Please check if your camera is connected and try switching cameras.";
+        break;
+      case 'NotSupportedError':
+        errorMessage = "Camera not supported in this browser. Please try using Chrome, Firefox, or Safari.";
+        break;
+      case 'NotReadableError':
+      case 'TrackStartError':
+        errorMessage = "Camera is already in use by another application. Please close other apps using the camera.";
+        break;
+      default:
+        errorMessage = "Unable to access camera. Please check permissions and try again.";
+    }
+    
+    setCameraError(errorMessage);
+    toast.error(errorMessage);
+    setCameraActive(false);
   };
 
   const stopCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current.getTracks().forEach((track) => {
+        track.stop();
+      });
       streamRef.current = null;
     }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
     setCameraActive(false);
+    setCameraError(null);
+    setIsLoadingCamera(false);
+  };
+
+  const switchCamera = async () => {
+    setIsFrontCamera(!isFrontCamera);
+    if (cameraActive) {
+      await startCamera();
+    }
   };
 
   const captureImage = () => {
@@ -125,6 +207,12 @@ const DailyStoreImagePage = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext("2d");
+
+    // Ensure video is ready
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      toast.error("Camera not ready. Please try again.");
+      return;
+    }
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -146,6 +234,11 @@ const DailyStoreImagePage = () => {
 
     // Convert canvas to blob
     canvas.toBlob((blob) => {
+      if (!blob) {
+        toast.error("Failed to capture image. Please try again.");
+        return;
+      }
+      
       const file = new File([blob], `store-${Date.now()}.jpg`, {
         type: "image/jpeg",
       });
@@ -196,6 +289,48 @@ const DailyStoreImagePage = () => {
       .catch((error) => {
         toast.error(error);
       });
+  };
+
+  // Check camera permissions and availability
+  const checkCameraAvailability = async () => {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        throw new Error("Camera API not supported in this browser");
+      }
+
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      
+      if (videoDevices.length === 0) {
+        setCameraError("No camera found on this device.");
+        return false;
+      }
+      
+      // Quick permission check
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stopCamera(); // Immediately stop after checking
+        return true;
+      } catch (error) {
+        handleCameraError(error);
+        return false;
+      }
+    } catch (error) {
+      handleCameraError(error);
+      return false;
+    }
+  };
+
+  const handleOpenCamera = async () => {
+    const isAvailable = await checkCameraAvailability();
+    if (isAvailable) {
+      await startCamera();
+    }
+  };
+
+  const retryCamera = async () => {
+    setCameraError(null);
+    await handleOpenCamera();
   };
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -266,7 +401,7 @@ const DailyStoreImagePage = () => {
   }
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8">
+    <div className={`min-h-screen p-4 sm:p-6 lg:p-8 ${isDark ? "bg-slate-900" : "bg-gray-50"}`}>
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div
@@ -343,41 +478,103 @@ const DailyStoreImagePage = () => {
                         }`}
                       />
                     </div>
+                    
+                    {cameraError && (
+                      <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg max-w-md text-center">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          <AlertCircle className="w-5 h-5" />
+                          <span className="font-semibold">Camera Error</span>
+                        </div>
+                        <p className="text-sm mb-3">{cameraError}</p>
+                        <button
+                          type="button"
+                          onClick={retryCamera}
+                          className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                          Try Again
+                        </button>
+                      </div>
+                    )}
+                    
                     <button
                       type="button"
-                      onClick={startCamera}
+                      onClick={handleOpenCamera}
+                      disabled={isLoadingCamera}
                       className={`flex items-center gap-2 px-8 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                        isDark
+                        isLoadingCamera
+                          ? "bg-gray-400 cursor-not-allowed"
+                          : isDark
                           ? "bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/30"
                           : "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg"
                       }`}
                     >
-                      <Camera className="w-5 h-5" />
-                      Open Camera
+                      {isLoadingCamera ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Starting Camera...
+                        </>
+                      ) : (
+                        <>
+                          <Camera className="w-5 h-5" />
+                          Open Camera
+                        </>
+                      )}
                     </button>
+                    
+                    <div className="mt-4 text-center">
+                      <p className={`text-sm ${isDark ? "text-slate-400" : "text-gray-500"} mb-2`}>
+                        Tips for camera access:
+                      </p>
+                      <ul className={`text-xs ${isDark ? "text-slate-500" : "text-gray-400"} space-y-1`}>
+                        <li>• Allow camera permissions when prompted</li>
+                        <li>• Ensure no other app is using the camera</li>
+                        <li>• Use HTTPS for camera access</li>
+                        <li>• Try switching cameras if available</li>
+                      </ul>
+                    </div>
                   </div>
                 )}
 
                 {cameraActive && (
                   <div className="relative">
+                    {isLoadingCamera && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10 rounded-xl">
+                        <div className="text-white text-center">
+                          <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                          <p>Starting camera...</p>
+                        </div>
+                      </div>
+                    )}
                     <video
                       ref={videoRef}
                       autoPlay
                       playsInline
+                      muted
                       className="w-full h-auto rounded-xl"
                     />
                     <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
                       <button
                         type="button"
                         onClick={stopCamera}
-                        className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold transition-colors shadow-lg"
+                        className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold transition-colors shadow-lg flex items-center gap-2"
                       >
-                        <X className="w-5 h-5" />
+                        <VideoOff className="w-5 h-5" />
+                        Close
+                      </button>
+                      <button
+                        type="button"
+                        onClick={switchCamera}
+                        className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-semibold transition-colors shadow-lg flex items-center gap-2"
+                      >
+                        <Video className="w-5 h-5" />
+                        Switch
                       </button>
                       <button
                         type="button"
                         onClick={captureImage}
-                        className="px-8 py-3 bg-white hover:bg-gray-100 text-gray-800 rounded-xl font-semibold transition-colors shadow-lg flex items-center gap-2"
+                        disabled={isLoadingCamera}
+                        className="px-8 py-3 bg-white hover:bg-gray-100 text-gray-800 rounded-xl font-semibold transition-colors shadow-lg flex items-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
                       >
                         <Camera className="w-5 h-5" />
                         Capture
@@ -389,6 +586,10 @@ const DailyStoreImagePage = () => {
                       <span className="text-sm font-medium">
                         {new Date().toLocaleString()}
                       </span>
+                    </div>
+                    {/* Camera indicator */}
+                    <div className="absolute top-4 right-4 px-3 py-1 bg-black/70 text-white rounded-lg text-sm">
+                      {isFrontCamera ? "Front Camera" : "Rear Camera"}
                     </div>
                   </div>
                 )}
