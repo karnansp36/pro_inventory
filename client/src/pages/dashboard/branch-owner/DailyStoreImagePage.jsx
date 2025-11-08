@@ -25,6 +25,7 @@ import {
   VideoOff,
   RefreshCw,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_IMG;
@@ -39,6 +40,7 @@ const DailyStoreImagePage = () => {
   const [cameraError, setCameraError] = useState(null);
   const [isFrontCamera, setIsFrontCamera] = useState(false);
   const [isLoadingCamera, setIsLoadingCamera] = useState(false);
+  const [cameraPermission, setCameraPermission] = useState(null); // 'granted', 'denied', 'prompt'
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -95,10 +97,33 @@ const DailyStoreImagePage = () => {
   }, [isError, message]);
 
   useEffect(() => {
+    // Check initial camera permission state
+    checkCameraPermission();
+    
     return () => {
       stopCamera();
     };
   }, []);
+
+  // Check camera permission state
+  const checkCameraPermission = async () => {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraPermission('denied');
+        return;
+      }
+
+      const permissionStatus = await navigator.permissions.query({ name: 'camera' });
+      setCameraPermission(permissionStatus.state);
+      
+      permissionStatus.onchange = () => {
+        setCameraPermission(permissionStatus.state);
+      };
+    } catch (error) {
+      console.error("Error checking camera permission:", error);
+      setCameraPermission('prompt');
+    }
+  };
 
   const getCameraConstraints = () => {
     return {
@@ -113,62 +138,83 @@ const DailyStoreImagePage = () => {
 
   const startCamera = async () => {
     try {
+      console.log("Starting camera...");
       setCameraError(null);
       setIsLoadingCamera(true);
       setCameraActive(false);
-      
-      console.log("Starting camera...");
-      
-      // Stop existing stream if any
+
+      // Ensure video element exists
+      if (!videoRef.current) {
+        console.error("Video element reference is null");
+        throw new Error("Video element not found");
+      }
+
+      // Stop any previous stream safely
       if (streamRef.current) {
-        console.log("Stopping existing stream...");
         stopCamera();
-        // Add a small delay to ensure cleanup
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 300));
       }
 
+      // Define constraints
       const constraints = getCameraConstraints();
-      console.log("Camera constraints:", constraints);
+      console.log("Requesting camera with constraints:", constraints);
 
-      // Request camera access
+      // Request camera stream
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log("Camera stream obtained:", stream);
+      console.log("Camera stream started:", stream);
+
+      // Store stream reference
+      streamRef.current = stream;
+
+      // Set up video element
+      videoRef.current.srcObject = stream;
       
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
+      // Wait for video to be ready
+      await new Promise((resolve, reject) => {
+        const video = videoRef.current;
         
-        // Set up event listeners for the video element
-        videoRef.current.onloadedmetadata = () => {
-          console.log("Video metadata loaded");
-          videoRef.current.play().then(() => {
-            console.log("Video playback started");
-            setCameraActive(true);
-            setIsLoadingCamera(false);
-          }).catch(error => {
-            console.error("Error playing video:", error);
-            setIsLoadingCamera(false);
-            handleCameraError(error);
-          });
+        const onLoadedMetadata = () => {
+          video.removeEventListener('loadedmetadata', onLoadedMetadata);
+          video.removeEventListener('error', onError);
+          resolve();
         };
 
-        videoRef.current.onerror = (error) => {
-          console.error("Video element error:", error);
-          setIsLoadingCamera(false);
-          handleCameraError(error);
+        const onError = (error) => {
+          video.removeEventListener('loadedmetadata', onLoadedMetadata);
+          video.removeEventListener('error', onError);
+          reject(new Error('Video element failed to load metadata'));
         };
 
-        // Fallback in case loadedmetadata doesn't fire
+        video.addEventListener('loadedmetadata', onLoadedMetadata);
+        video.addEventListener('error', onError);
+
+        // Fallback timeout
         setTimeout(() => {
-          if (isLoadingCamera) {
-            console.log("Fallback: Setting camera active after timeout");
-            setCameraActive(true);
-            setIsLoadingCamera(false);
+          video.removeEventListener('loadedmetadata', onLoadedMetadata);
+          video.removeEventListener('error', onError);
+          if (video.readyState >= 2) {
+            resolve();
+          } else {
+            reject(new Error('Video loading timeout'));
           }
-        }, 3000);
+        }, 5000);
+      });
+
+      // Play the video
+      try {
+        await videoRef.current.play();
+        console.log("Video playback started successfully");
+      } catch (playError) {
+        console.warn("Video play() failed:", playError);
+        // Continue anyway as the stream might still work
       }
+
+      setCameraActive(true);
+      setIsLoadingCamera(false);
+      setCameraPermission("granted");
+
     } catch (error) {
-      console.error("Error accessing camera:", error);
+      console.error("Error starting camera:", error);
       setIsLoadingCamera(false);
       handleCameraError(error);
     }
@@ -181,6 +227,7 @@ const DailyStoreImagePage = () => {
       case 'NotAllowedError':
       case 'PermissionDeniedError':
         errorMessage = "Camera access denied. Please allow camera permissions in your browser settings and refresh the page.";
+        setCameraPermission('denied');
         break;
       case 'NotFoundError':
       case 'OverconstrainedError':
@@ -240,7 +287,6 @@ const DailyStoreImagePage = () => {
     const canvas = canvasRef.current;
     const context = canvas.getContext("2d");
 
-    // Ensure video is ready and has dimensions
     if (video.videoWidth === 0 || video.videoHeight === 0) {
       toast.error("Camera not ready. Please wait and try again.");
       return;
@@ -365,6 +411,115 @@ const DailyStoreImagePage = () => {
     setCameraError(null);
     await handleOpenCamera();
   };
+
+  // Camera permission denied UI
+  const renderPermissionDenied = () => (
+    <div className="text-center p-8">
+      <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg max-w-md mx-auto">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <AlertCircle className="w-5 h-5" />
+          <span className="font-semibold">Camera Access Denied</span>
+        </div>
+        <p className="text-sm mb-3">
+          Camera permissions have been blocked. Please follow these steps to enable camera access:
+        </p>
+        <ol className="text-sm text-left space-y-2 mb-4">
+          <li>1. Click the camera icon in your browser's address bar</li>
+          <li>2. Allow camera permissions for this site</li>
+          <li>3. Refresh the page and try again</li>
+        </ol>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors mx-auto"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Refresh Page
+        </button>
+      </div>
+    </div>
+  );
+
+  // Camera permission prompt UI
+  const renderPermissionPrompt = () => (
+    <div className="text-center p-8">
+      <div className="mb-6 p-4 bg-blue-100 border border-blue-400 text-blue-700 rounded-lg max-w-md mx-auto">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <Camera className="w-5 h-5" />
+          <span className="font-semibold">Camera Access Required</span>
+        </div>
+        <p className="text-sm mb-4">
+          This feature requires camera access. When prompted, please allow camera permissions to continue.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={handleOpenCamera}
+        className={`flex items-center gap-2 px-8 py-3 rounded-xl font-semibold transition-all duration-300 mx-auto ${
+          isDark
+            ? "bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/30"
+            : "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg"
+        }`}
+      >
+        <Camera className="w-5 h-5" />
+        Allow Camera Access
+      </button>
+    </div>
+  );
+
+  // Camera ready to open UI
+  const renderCameraReady = () => (
+    <div className="flex flex-col items-center justify-center p-12">
+      <div
+        className={`p-6 rounded-full mb-4 ${
+          isDark ? "bg-slate-600" : "bg-gray-200"
+        }`}
+      >
+        <Camera
+          className={`w-16 h-16 ${
+            isDark ? "text-slate-400" : "text-gray-400"
+          }`}
+        />
+      </div>
+      
+      <button
+        type="button"
+        onClick={handleOpenCamera}
+        disabled={isLoadingCamera}
+        className={`flex items-center gap-2 px-8 py-3 rounded-xl font-semibold transition-all duration-300 ${
+          isLoadingCamera
+            ? "bg-gray-400 cursor-not-allowed"
+            : isDark
+            ? "bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/30"
+            : "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg"
+        }`}
+      >
+        {isLoadingCamera ? (
+          <>
+            <Loader2 className="w-5 h-5 animate-spin" />
+            Starting Camera...
+          </>
+        ) : (
+          <>
+            <Camera className="w-5 h-5" />
+            Open Camera
+          </>
+        )}
+      </button>
+      
+      <div className="mt-6 text-center">
+        <p className={`text-sm ${isDark ? "text-slate-400" : "text-gray-500"} mb-3`}>
+          Tips for best results:
+        </p>
+        <ul className={`text-xs ${isDark ? "text-slate-500" : "text-gray-400"} space-y-1`}>
+          <li>• Ensure good lighting in your store</li>
+          <li>• Hold the camera steady while capturing</li>
+          <li>• Capture the entire store area</li>
+          <li>• Make sure the timestamp is visible</li>
+        </ul>
+      </div>
+    </div>
+  );
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -494,82 +649,7 @@ const DailyStoreImagePage = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Camera/Preview Area */}
               <div className="relative rounded-2xl overflow-hidden">
-                {!cameraActive && !imagePreview && (
-                  <div
-                    className={`flex flex-col items-center justify-center p-12 ${
-                      isDark ? "bg-slate-700/30" : "bg-gray-50"
-                    }`}
-                  >
-                    <div
-                      className={`p-6 rounded-full mb-4 ${
-                        isDark ? "bg-slate-600" : "bg-gray-200"
-                      }`}
-                    >
-                      <Camera
-                        className={`w-16 h-16 ${
-                          isDark ? "text-slate-400" : "text-gray-400"
-                        }`}
-                      />
-                    </div>
-                    
-                    {cameraError && (
-                      <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg max-w-md text-center">
-                        <div className="flex items-center justify-center gap-2 mb-2">
-                          <AlertCircle className="w-5 h-5" />
-                          <span className="font-semibold">Camera Error</span>
-                        </div>
-                        <p className="text-sm mb-3">{cameraError}</p>
-                        <button
-                          type="button"
-                          onClick={retryCamera}
-                          className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
-                        >
-                          <RefreshCw className="w-4 h-4" />
-                          Try Again
-                        </button>
-                      </div>
-                    )}
-                    
-                    <button
-                      type="button"
-                      onClick={handleOpenCamera}
-                      disabled={isLoadingCamera}
-                      className={`flex items-center gap-2 px-8 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                        isLoadingCamera
-                          ? "bg-gray-400 cursor-not-allowed"
-                          : isDark
-                          ? "bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/30"
-                          : "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg"
-                      }`}
-                    >
-                      {isLoadingCamera ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          Starting Camera...
-                        </>
-                      ) : (
-                        <>
-                          <Camera className="w-5 h-5" />
-                          Open Camera
-                        </>
-                      )}
-                    </button>
-                    
-                    <div className="mt-4 text-center">
-                      <p className={`text-sm ${isDark ? "text-slate-400" : "text-gray-500"} mb-2`}>
-                        Tips for camera access:
-                      </p>
-                      <ul className={`text-xs ${isDark ? "text-slate-500" : "text-gray-400"} space-y-1`}>
-                        <li>• Allow camera permissions when prompted</li>
-                        <li>• Ensure no other app is using the camera</li>
-                        <li>• Use HTTPS for camera access</li>
-                        <li>• Try switching cameras if available</li>
-                      </ul>
-                    </div>
-                  </div>
-                )}
-
-                {cameraActive && (
+                {cameraActive ? (
                   <div className="relative">
                     {isLoadingCamera && (
                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10 rounded-xl">
@@ -579,6 +659,7 @@ const DailyStoreImagePage = () => {
                         </div>
                       </div>
                     )}
+                    {/* Video element - always rendered but conditionally shown */}
                     <video
                       ref={videoRef}
                       autoPlay
@@ -613,21 +694,17 @@ const DailyStoreImagePage = () => {
                         Capture
                       </button>
                     </div>
-                    {/* Current time display */}
                     <div className="absolute top-4 left-4 px-4 py-2 bg-black/70 text-white rounded-lg flex items-center gap-2">
                       <Clock className="w-4 h-4" />
                       <span className="text-sm font-medium">
                         {new Date().toLocaleString()}
                       </span>
                     </div>
-                    {/* Camera indicator */}
                     <div className="absolute top-4 right-4 px-3 py-1 bg-black/70 text-white rounded-lg text-sm">
                       {isFrontCamera ? "Front Camera" : "Rear Camera"}
                     </div>
                   </div>
-                )}
-
-                {imagePreview && (
+                ) : imagePreview ? (
                   <div className="space-y-4">
                     <div className="relative rounded-xl overflow-hidden">
                       <img
@@ -679,9 +756,44 @@ const DailyStoreImagePage = () => {
                       </button>
                     </div>
                   </div>
+                ) : cameraError ? (
+                  <div className="text-center p-8">
+                    <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg max-w-md mx-auto">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <AlertCircle className="w-5 h-5" />
+                        <span className="font-semibold">Camera Error</span>
+                      </div>
+                      <p className="text-sm mb-3">{cameraError}</p>
+                      <button
+                        type="button"
+                        onClick={retryCamera}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors mx-auto"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Try Again
+                      </button>
+                    </div>
+                  </div>
+                ) : cameraPermission === 'denied' ? (
+                  renderPermissionDenied()
+                ) : cameraPermission === 'prompt' ? (
+                  renderPermissionPrompt()
+                ) : (
+                  renderCameraReady()
                 )}
 
+                {/* Hidden canvas for image capture */}
                 <canvas ref={canvasRef} className="hidden" />
+                
+                {/* Hidden video element for when camera is not active but we need the ref */}
+                {!cameraActive && (
+                  <video
+                    ref={videoRef}
+                    className="hidden"
+                    playsInline
+                    muted
+                  />
+                )}
               </div>
 
               {/* Submit Button */}
@@ -702,7 +814,7 @@ const DailyStoreImagePage = () => {
                   >
                     {isLoading ? (
                       <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <Loader2 className="w-5 h-5 animate-spin" />
                         Uploading...
                       </>
                     ) : (
