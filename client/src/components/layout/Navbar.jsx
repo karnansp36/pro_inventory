@@ -100,7 +100,7 @@ const Navbar = ({ onMenuToggle }) => {
                 }`}>{user?.name}</p>
                 <p className={`text-xs capitalize ${
                   theme === 'dark' ? 'text-slate-400' : 'text-gray-500'
-                }`}>{user?.role}</p>
+                }`}>{user?.role === 'Manager' ? 'Owner' : user?.role === 'Branch' ? 'Manager' : user?.role}</p>
               </div>
               <ChevronDown className={`h-4 w-4 transition-all duration-300 hidden md:block ${
                 showDropdown ? 'rotate-180' : 'rotate-0'

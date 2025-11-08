@@ -92,7 +92,7 @@ const ManagerSidebar = ({ isOpen, onClose }) => {
               </div>
               <div>
                 <h1 className="text-lg font-bold bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
-                  Branch Panel
+                  Manager Panel
                 </h1>
                 <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
                   {branchId ? `Branch: ${branchId}` : 'Management System'}

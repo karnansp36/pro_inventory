@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -13,26 +13,34 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  Upload,
+  Camera,
   Image as ImageIcon,
   Calendar,
   Search,
   X,
+  RotateCcw,
+  Check,
+  Clock,
 } from "lucide-react";
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_IMG;
+
 const DailyStoreImagePage = () => {
   const location = useLocation();
   const { branchOwnerId } = location.state || {};
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [dragActive, setDragActive] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [captureTimestamp, setCaptureTimestamp] = useState(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
 
-  // Utility function to normalize image paths
   const normalizeImagePath = (path) => {
     if (!path) return "";
-    // Ensure path starts with a '/'
     return path.startsWith("/") ? path : `/${path}`;
   };
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(9);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -51,7 +59,6 @@ const DailyStoreImagePage = () => {
     message,
   } = useSelector((state) => state.dailyStoreImages);
 
-  // Fetch images based on branchOwnerId if available, otherwise for the logged-in branch owner
   useEffect(() => {
     if (branchOwnerId) {
       dispatch(
@@ -80,57 +87,94 @@ const DailyStoreImagePage = () => {
     }
   }, [isError, message]);
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("Image size must be less than 10MB");
-        return;
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+        audio: false,
+      });
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        streamRef.current = stream;
+        setCameraActive(true);
       }
-      setImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error("Error accessing camera:", error);
+      toast.error("Unable to access camera. Please check permissions.");
     }
   };
 
-  const handleDrag = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
+    setCameraActive(false);
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
+  const captureImage = () => {
+    if (!videoRef.current || !canvasRef.current) return;
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("Image size must be less than 10MB");
-        return;
-      }
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext("2d");
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // Draw video frame
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Add timestamp overlay
+    const now = new Date();
+    const timestamp = now.toLocaleString();
+    
+    // Configure text style
+    context.font = "bold 24px Arial";
+    context.fillStyle = "rgba(0, 0, 0, 0.7)";
+    context.fillRect(10, canvas.height - 50, 400, 40);
+    
+    context.fillStyle = "white";
+    context.fillText(timestamp, 20, canvas.height - 20);
+
+    // Convert canvas to blob
+    canvas.toBlob((blob) => {
+      const file = new File([blob], `store-${Date.now()}.jpg`, {
+        type: "image/jpeg",
+      });
       setImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
+      setImagePreview(canvas.toDataURL("image/jpeg"));
+      setCaptureTimestamp(now);
+      stopCamera();
+    }, "image/jpeg", 0.9);
+  };
+
+  const retakePhoto = () => {
+    setImage(null);
+    setImagePreview(null);
+    setCaptureTimestamp(null);
+    startCamera();
+  };
+
+  const clearImage = () => {
+    setImage(null);
+    setImagePreview(null);
+    setCaptureTimestamp(null);
+    stopCamera();
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!image) {
-      toast.error("Please select an image");
+      toast.error("Please capture an image");
       return;
     }
 
@@ -143,10 +187,10 @@ const DailyStoreImagePage = () => {
         toast.success("Image uploaded successfully");
         setImage(null);
         setImagePreview(null);
-        // Refresh the first page to show the newly uploaded image
+        setCaptureTimestamp(null);
         setCurrentPage(1);
         dispatch(
-          getDailyStoreImagesForBranchOwner({ page: 1, limit: itemsPerPage })
+          getDailyStoreImagesByBranch({ page: 1, limit: itemsPerPage })
         );
       })
       .catch((error) => {
@@ -154,12 +198,6 @@ const DailyStoreImagePage = () => {
       });
   };
 
-  const clearImage = () => {
-    setImage(null);
-    setImagePreview(null);
-  };
-
-  // Server-side pagination calculations
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -199,17 +237,13 @@ const DailyStoreImagePage = () => {
     return pages;
   };
 
-  // Fixed image error handler
   const handleImageError = (e) => {
     console.error("Failed to load image");
-    // Remove the onerror handler to prevent infinite loop
     e.target.onerror = null;
-    // Set a simple placeholder without trying to load another image
     e.target.src =
       "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzljYTBiMSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBmb3VuZDwvdGV4dD48L3N2Zz4=";
   };
 
-  // Filter images based on search term
   const filteredImages = dailyStoreImages.filter(
     (img) =>
       img.originalName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -246,26 +280,26 @@ const DailyStoreImagePage = () => {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                  <ImageIcon className="w-6 h-6 text-white" />
+                  <Camera className="w-6 h-6 text-white" />
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-white">
-                  My Daily Store Images
+                  Daily Store Camera
                 </h1>
               </div>
               <p className="text-white/90 text-sm">
-                Upload and manage your daily store photos
+                Capture and manage your daily store photos
               </p>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-lg backdrop-blur-sm">
               <ImageIcon className="w-5 h-5 text-white" />
               <span className="text-white text-sm font-medium">
-                {totalItems} My Images
+                {totalItems} Images
               </span>
             </div>
           </div>
         </div>
 
-        {/* Upload Section */}
+        {/* Camera Section */}
         <div
           className={`rounded-2xl overflow-hidden ${
             isDark ? "bg-slate-800 border border-slate-700" : "bg-white"
@@ -283,122 +317,169 @@ const DailyStoreImagePage = () => {
                 isDark ? "text-white" : "text-gray-800"
               }`}
             >
-              <Upload className="w-5 h-5" />
-              Upload New Image
+              <Camera className="w-5 h-5" />
+              Capture New Image
             </h2>
           </div>
 
           <div className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Drag & Drop Area */}
-              <div
-                className={`relative border-2 border-dashed rounded-2xl p-8 transition-all duration-300 ${
-                  dragActive
-                    ? isDark
-                      ? "border-purple-500 bg-purple-500/10"
-                      : "border-purple-500 bg-purple-50"
-                    : isDark
-                    ? "border-slate-600 hover:border-slate-500 bg-slate-700/30"
-                    : "border-gray-300 hover:border-gray-400 bg-gray-50"
-                }`}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-              >
-                <input
-                  type="file"
-                  id="image"
-                  className="hidden"
-                  onChange={handleImageChange}
-                  accept="image/*"
-                />
-
-                {imagePreview ? (
-                  <div className="space-y-4">
-                    <div className="relative rounded-xl overflow-hidden max-w-md mx-auto">
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="w-full h-64 object-cover"
+              {/* Camera/Preview Area */}
+              <div className="relative rounded-2xl overflow-hidden">
+                {!cameraActive && !imagePreview && (
+                  <div
+                    className={`flex flex-col items-center justify-center p-12 ${
+                      isDark ? "bg-slate-700/30" : "bg-gray-50"
+                    }`}
+                  >
+                    <div
+                      className={`p-6 rounded-full mb-4 ${
+                        isDark ? "bg-slate-600" : "bg-gray-200"
+                      }`}
+                    >
+                      <Camera
+                        className={`w-16 h-16 ${
+                          isDark ? "text-slate-400" : "text-gray-400"
+                        }`}
                       />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={startCamera}
+                      className={`flex items-center gap-2 px-8 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                        isDark
+                          ? "bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/30"
+                          : "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg"
+                      }`}
+                    >
+                      <Camera className="w-5 h-5" />
+                      Open Camera
+                    </button>
+                  </div>
+                )}
+
+                {cameraActive && (
+                  <div className="relative">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      className="w-full h-auto rounded-xl"
+                    />
+                    <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
                       <button
                         type="button"
-                        onClick={clearImage}
-                        className="absolute top-2 right-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors shadow-lg"
+                        onClick={stopCamera}
+                        className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold transition-colors shadow-lg"
                       >
                         <X className="w-5 h-5" />
                       </button>
+                      <button
+                        type="button"
+                        onClick={captureImage}
+                        className="px-8 py-3 bg-white hover:bg-gray-100 text-gray-800 rounded-xl font-semibold transition-colors shadow-lg flex items-center gap-2"
+                      >
+                        <Camera className="w-5 h-5" />
+                        Capture
+                      </button>
                     </div>
-                    <p
-                      className={`text-center text-sm ${
-                        isDark ? "text-slate-300" : "text-gray-600"
-                      }`}
-                    >
-                      {image?.name}
-                    </p>
+                    {/* Current time display */}
+                    <div className="absolute top-4 left-4 px-4 py-2 bg-black/70 text-white rounded-lg flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      <span className="text-sm font-medium">
+                        {new Date().toLocaleString()}
+                      </span>
+                    </div>
                   </div>
-                ) : (
-                  <label htmlFor="image" className="cursor-pointer block">
-                    <div className="flex flex-col items-center">
+                )}
+
+                {imagePreview && (
+                  <div className="space-y-4">
+                    <div className="relative rounded-xl overflow-hidden">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-full h-auto"
+                      />
+                    </div>
+                    {captureTimestamp && (
                       <div
-                        className={`p-4 rounded-full mb-4 ${
-                          isDark ? "bg-slate-600" : "bg-gray-200"
+                        className={`flex items-center justify-center gap-2 p-3 rounded-lg ${
+                          isDark ? "bg-slate-700" : "bg-gray-100"
                         }`}
                       >
-                        <Upload
-                          className={`w-12 h-12 ${
-                            isDark ? "text-slate-400" : "text-gray-400"
+                        <Clock
+                          className={`w-4 h-4 ${
+                            isDark ? "text-slate-400" : "text-gray-600"
                           }`}
                         />
+                        <span
+                          className={`text-sm font-medium ${
+                            isDark ? "text-slate-300" : "text-gray-700"
+                          }`}
+                        >
+                          Captured: {captureTimestamp.toLocaleString()}
+                        </span>
                       </div>
-                      <p
-                        className={`text-lg font-semibold mb-2 ${
-                          isDark ? "text-white" : "text-gray-800"
+                    )}
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={retakePhoto}
+                        className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                          isDark
+                            ? "bg-slate-700 hover:bg-slate-600 text-white"
+                            : "bg-gray-200 hover:bg-gray-300 text-gray-800"
                         }`}
                       >
-                        Drop your image here, or click to browse
-                      </p>
-                      <p
-                        className={`text-sm ${
-                          isDark ? "text-slate-400" : "text-gray-500"
-                        }`}
+                        <RotateCcw className="w-5 h-5" />
+                        Retake
+                      </button>
+                      <button
+                        type="button"
+                        onClick={clearImage}
+                        className="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold transition-colors"
                       >
-                        Supports: JPG, PNG, GIF (Max 10MB)
-                      </p>
+                        <X className="w-5 h-5" />
+                        Cancel
+                      </button>
                     </div>
-                  </label>
+                  </div>
                 )}
+
+                <canvas ref={canvasRef} className="hidden" />
               </div>
 
               {/* Submit Button */}
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={!image || isLoading}
-                  className={`flex items-center gap-2 px-8 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                    image && !isLoading
-                      ? isDark
-                        ? "bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/30"
-                        : "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg"
-                      : isDark
-                      ? "bg-slate-700 text-slate-500 cursor-not-allowed"
-                      : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  }`}
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-5 h-5" />
-                      Upload Image
-                    </>
-                  )}
-                </button>
-              </div>
+              {imagePreview && (
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={!image || isLoading}
+                    className={`flex items-center gap-2 px-8 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                      image && !isLoading
+                        ? isDark
+                          ? "bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/30"
+                          : "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg"
+                        : isDark
+                        ? "bg-slate-700 text-slate-500 cursor-not-allowed"
+                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    }`}
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-5 h-5" />
+                        Upload Image
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </form>
           </div>
         </div>
@@ -423,11 +504,10 @@ const DailyStoreImagePage = () => {
                 }`}
               >
                 <ImageIcon className="w-5 h-5" />
-                My Uploaded Images
+                Captured Images
               </h2>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                {/* Search */}
                 <div className="relative">
                   <Search
                     className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
@@ -436,7 +516,7 @@ const DailyStoreImagePage = () => {
                   />
                   <input
                     type="text"
-                    placeholder="Search my images..."
+                    placeholder="Search images..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className={`pl-10 pr-4 py-2 rounded-lg border transition-all ${
@@ -447,7 +527,6 @@ const DailyStoreImagePage = () => {
                   />
                 </div>
 
-                {/* Items Per Page */}
                 <select
                   value={itemsPerPage}
                   onChange={(e) => {
@@ -529,7 +608,6 @@ const DailyStoreImagePage = () => {
                   )}
                 </div>
 
-                {/* Pagination - Only show if not searching */}
                 {totalPages > 1 && !searchTerm && (
                   <div
                     className={`mt-6 pt-6 border-t ${
@@ -659,7 +737,7 @@ const DailyStoreImagePage = () => {
                     isDark ? "bg-slate-700" : "bg-gray-100"
                   }`}
                 >
-                  <ImageIcon
+                  <Camera
                     className={`w-12 h-12 ${
                       isDark ? "text-slate-400" : "text-gray-400"
                     }`}
@@ -677,7 +755,7 @@ const DailyStoreImagePage = () => {
                     isDark ? "text-slate-400" : "text-gray-500"
                   }`}
                 >
-                  Upload your first store image to get started
+                  Capture your first store image to get started
                 </p>
               </div>
             )}
@@ -708,9 +786,12 @@ const DailyStoreImagePage = () => {
               onError={handleImageError}
             />
             <div className="mt-4 bg-white/10 backdrop-blur-md rounded-xl p-4">
-              <p className="text-white text-sm">
-                Uploaded: {new Date(selectedImage.createdAt).toLocaleString()}
-              </p>
+              <div className="flex items-center gap-2 text-white text-sm mb-2">
+                <Clock className="w-4 h-4" />
+                <span>
+                  Captured: {new Date(selectedImage.createdAt).toLocaleString()}
+                </span>
+              </div>
               <p className="text-white text-sm">
                 File: {selectedImage.originalName}
               </p>

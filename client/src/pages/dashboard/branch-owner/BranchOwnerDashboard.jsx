@@ -192,7 +192,7 @@ const BranchDashboard = () => {
                 Welcome Back! 👋
               </h1>
               <p className="text-white/90 text-sm sm:text-base">
-                Let's manage your branch operations today
+                Let's manage your Manager operations today
               </p>
             </div>
             <div className={`px-4 py-2 rounded-xl ${
