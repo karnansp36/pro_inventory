@@ -101,47 +101,71 @@ const DailyStoreImagePage = () => {
   }, []);
 
   const getCameraConstraints = () => {
-    const constraints = {
+    return {
       video: {
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
         facingMode: isFrontCamera ? "user" : "environment"
       },
       audio: false,
     };
-    return constraints;
   };
 
   const startCamera = async () => {
     try {
       setCameraError(null);
       setIsLoadingCamera(true);
+      setCameraActive(false);
+      
+      console.log("Starting camera...");
       
       // Stop existing stream if any
       if (streamRef.current) {
+        console.log("Stopping existing stream...");
         stopCamera();
+        // Add a small delay to ensure cleanup
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
 
-      // Add a small delay to ensure cleanup
-      await new Promise(resolve => setTimeout(resolve, 100));
-
       const constraints = getCameraConstraints();
+      console.log("Camera constraints:", constraints);
+
+      // Request camera access
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log("Camera stream obtained:", stream);
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
-        setCameraActive(true);
         
-        // Wait for video to be ready
+        // Set up event listeners for the video element
         videoRef.current.onloadedmetadata = () => {
-          setIsLoadingCamera(false);
+          console.log("Video metadata loaded");
+          videoRef.current.play().then(() => {
+            console.log("Video playback started");
+            setCameraActive(true);
+            setIsLoadingCamera(false);
+          }).catch(error => {
+            console.error("Error playing video:", error);
+            setIsLoadingCamera(false);
+            handleCameraError(error);
+          });
         };
-        
+
+        videoRef.current.onerror = (error) => {
+          console.error("Video element error:", error);
+          setIsLoadingCamera(false);
+          handleCameraError(error);
+        };
+
         // Fallback in case loadedmetadata doesn't fire
         setTimeout(() => {
-          setIsLoadingCamera(false);
-        }, 1000);
+          if (isLoadingCamera) {
+            console.log("Fallback: Setting camera active after timeout");
+            setCameraActive(true);
+            setIsLoadingCamera(false);
+          }
+        }, 3000);
       }
     } catch (error) {
       console.error("Error accessing camera:", error);
@@ -171,7 +195,7 @@ const DailyStoreImagePage = () => {
         errorMessage = "Camera is already in use by another application. Please close other apps using the camera.";
         break;
       default:
-        errorMessage = "Unable to access camera. Please check permissions and try again.";
+        errorMessage = `Unable to access camera: ${error.message || 'Unknown error'}`;
     }
     
     setCameraError(errorMessage);
@@ -180,14 +204,18 @@ const DailyStoreImagePage = () => {
   };
 
   const stopCamera = () => {
+    console.log("Stopping camera...");
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => {
+        console.log("Stopping track:", track.kind);
         track.stop();
       });
       streamRef.current = null;
     }
     if (videoRef.current) {
       videoRef.current.srcObject = null;
+      videoRef.current.onloadedmetadata = null;
+      videoRef.current.onerror = null;
     }
     setCameraActive(false);
     setCameraError(null);
@@ -195,24 +223,30 @@ const DailyStoreImagePage = () => {
   };
 
   const switchCamera = async () => {
+    console.log("Switching camera...");
     setIsFrontCamera(!isFrontCamera);
-    if (cameraActive) {
+    if (cameraActive || isLoadingCamera) {
       await startCamera();
     }
   };
 
   const captureImage = () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !canvasRef.current) {
+      toast.error("Camera not ready. Please try again.");
+      return;
+    }
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext("2d");
 
-    // Ensure video is ready
+    // Ensure video is ready and has dimensions
     if (video.videoWidth === 0 || video.videoHeight === 0) {
-      toast.error("Camera not ready. Please try again.");
+      toast.error("Camera not ready. Please wait and try again.");
       return;
     }
+
+    console.log("Capturing image with dimensions:", video.videoWidth, video.videoHeight);
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -225,12 +259,12 @@ const DailyStoreImagePage = () => {
     const timestamp = now.toLocaleString();
     
     // Configure text style
-    context.font = "bold 24px Arial";
+    context.font = "bold 20px Arial";
     context.fillStyle = "rgba(0, 0, 0, 0.7)";
-    context.fillRect(10, canvas.height - 50, 400, 40);
+    context.fillRect(10, canvas.height - 40, context.measureText(timestamp).width + 20, 30);
     
     context.fillStyle = "white";
-    context.fillText(timestamp, 20, canvas.height - 20);
+    context.fillText(timestamp, 20, canvas.height - 15);
 
     // Convert canvas to blob
     canvas.toBlob((blob) => {
@@ -246,6 +280,7 @@ const DailyStoreImagePage = () => {
       setImagePreview(canvas.toDataURL("image/jpeg"));
       setCaptureTimestamp(now);
       stopCamera();
+      toast.success("Image captured successfully!");
     }, "image/jpeg", 0.9);
   };
 
@@ -294,41 +329,39 @@ const DailyStoreImagePage = () => {
   // Check camera permissions and availability
   const checkCameraAvailability = async () => {
     try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("Camera API not supported in this browser");
       }
 
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
       
+      console.log("Available video devices:", videoDevices);
+      
       if (videoDevices.length === 0) {
         setCameraError("No camera found on this device.");
         return false;
       }
       
-      // Quick permission check
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stopCamera(); // Immediately stop after checking
-        return true;
-      } catch (error) {
-        handleCameraError(error);
-        return false;
-      }
+      return true;
     } catch (error) {
-      handleCameraError(error);
+      console.error("Camera availability check failed:", error);
       return false;
     }
   };
 
   const handleOpenCamera = async () => {
+    console.log("Opening camera...");
     const isAvailable = await checkCameraAvailability();
     if (isAvailable) {
       await startCamera();
+    } else {
+      toast.error("Camera not available on this device.");
     }
   };
 
   const retryCamera = async () => {
+    console.log("Retrying camera...");
     setCameraError(null);
     await handleOpenCamera();
   };
@@ -551,7 +584,7 @@ const DailyStoreImagePage = () => {
                       autoPlay
                       playsInline
                       muted
-                      className="w-full h-auto rounded-xl"
+                      className="w-full h-auto rounded-xl bg-black min-h-[400px]"
                     />
                     <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
                       <button
