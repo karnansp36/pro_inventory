@@ -321,12 +321,11 @@ const ManagerDashboard = () => {
   // Stats data using only assigned branches information
   const stats = [
     {
-      title: 'Assigned Branches',
+      title: 'Assigned Managers',
       value: assignedBranches.length,
       icon: Building2,
       color: 'blue',
       change: '+0',
-      link: '/dashboard/manager/branch-owners'
     },
     {
       title: 'Total Sales',
@@ -334,7 +333,6 @@ const ManagerDashboard = () => {
       icon: TrendingUp,
       color: 'green',
       change: '+8.2%',
-      link: '/dashboard/manager/sales'
     },
     {
       title: 'Total Expenses',
@@ -342,7 +340,6 @@ const ManagerDashboard = () => {
       icon: DollarSign,
       color: 'red',
       change: '-2.1%',
-      link: '/dashboard/manager/expenses'
     },
     {
       title: 'Net Profit',
@@ -350,7 +347,6 @@ const ManagerDashboard = () => {
       icon: TrendingUp,
       color: statsData.netProfit >= 0 ? 'green' : 'red',
       change: statsData.netProfit >= 0 ? '+6.1%' : '-6.1%',
-      link: '/dashboard/manager/reports'
     },
     {
       title: 'Pending Requests',
@@ -358,7 +354,6 @@ const ManagerDashboard = () => {
       icon: Package,
       color: 'orange',
       change: `+${statsData.totalPendingRequests}`,
-      link: `/dashboard/manager/stock-requests/${user?._id}`
     },
     {
       title: 'Urgent Requests',
@@ -366,7 +361,6 @@ const ManagerDashboard = () => {
       icon: AlertTriangle,
       color: 'red',
       change: `+${statsData.totalUrgentRequests}`,
-      link: `/dashboard/manager/stock-requests/${user?._id}`
     },
     {
       title: 'Total Transports',
@@ -374,7 +368,6 @@ const ManagerDashboard = () => {
       icon: Truck,
       color: 'purple',
       change: `+${statsData.totalTransports}`,
-      link: '/dashboard/manager/transports'
     },
     {
       title: 'Pending Transports',
@@ -382,7 +375,6 @@ const ManagerDashboard = () => {
       icon: Truck,
       color: 'yellow',
       change: `+${statsData.pendingTransports}`,
-      link: '/dashboard/manager/transports'
     }
   ];
 
@@ -777,7 +769,7 @@ const ManagerDashboard = () => {
                       ? 'bg-blue-600/20 text-blue-400 ring-1 ring-blue-500/30'
                       : 'bg-blue-100 text-blue-700 ring-1 ring-blue-200'
                   }`}>
-                    Manager
+                    Owner
                   </div>
                 </div>
                 
@@ -790,7 +782,7 @@ const ManagerDashboard = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <Building2 className="w-4 h-4" />
-                    <span>{assignedBranches.length} Branches</span>
+                    <span>{assignedBranches.length} Managers</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${
@@ -1014,7 +1006,7 @@ const ManagerDashboard = () => {
                 <h2 className={`text-xl font-semibold ${
                   theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
                 }`}>
-                  Assigned Branches ({assignedBranches.length})
+                  Assigned Managers ({assignedBranches.length})
                 </h2>
               </div>
               <Link
@@ -1117,12 +1109,12 @@ const ManagerDashboard = () => {
                     <p className={`text-lg font-semibold ${
                       theme === 'dark' ? 'text-slate-300' : 'text-gray-700'
                     }`}>
-                      No Branches Assigned
+                      No Manager Assigned
                     </p>
                     <p className={`text-sm ${
                       theme === 'dark' ? 'text-slate-500' : 'text-gray-500'
                     }`}>
-                      You haven't been assigned any branches yet.
+                      You haven't been assigned any Managers yet.
                     </p>
                   </div>
                 )}
@@ -1131,114 +1123,7 @@ const ManagerDashboard = () => {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className={`rounded-2xl border shadow-lg ${
-          theme === 'dark'
-            ? 'bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800/50'
-            : 'bg-white border-gray-200'
-        }`}>
-          <div className="p-6 lg:p-8">
-            <h2 className={`text-xl font-semibold mb-6 ${
-              theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
-            }`}>
-              Quick Actions
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Link
-                to="/dashboard/manager/stock-requests"
-                className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-lg cursor-pointer block ${
-                  theme === 'dark'
-                    ? 'bg-slate-800/30 border-slate-700/50 hover:border-slate-600'
-                    : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg ${
-                    theme === 'dark' ? 'bg-orange-600/20' : 'bg-orange-50'
-                  }`}>
-                    <Package className={`h-5 w-5 ${
-                      theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-                    }`} />
-                  </div>
-                  <span className={`font-medium ${
-                    theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
-                  }`}>
-                    Stock Requests
-                  </span>
-                </div>
-              </Link>
-              <Link
-                to="/dashboard/manager/reports"
-                className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-lg cursor-pointer block ${
-                  theme === 'dark'
-                    ? 'bg-slate-800/30 border-slate-700/50 hover:border-slate-600'
-                    : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg ${
-                    theme === 'dark' ? 'bg-green-600/20' : 'bg-green-50'
-                  }`}>
-                    <TrendingUp className={`h-5 w-5 ${
-                      theme === 'dark' ? 'text-green-400' : 'text-green-600'
-                    }`} />
-                  </div>
-                  <span className={`font-medium ${
-                    theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
-                  }`}>
-                    Reports
-                  </span>
-                </div>
-              </Link>
-              <Link
-                to="/dashboard/manager/transports"
-                className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-lg cursor-pointer block ${
-                  theme === 'dark'
-                    ? 'bg-slate-800/30 border-slate-700/50 hover:border-slate-600'
-                    : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg ${
-                    theme === 'dark' ? 'bg-purple-600/20' : 'bg-purple-50'
-                  }`}>
-                    <Truck className={`h-5 w-5 ${
-                      theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
-                    }`} />
-                  </div>
-                  <span className={`font-medium ${
-                    theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
-                  }`}>
-                    Transports
-                  </span>
-                </div>
-              </Link>
-              <Link
-                to="/dashboard/manager/settings"
-                className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-lg cursor-pointer block ${
-                  theme === 'dark'
-                    ? 'bg-slate-800/30 border-slate-700/50 hover:border-slate-600'
-                    : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg ${
-                    theme === 'dark' ? 'bg-blue-600/20' : 'bg-blue-50'
-                  }`}>
-                    <Award className={`h-5 w-5 ${
-                      theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                    }`} />
-                  </div>
-                  <span className={`font-medium ${
-                    theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
-                  }`}>
-                    Settings
-                  </span>
-                </div>
-              </Link>
-            </div>
-          </div>
-        </div>
+       
       </div>
     </div>
   );
