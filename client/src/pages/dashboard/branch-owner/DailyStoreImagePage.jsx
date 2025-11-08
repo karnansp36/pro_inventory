@@ -40,7 +40,7 @@ const DailyStoreImagePage = () => {
   const [cameraError, setCameraError] = useState(null);
   const [isFrontCamera, setIsFrontCamera] = useState(false);
   const [isLoadingCamera, setIsLoadingCamera] = useState(false);
-  const [cameraPermission, setCameraPermission] = useState(null); // 'granted', 'denied', 'prompt'
+  const [cameraPermission, setCameraPermission] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -97,7 +97,6 @@ const DailyStoreImagePage = () => {
   }, [isError, message]);
 
   useEffect(() => {
-    // Check initial camera permission state
     checkCameraPermission();
     
     return () => {
@@ -105,7 +104,6 @@ const DailyStoreImagePage = () => {
     };
   }, []);
 
-  // Check camera permission state
   const checkCameraPermission = async () => {
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -141,63 +139,103 @@ const DailyStoreImagePage = () => {
       console.log("Starting camera...");
       setCameraError(null);
       setIsLoadingCamera(true);
-      setCameraActive(false);
 
-      // Ensure video element exists
       if (!videoRef.current) {
         console.error("Video element reference is null");
         throw new Error("Video element not found");
       }
 
-      // Stop any previous stream safely
       if (streamRef.current) {
         stopCamera();
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
-      // Define constraints
       const constraints = getCameraConstraints();
       console.log("Requesting camera with constraints:", constraints);
 
-      // Request camera stream
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log("Camera stream started:", stream);
+      console.log("Camera stream obtained successfully");
+      console.log("Stream tracks:", stream.getTracks().map(t => ({kind: t.kind, enabled: t.enabled, readyState: t.readyState})));
 
-      // Store stream reference
+      if (!videoRef.current) {
+        stream.getTracks().forEach(track => track.stop());
+        throw new Error("Video element lost during setup");
+      }
+
       streamRef.current = stream;
-
-      // Set up video element
       videoRef.current.srcObject = stream;
       
-      // Wait for video to be ready
+      // Wait for video metadata to load
       await new Promise((resolve, reject) => {
         const video = videoRef.current;
+        if (!video) {
+          reject(new Error("Video element not found"));
+          return;
+        }
+
+        let resolved = false;
         
-        const onLoadedMetadata = () => {
-          video.removeEventListener('loadedmetadata', onLoadedMetadata);
-          video.removeEventListener('error', onError);
-          resolve();
-        };
-
-        const onError = (error) => {
-          video.removeEventListener('loadedmetadata', onLoadedMetadata);
-          video.removeEventListener('error', onError);
-          reject(new Error('Video element failed to load metadata'));
-        };
-
-        video.addEventListener('loadedmetadata', onLoadedMetadata);
-        video.addEventListener('error', onError);
-
-        // Fallback timeout
-        setTimeout(() => {
-          video.removeEventListener('loadedmetadata', onLoadedMetadata);
-          video.removeEventListener('error', onError);
-          if (video.readyState >= 2) {
-            resolve();
-          } else {
-            reject(new Error('Video loading timeout'));
+        const timeoutId = setTimeout(() => {
+          if (!resolved) {
+            console.warn("Video metadata loading timeout - checking readyState");
+            if (video.readyState >= 2) {
+              console.log("Video is ready despite timeout");
+              resolved = true;
+              resolve();
+            } else {
+              reject(new Error("Video loading timeout after 10 seconds"));
+            }
           }
-        }, 5000);
+        }, 10000);
+
+        const onLoadedMetadata = () => {
+          if (!resolved) {
+            clearTimeout(timeoutId);
+            resolved = true;
+            console.log("Video metadata loaded successfully");
+            console.log("Video dimensions:", video.videoWidth, "x", video.videoHeight);
+            console.log("Video readyState:", video.readyState);
+            resolve();
+          }
+        };
+
+        const onLoadedData = () => {
+          if (!resolved && video.readyState >= 2) {
+            clearTimeout(timeoutId);
+            resolved = true;
+            console.log("Video data loaded");
+            resolve();
+          }
+        };
+
+        const onCanPlay = () => {
+          if (!resolved) {
+            clearTimeout(timeoutId);
+            resolved = true;
+            console.log("Video can play");
+            resolve();
+          }
+        };
+
+        video.onloadedmetadata = onLoadedMetadata;
+        video.onloadeddata = onLoadedData;
+        video.oncanplay = onCanPlay;
+
+        video.onerror = (e) => {
+          if (!resolved) {
+            clearTimeout(timeoutId);
+            resolved = true;
+            reject(new Error("Video element error: " + (e.message || "Unknown error")));
+          }
+        };
+
+        // Check if already loaded
+        if (video.readyState >= 2) {
+          clearTimeout(timeoutId);
+          resolved = true;
+          console.log("Video already ready");
+          resolve();
+        }
       });
 
       // Play the video
@@ -205,9 +243,27 @@ const DailyStoreImagePage = () => {
         await videoRef.current.play();
         console.log("Video playback started successfully");
       } catch (playError) {
-        console.warn("Video play() failed:", playError);
-        // Continue anyway as the stream might still work
+        console.warn("Video play() warning:", playError);
+        // Continue anyway - autoplay might be restricted but stream should work
       }
+
+      // Final verification
+      if (videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0) {
+        console.warn("Video dimensions are zero, waiting additional time...");
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        if (videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0) {
+          throw new Error("Video stream not providing valid dimensions");
+        }
+      }
+
+      console.log("Camera started successfully!");
+      console.log("Final video state:", {
+        readyState: videoRef.current.readyState,
+        videoWidth: videoRef.current.videoWidth,
+        videoHeight: videoRef.current.videoHeight,
+        paused: videoRef.current.paused
+      });
 
       setCameraActive(true);
       setIsLoadingCamera(false);
@@ -217,6 +273,11 @@ const DailyStoreImagePage = () => {
       console.error("Error starting camera:", error);
       setIsLoadingCamera(false);
       handleCameraError(error);
+      // Clean up on error
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
     }
   };
 
@@ -263,6 +324,11 @@ const DailyStoreImagePage = () => {
       videoRef.current.srcObject = null;
       videoRef.current.onloadedmetadata = null;
       videoRef.current.onerror = null;
+      try {
+        videoRef.current.pause();
+      } catch (e) {
+        console.warn("Error pausing video:", e);
+      }
     }
     setCameraActive(false);
     setCameraError(null);
@@ -271,40 +337,71 @@ const DailyStoreImagePage = () => {
 
   const switchCamera = async () => {
     console.log("Switching camera...");
-    setIsFrontCamera(!isFrontCamera);
-    if (cameraActive || isLoadingCamera) {
+    const wasCameraActive = cameraActive;
+    
+    setIsFrontCamera(prev => !prev);
+    
+    if (wasCameraActive) {
+      stopCamera();
+      await new Promise(resolve => setTimeout(resolve, 200));
       await startCamera();
     }
   };
 
   const captureImage = () => {
-    if (!videoRef.current || !canvasRef.current) {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    console.log("Capture button clicked");
+    console.log("Video element:", video);
+    console.log("Canvas element:", canvas);
+    
+    if (!video || !canvas) {
+      console.error("Missing video or canvas element");
       toast.error("Camera not ready. Please try again.");
       return;
     }
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext("2d");
+    console.log("Video state:", {
+      readyState: video.readyState,
+      videoWidth: video.videoWidth,
+      videoHeight: video.videoHeight,
+      paused: video.paused,
+      srcObject: video.srcObject,
+      currentTime: video.currentTime
+    });
 
-    if (video.videoWidth === 0 || video.videoHeight === 0) {
-      toast.error("Camera not ready. Please wait and try again.");
+    if (video.readyState < 2) {
+      console.error("Video readyState is too low:", video.readyState);
+      toast.error("Camera is still loading. Please wait a moment and try again.");
       return;
     }
 
-    console.log("Capturing image with dimensions:", video.videoWidth, video.videoHeight);
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      console.error("Video dimensions are zero");
+      toast.error("Camera not ready. Please wait a moment and try again.");
+      return;
+    }
+
+    console.log("Capturing image with dimensions:", video.videoWidth, "x", video.videoHeight);
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
+    
+    const context = canvas.getContext("2d");
+    
+    try {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      console.log("Image drawn to canvas successfully");
+    } catch (drawError) {
+      console.error("Error drawing to canvas:", drawError);
+      toast.error("Failed to capture image. Please try again.");
+      return;
+    }
 
-    // Draw video frame
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // Add timestamp overlay
     const now = new Date();
     const timestamp = now.toLocaleString();
     
-    // Configure text style
     context.font = "bold 20px Arial";
     context.fillStyle = "rgba(0, 0, 0, 0.7)";
     context.fillRect(10, canvas.height - 40, context.measureText(timestamp).width + 20, 30);
@@ -312,12 +409,14 @@ const DailyStoreImagePage = () => {
     context.fillStyle = "white";
     context.fillText(timestamp, 20, canvas.height - 15);
 
-    // Convert canvas to blob
     canvas.toBlob((blob) => {
       if (!blob) {
+        console.error("Failed to create blob from canvas");
         toast.error("Failed to capture image. Please try again.");
         return;
       }
+      
+      console.log("Image blob created successfully, size:", blob.size);
       
       const file = new File([blob], `store-${Date.now()}.jpg`, {
         type: "image/jpeg",
@@ -372,7 +471,6 @@ const DailyStoreImagePage = () => {
       });
   };
 
-  // Check camera permissions and availability
   const checkCameraAvailability = async () => {
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -412,7 +510,6 @@ const DailyStoreImagePage = () => {
     await handleOpenCamera();
   };
 
-  // Camera permission denied UI
   const renderPermissionDenied = () => (
     <div className="text-center p-8">
       <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg max-w-md mx-auto">
@@ -440,7 +537,6 @@ const DailyStoreImagePage = () => {
     </div>
   );
 
-  // Camera permission prompt UI
   const renderPermissionPrompt = () => (
     <div className="text-center p-8">
       <div className="mb-6 p-4 bg-blue-100 border border-blue-400 text-blue-700 rounded-lg max-w-md mx-auto">
@@ -467,7 +563,6 @@ const DailyStoreImagePage = () => {
     </div>
   );
 
-  // Camera ready to open UI
   const renderCameraReady = () => (
     <div className="flex flex-col items-center justify-center p-12">
       <div
@@ -591,7 +686,6 @@ const DailyStoreImagePage = () => {
   return (
     <div className={`min-h-screen p-4 sm:p-6 lg:p-8 ${isDark ? "bg-slate-900" : "bg-gray-50"}`}>
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
         <div
           className={`rounded-2xl p-6 ${
             isDark
@@ -622,7 +716,6 @@ const DailyStoreImagePage = () => {
           </div>
         </div>
 
-        {/* Camera Section */}
         <div
           className={`rounded-2xl overflow-hidden ${
             isDark ? "bg-slate-800 border border-slate-700" : "bg-white"
@@ -647,27 +740,35 @@ const DailyStoreImagePage = () => {
 
           <div className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Camera/Preview Area */}
-              <div className="relative rounded-2xl overflow-hidden">
-                {cameraActive ? (
-                  <div className="relative">
+              <div className="relative rounded-2xl overflow-hidden bg-black min-h-[400px]">
+                {/* Always render video element to maintain ref */}
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{ 
+                    width: '100%', 
+                    height: 'auto', 
+                    minHeight: '400px', 
+                    display: cameraActive ? 'block' : 'none',
+                    backgroundColor: '#000',
+                    objectFit: 'cover'
+                  }}
+                />
+                
+                {cameraActive && (
+                  <>
                     {isLoadingCamera && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10 rounded-xl">
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
                         <div className="text-white text-center">
                           <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
                           <p>Starting camera...</p>
                         </div>
                       </div>
                     )}
-                    {/* Video element - always rendered but conditionally shown */}
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className="w-full h-auto rounded-xl bg-black min-h-[400px]"
-                    />
-                    <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
+                    
+                    <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4 px-4 flex-wrap">
                       <button
                         type="button"
                         onClick={stopCamera}
@@ -694,18 +795,22 @@ const DailyStoreImagePage = () => {
                         Capture
                       </button>
                     </div>
+                    
                     <div className="absolute top-4 left-4 px-4 py-2 bg-black/70 text-white rounded-lg flex items-center gap-2">
                       <Clock className="w-4 h-4" />
                       <span className="text-sm font-medium">
                         {new Date().toLocaleString()}
                       </span>
                     </div>
+                    
                     <div className="absolute top-4 right-4 px-3 py-1 bg-black/70 text-white rounded-lg text-sm">
                       {isFrontCamera ? "Front Camera" : "Rear Camera"}
                     </div>
-                  </div>
-                ) : imagePreview ? (
-                  <div className="space-y-4">
+                  </>
+                )}
+                
+                {!cameraActive && imagePreview ? (
+                  <div className="space-y-4 p-4">
                     <div className="relative rounded-xl overflow-hidden">
                       <img
                         src={imagePreview}
@@ -756,7 +861,7 @@ const DailyStoreImagePage = () => {
                       </button>
                     </div>
                   </div>
-                ) : cameraError ? (
+                ) : !cameraActive && cameraError ? (
                   <div className="text-center p-8">
                     <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg max-w-md mx-auto">
                       <div className="flex items-center justify-center gap-2 mb-2">
@@ -774,29 +879,17 @@ const DailyStoreImagePage = () => {
                       </button>
                     </div>
                   </div>
-                ) : cameraPermission === 'denied' ? (
+                ) : !cameraActive && cameraPermission === 'denied' ? (
                   renderPermissionDenied()
-                ) : cameraPermission === 'prompt' ? (
+                ) : !cameraActive && cameraPermission === 'prompt' ? (
                   renderPermissionPrompt()
-                ) : (
+                ) : !cameraActive ? (
                   renderCameraReady()
-                )}
+                ) : null}
 
-                {/* Hidden canvas for image capture */}
                 <canvas ref={canvasRef} className="hidden" />
-                
-                {/* Hidden video element for when camera is not active but we need the ref */}
-                {!cameraActive && (
-                  <video
-                    ref={videoRef}
-                    className="hidden"
-                    playsInline
-                    muted
-                  />
-                )}
               </div>
 
-              {/* Submit Button */}
               {imagePreview && (
                 <div className="flex justify-end">
                   <button
@@ -830,7 +923,6 @@ const DailyStoreImagePage = () => {
           </div>
         </div>
 
-        {/* Gallery Section */}
         <div
           className={`rounded-2xl overflow-hidden ${
             isDark ? "bg-slate-800 border border-slate-700" : "bg-white"
@@ -1109,7 +1201,6 @@ const DailyStoreImagePage = () => {
         </div>
       </div>
 
-      {/* Image Modal */}
       {selectedImage && (
         <div
           className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
