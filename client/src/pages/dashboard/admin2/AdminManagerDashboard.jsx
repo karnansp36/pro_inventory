@@ -417,7 +417,7 @@ const AdminManagerDashboard = () => {
   // Stats data using only assigned branches information
   const stats = [
     {
-      title: 'Assigned Branches',
+      title: 'Assigned Managers',
       value: assignedBranches.length,
       icon: Building2,
       color: 'blue',
@@ -857,14 +857,14 @@ const AdminManagerDashboard = () => {
                   <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-bold ${
                     theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
                   }`}>
-                    {managerDetails?.name || 'Manager'}
+                    {managerDetails?.name || 'Owner'}
                   </h1>
                   <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
                     theme === 'dark'
                       ? 'bg-blue-600/20 text-blue-400 ring-1 ring-blue-500/30'
                       : 'bg-blue-100 text-blue-700 ring-1 ring-blue-200'
                   }`}>
-                    Manager
+                    Owner
                   </div>
                 </div>
                  
@@ -877,7 +877,7 @@ const AdminManagerDashboard = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <Building2 className="w-4 h-4" />
-                    <span>{assignedBranches.length} Branches</span>
+                    <span>{assignedBranches.length} Managers</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${
@@ -1104,7 +1104,7 @@ const AdminManagerDashboard = () => {
                 <h2 className={`text-xl font-semibold ${
                   theme === 'dark' ? 'text-slate-100' : 'text-gray-900'
                 }`}>
-                  Assigned Branches ({assignedBranches.length})
+                  Assigned Managers ({assignedBranches.length})
                 </h2>
               </div>
               <div className="flex items-center gap-4">
@@ -1128,7 +1128,7 @@ const AdminManagerDashboard = () => {
                   }`}
                 >
                   <PlusCircle className="h-4 w-4" />
-                  <span>Add Branch</span>
+                  <span>Add Manager</span>
                 </button>
               </div>
             </div>
@@ -1220,12 +1220,12 @@ const AdminManagerDashboard = () => {
                     <p className={`text-lg font-semibold ${
                       theme === 'dark' ? 'text-slate-300' : 'text-gray-700'
                     }`}>
-                      No Branches Assigned
+                      No Manager Assigned
                     </p>
                     <p className={`text-sm ${
                       theme === 'dark' ? 'text-slate-500' : 'text-gray-500'
                     }`}>
-                      You haven't been assigned any branches yet.
+                      You haven't been assigned any Managers yet.
                     </p>
                   </div>
                 )}
@@ -1370,12 +1370,12 @@ const AdminManagerDashboard = () => {
                   <h3 className={`text-2xl font-bold ${
                     theme === 'dark' ? 'text-white' : 'text-gray-900'
                   }`}>
-                    Add New Branch
+                    Add New Manager
                   </h3>
                   <p className={`text-sm mt-1 ${
                     theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
                   }`}>
-                    Create a new branch owner account
+                    Create a new manager  account
                   </p>
                 </div>
               </div>
@@ -1399,7 +1399,7 @@ const AdminManagerDashboard = () => {
                   <label htmlFor="name" className={`block text-sm font-semibold ${
                     theme === 'dark' ? 'text-slate-200' : 'text-gray-700'
                   }`}>
-                    Owner Name <span className="text-red-500">*</span>
+                    Manager Name <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <Users className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${
@@ -1590,12 +1590,12 @@ const AdminManagerDashboard = () => {
                   {createBranchOwnerLoading ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      Creating Branch...
+                      Creating Manager...
                     </>
                   ) : (
                     <>
                       <PlusCircle className="w-5 h-5" />
-                      Create Branch
+                      Create Manager
                     </>
                   )}
                 </button>

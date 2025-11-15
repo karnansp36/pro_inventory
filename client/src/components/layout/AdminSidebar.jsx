@@ -32,7 +32,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
 
   // Use branchId from URL params to build navigation paths
   const menuItems = [
-    { path: `/dashboard/admin/branch/${branchId}`, icon: Activity, label: 'Branch Dashboard', category: 'main' }, // Corrected path with /admin prefix
+    { path: `/dashboard/admin/branch/${branchId}`, icon: Activity, label: 'Manager Dashboard', category: 'main' }, // Corrected path with /admin prefix
     { path: `/dashboard/admin/branch/${branchId}/sales`, icon: TrendingUp, label: 'Sales', category: 'operations' },
     { path: `/dashboard/admin/branch/${branchId}/stock-requests`, icon: Package, label: 'Stock Requests', category: 'operations' },
     { path: `/dashboard/admin/branch/${branchId}/transport`, icon: Truck, label: 'Transport', category: 'operations' },
@@ -91,7 +91,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
               </div>
               <div>
                 <h1 className="text-lg font-bold bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
-                  Branch Panel
+                  Manager Panel
                 </h1>
                 <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
                   {branchId ? `Branch: ${branchId}` : 'Management System'}
