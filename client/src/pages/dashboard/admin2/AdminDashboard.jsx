@@ -7,7 +7,8 @@ import {
   Phone,
   ChevronRight,
   Building2,
-  PlusCircle
+  PlusCircle,
+  CreditCard // Add this import
 } from 'lucide-react';
 import { getUsers, createUser } from '../../../store/slices/usersSlice';
 import { useTheme } from '../../../context/ThemeContext';
@@ -31,6 +32,11 @@ const AdminDashboard = () => {
 
   const handleManagerClick = (managerId) => {
     navigate(`/dashboard/admin/manager/${managerId}`);
+  };
+
+  // Add this function for product payments navigation
+  const handleProductPaymentsClick = () => {
+    navigate('/dashboard/admin/product-payments');
   };
 
   return (
@@ -111,6 +117,18 @@ const AdminDashboard = () => {
                 </p>
               </div>
             </div>
+            {/* Add Product Payments Button here */}
+            <button
+              onClick={handleProductPaymentsClick}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                theme === 'dark'
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'bg-green-500 hover:bg-green-600 text-white'
+              }`}
+            >
+              <CreditCard className="h-4 w-4" />
+              Product Payments
+            </button>
           </div>
         </div>
 

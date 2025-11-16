@@ -5,7 +5,8 @@ const DailyReportSchema = new mongoose.Schema({
   gpay: { type: Number, default: 0 },
   card: { type: Number, default: 0 },
   cash: { type: Number, default: 0 },
-  expenses: { type: Number, default: 0 },
+  regularExpenses: { type: Number, default: 0 },
+  otherExpenses: { type: Number, default: 0 },
   date: { type: String, required: true }, // YYYY-MM-DD
 }, { timestamps: true });
 

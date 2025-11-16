@@ -22,7 +22,8 @@ const SalesPage = () => {
   const [gpay, setGpay] = useState('');
   const [card, setCard] = useState('');
   const [cash, setCash] = useState('');
-  const [expenses, setExpenses] = useState('');
+  const [regularExpenses, setRegularExpenses] = useState('');
+  const [otherExpenses, setOtherExpenses] = useState('');
   const [savingReport, setSavingReport] = useState(false);
 
   // Pagination and filter states for SalesTable
@@ -66,11 +67,22 @@ const SalesPage = () => {
     return total;
   };
 
+  // Calculate total expenses
+  const calculateTotalExpenses = () => {
+    return (parseFloat(regularExpenses) || 0) + (parseFloat(otherExpenses) || 0);
+  };
+
   // Calculate net income
   const calculateNet = () => {
     const total = calculateTotal();
-    const exp = parseFloat(expenses) || 0;
-    return total - exp;
+    const totalExp = calculateTotalExpenses();
+    return total - totalExp;
+  };
+
+  // Calculate profit (35% of total expenses)
+  const calculateProfit = () => {
+    const totalExp = calculateTotalExpenses();
+    return totalExp * 0.35;
   };
 
   // Save daily report (show confirm modal)
@@ -101,13 +113,15 @@ const SalesPage = () => {
         gpay: parseFloat(gpay) || 0,
         card: parseFloat(card) || 0,
         cash: parseFloat(cash) || 0,
-        expenses: parseFloat(expenses) || 0,
+        regularExpenses: parseFloat(regularExpenses) || 0,
+        otherExpenses: parseFloat(otherExpenses) || 0,
         date: getTodayIST()
       })).unwrap();
       setGpay(''); 
       setCard(''); 
       setCash(''); 
-      setExpenses('');
+      setRegularExpenses('');
+      setOtherExpenses('');
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 3000);
       fetchReports();
@@ -347,46 +361,87 @@ const SalesPage = () => {
                 <Receipt className="w-4 h-4" />
                 Expenses
               </h3>
-              <div className={`p-4 rounded-xl border-2 transition-all duration-300 ${
-                expenses 
-                  ? isDark 
-                    ? 'border-red-500 bg-red-500/10' 
-                    : 'border-red-400 bg-red-50'
-                  : isDark 
-                    ? 'border-slate-700 bg-slate-800/50 hover:border-slate-600' 
-                    : 'border-gray-200 bg-white hover:border-gray-300'
-              }`}>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className={`p-2 rounded-lg ${
-                    isDark ? 'bg-red-500/20' : 'bg-red-100'
-                  }`}>
-                    <Receipt className={`w-5 h-5 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Regular Expenses Input */}
+                <div className={`p-4 rounded-xl border-2 transition-all duration-300 ${
+                  regularExpenses 
+                    ? isDark 
+                      ? 'border-red-500 bg-red-500/10' 
+                      : 'border-red-400 bg-red-50'
+                    : isDark 
+                      ? 'border-slate-700 bg-slate-800/50 hover:border-slate-600' 
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`p-2 rounded-lg ${
+                      isDark ? 'bg-red-500/20' : 'bg-red-100'
+                    }`}>
+                      <Receipt className={`w-5 h-5 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+                    </div>
+                    <label className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                      Regular Expenses
+                    </label>
                   </div>
-                  <label className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                    Total Expenses
-                  </label>
+                  <input 
+                    type="number" 
+                    value={regularExpenses} 
+                    onChange={e => setRegularExpenses(e.target.value)} 
+                    placeholder="0.00" 
+                    className={`w-full px-4 py-3 rounded-lg border-2 text-lg font-semibold transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-slate-900 border-slate-700 text-white placeholder-gray-500 focus:border-red-500' 
+                        : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:border-red-500'
+                    } focus:outline-none focus:ring-2 focus:ring-red-500/20`} 
+                  />
+                  {regularExpenses && (
+                    <p className={`text-xs mt-2 font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>
+                      ₹{parseFloat(regularExpenses).toFixed(2)}
+                    </p>
+                  )}
                 </div>
-                <input 
-                  type="number" 
-                  value={expenses} 
-                  onChange={e => setExpenses(e.target.value)} 
-                  placeholder="0.00" 
-                  className={`w-full px-4 py-3 rounded-lg border-2 text-lg font-semibold transition-all duration-200 ${
-                    isDark 
-                      ? 'bg-slate-900 border-slate-700 text-white placeholder-gray-500 focus:border-red-500' 
-                      : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:border-red-500'
-                  } focus:outline-none focus:ring-2 focus:ring-red-500/20`} 
-                />
-                {expenses && (
-                  <p className={`text-xs mt-2 font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>
-                    ₹{parseFloat(expenses).toFixed(2)}
-                  </p>
-                )}
+
+                {/* Other Expenses Input */}
+                <div className={`p-4 rounded-xl border-2 transition-all duration-300 ${
+                  otherExpenses 
+                    ? isDark 
+                      ? 'border-orange-500 bg-orange-500/10' 
+                      : 'border-orange-400 bg-orange-50'
+                    : isDark 
+                      ? 'border-slate-700 bg-slate-800/50 hover:border-slate-600' 
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`p-2 rounded-lg ${
+                      isDark ? 'bg-orange-500/20' : 'bg-orange-100'
+                    }`}>
+                      <Receipt className={`w-5 h-5 ${isDark ? 'text-orange-400' : 'text-orange-600'}`} />
+                    </div>
+                    <label className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                      Other Expenses
+                    </label>
+                  </div>
+                  <input 
+                    type="number" 
+                    value={otherExpenses} 
+                    onChange={e => setOtherExpenses(e.target.value)} 
+                    placeholder="0.00" 
+                    className={`w-full px-4 py-3 rounded-lg border-2 text-lg font-semibold transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-slate-900 border-slate-700 text-white placeholder-gray-500 focus:border-orange-500' 
+                        : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:border-orange-500'
+                    } focus:outline-none focus:ring-2 focus:ring-orange-500/20`} 
+                  />
+                  {otherExpenses && (
+                    <p className={`text-xs mt-2 font-medium ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>
+                      ₹{parseFloat(otherExpenses).toFixed(2)}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
               <div className={`p-5 rounded-xl ${
                 isDark 
                   ? 'bg-gradient-to-br from-emerald-900/30 to-emerald-800/30 border border-emerald-700/50' 
@@ -413,6 +468,18 @@ const SalesPage = () => {
                     : 'text-red-500'
                 }`}>
                   ₹{calculateNet().toFixed(2)}
+                </p>
+              </div>
+              <div className={`p-5 rounded-xl ${
+                isDark 
+                  ? 'bg-gradient-to-br from-green-900/30 to-green-800/30 border border-green-700/50' 
+                  : 'bg-gradient-to-br from-green-50 to-green-100 border border-green-200'
+              }`}>
+                <p className={`text-sm font-medium mb-2 ${isDark ? 'text-green-400' : 'text-green-700'}`}>
+                  Profit (35%)
+                </p>
+                <p className={`text-3xl font-bold ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                  ₹{calculateProfit().toFixed(2)}
                 </p>
               </div>
             </div>
@@ -516,27 +583,51 @@ const SalesPage = () => {
                     <span className={`text-sm font-medium ${
                       isDark ? 'text-gray-400' : 'text-gray-600'
                     }`}>
-                      Date:
+                      Total Income:
                     </span>
                     <span className={`text-sm font-semibold ${
-                      isDark ? 'text-red-400' : 'text-red-600'
-                    }`}>
-                      ₹{(Number(expenses) || 0).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className={`border-t-2 ${isDark ? 'border-slate-700' : 'border-gray-300'}`}></div>
-                  <div className="flex items-center justify-between">
-                    <span className={`text-base font-bold ${
-                      isDark ? 'text-gray-300' : 'text-gray-700'
-                    }`}>
-                      Total Collection:
-                    </span>
-                    <span className={`text-lg font-bold ${
                       isDark ? 'text-emerald-400' : 'text-emerald-600'
                     }`}>
                       ₹{calculateTotal().toFixed(2)}
                     </span>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-sm font-medium ${
+                      isDark ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                      Regular Expenses:
+                    </span>
+                    <span className={`text-sm font-semibold ${
+                      isDark ? 'text-red-400' : 'text-red-600'
+                    }`}>
+                      ₹{(Number(regularExpenses) || 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-sm font-medium ${
+                      isDark ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                      Other Expenses:
+                    </span>
+                    <span className={`text-sm font-semibold ${
+                      isDark ? 'text-orange-400' : 'text-orange-600'
+                    }`}>
+                      ₹{(Number(otherExpenses) || 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-sm font-medium ${
+                      isDark ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                      Profit (35%):
+                    </span>
+                    <span className={`text-sm font-semibold ${
+                      isDark ? 'text-green-400' : 'text-green-600'
+                    }`}>
+                      ₹{calculateProfit().toFixed(2)}
+                    </span>
+                  </div>
+                  <div className={`border-t-2 ${isDark ? 'border-slate-700' : 'border-gray-300'}`}></div>
                   <div className="flex items-center justify-between">
                     <span className={`text-base font-bold ${
                       isDark ? 'text-gray-300' : 'text-gray-700'

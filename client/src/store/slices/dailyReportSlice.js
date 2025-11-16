@@ -24,10 +24,45 @@ export const getDailyReportsByBranch = createAsyncThunk(
   }
 );
 
+export const getDailyReportById = createAsyncThunk(
+  'dailyReport/getById',
+  async (id, { rejectWithValue }) => {
+    try {
+      return await dailyReportService.getDailyReportById(id);
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const updateDailyReport = createAsyncThunk(
+  'dailyReport/update',
+  async ({ id, reportData }, { rejectWithValue }) => {
+    try {
+      return await dailyReportService.updateDailyReport(id, reportData);
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const deleteDailyReport = createAsyncThunk(
+  'dailyReport/delete',
+  async (id, { rejectWithValue }) => {
+    try {
+      await dailyReportService.deleteDailyReport(id);
+      return id;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
 const dailyReportSlice = createSlice({
   name: 'dailyReport',
   initialState: {
     dailyReports: [],
+    currentReport: null,
     totalItems: 0,
     loading: false,
     error: null,
@@ -39,16 +74,6 @@ const dailyReportSlice = createSlice({
     }
   },
   reducers: {
-    // Add a reducer to clear errors
-    clearError: (state) => {
-      state.error = null;
-    },
-    // Add a reducer to manually set reports (for debugging)
-    setDailyReports: (state, action) => {
-      state.dailyReports = action.payload;
-    }
-  },
-  reducers: {
     clearError: (state) => {
       state.error = null;
     },
@@ -57,11 +82,11 @@ const dailyReportSlice = createSlice({
     },
     setItemsPerPage: (state, action) => {
       state.itemsPerPage = action.payload;
-      state.currentPage = 1; // Reset to first page when items per page changes
+      state.currentPage = 1;
     },
     setFilters: (state, action) => {
       state.filters = { ...state.filters, ...action.payload };
-      state.currentPage = 1; // Reset to first page when filters change
+      state.currentPage = 1;
     },
     clearFilters: (state) => {
       state.filters = {
@@ -69,10 +94,14 @@ const dailyReportSlice = createSlice({
         dateFilter: { type: 'all', startDate: '', endDate: '' }
       };
       state.currentPage = 1;
+    },
+    clearCurrentReport: (state) => {
+      state.currentReport = null;
     }
   },
   extraReducers: (builder) => {
     builder
+      // Create Daily Report
       .addCase(createDailyReport.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -80,7 +109,6 @@ const dailyReportSlice = createSlice({
       .addCase(createDailyReport.fulfilled, (state, action) => {
         state.loading = false;
         state.error = null;
-        // Add the new report to the list
         if (action.payload) {
           state.dailyReports.unshift(action.payload);
         }
@@ -89,6 +117,7 @@ const dailyReportSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
+      // Get Daily Reports by Branch
       .addCase(getDailyReportsByBranch.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -107,16 +136,67 @@ const dailyReportSlice = createSlice({
       .addCase(getDailyReportsByBranch.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      // Get Daily Report by ID
+      .addCase(getDailyReportById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getDailyReportById.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentReport = action.payload;
+        state.error = null;
+      })
+      .addCase(getDailyReportById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Update Daily Report
+      .addCase(updateDailyReport.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateDailyReport.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+        if (action.payload) {
+          const index = state.dailyReports.findIndex(report => report._id === action.payload._id);
+          if (index !== -1) {
+            state.dailyReports[index] = action.payload;
+          }
+          if (state.currentReport && state.currentReport._id === action.payload._id) {
+            state.currentReport = action.payload;
+          }
+        }
+      })
+      .addCase(updateDailyReport.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Delete Daily Report
+      .addCase(deleteDailyReport.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteDailyReport.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+        state.dailyReports = state.dailyReports.filter(report => report._id !== action.payload);
+        state.currentReport = null;
+      })
+      .addCase(deleteDailyReport.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   }
 });
 
 export const {
   clearError,
-  setDailyReports,
   setCurrentPage,
   setItemsPerPage,
   setFilters,
-  clearFilters
+  clearFilters,
+  clearCurrentReport
 } = dailyReportSlice.actions;
 export default dailyReportSlice.reducer;

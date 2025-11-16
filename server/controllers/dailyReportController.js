@@ -2,16 +2,16 @@ import DailyReport from '../models/DailyReport.js';
 
 export const createDailyReport = async (req, res) => {
   try {
-    const { branchId, gpay, card, cash, expenses, date } = req.body;
+    const { branchId, gpay, card, cash, regularExpenses, otherExpenses, date } = req.body;
     // Only one report per branch per day
     const existingReport = await DailyReport.findOne({ branchId, date });
     if (existingReport) {
       return res.status(400).json({ message: 'Daily report for this branch and date already exists.' });
     }
-  // Create new
-  const report = new DailyReport({ branchId, gpay, card, cash, expenses, date });
-  await report.save();
-  res.status(201).json(report);
+    // Create new
+    const report = new DailyReport({ branchId, gpay, card, cash, regularExpenses, otherExpenses, date });
+    await report.save();
+    res.status(201).json(report);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -31,7 +31,8 @@ export const getDailyReportsByBranch = async (req, res) => {
         { gpay: { $regex: searchTerm, $options: 'i' } },
         { card: { $regex: searchTerm, $options: 'i' } },
         { cash: { $regex: searchTerm, $options: 'i' } },
-        { expenses: { $regex: searchTerm, $options: 'i' } },
+        { regularExpenses: { $regex: searchTerm, $options: 'i' } },
+        { otherExpenses: { $regex: searchTerm, $options: 'i' } },
       ];
     }
 
@@ -93,7 +94,6 @@ export const getDailyReportsByBranch = async (req, res) => {
       }
       console.log('Formatted startDate:', formattedStartDate, 'formatted endDate:', formattedEndDate);
 
-
       if (formattedStartDate && formattedEndDate) {
         query.date = { $gte: formattedStartDate, $lte: formattedEndDate };
       } else if (formattedStartDate) {
@@ -116,6 +116,150 @@ export const getDailyReportsByBranch = async (req, res) => {
       currentPage: parseInt(page),
       itemsPerPage: parseInt(limit),
     });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc    Update daily report
+// @route   PUT /api/daily-report/:id
+// @access  Private (Admin, Manager, BranchOwner)
+export const updateDailyReport = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { gpay, card, cash, regularExpenses, otherExpenses, date } = req.body;
+
+    // Find the report
+    const report = await DailyReport.findById(id);
+    if (!report) {
+      return res.status(404).json({ message: 'Daily report not found.' });
+    }
+
+    // Check if user has permission to update this report
+    // Admin can update any report
+    // Manager can update reports for their assigned branches
+    // BranchOwner can only update their own reports
+    const user = req.user;
+    
+    if (user.role === 'Manager') {
+      // Check if the manager has access to this branch
+      const managerBranches = await User.find({ assignedManager: user._id }).select('_id');
+      const branchIds = managerBranches.map(branch => branch._id.toString());
+      
+      if (!branchIds.includes(report.branchId.toString())) {
+        return res.status(403).json({ message: 'Not authorized to update this report.' });
+      }
+    } else if (user.role === 'BranchOwner') {
+      // BranchOwner can only update their own reports
+      if (report.branchId.toString() !== user._id.toString()) {
+        return res.status(403).json({ message: 'Not authorized to update this report.' });
+      }
+    }
+
+    // Check if date is being changed and if it conflicts with existing report
+    if (date && date !== report.date) {
+      const existingReport = await DailyReport.findOne({
+        branchId: report.branchId,
+        date,
+        _id: { $ne: id }
+      });
+      
+      if (existingReport) {
+        return res.status(400).json({ message: 'Daily report for this branch and date already exists.' });
+      }
+    }
+
+    // Update the report
+    const updatedReport = await DailyReport.findByIdAndUpdate(
+      id,
+      {
+        gpay: gpay !== undefined ? gpay : report.gpay,
+        card: card !== undefined ? card : report.card,
+        cash: cash !== undefined ? cash : report.cash,
+        regularExpenses: regularExpenses !== undefined ? regularExpenses : report.regularExpenses,
+        otherExpenses: otherExpenses !== undefined ? otherExpenses : report.otherExpenses,
+        date: date || report.date,
+      },
+      { new: true, runValidators: true }
+    );
+
+    res.json(updatedReport);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc    Delete daily report
+// @route   DELETE /api/daily-report/:id
+// @access  Private (Admin, Manager, BranchOwner)
+export const deleteDailyReport = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find the report
+    const report = await DailyReport.findById(id);
+    if (!report) {
+      return res.status(404).json({ message: 'Daily report not found.' });
+    }
+
+    // Check if user has permission to delete this report
+    const user = req.user;
+    
+    if (user.role === 'Manager') {
+      // Check if the manager has access to this branch
+      const managerBranches = await User.find({ assignedManager: user._id }).select('_id');
+      const branchIds = managerBranches.map(branch => branch._id.toString());
+      
+      if (!branchIds.includes(report.branchId.toString())) {
+        return res.status(403).json({ message: 'Not authorized to delete this report.' });
+      }
+    } else if (user.role === 'BranchOwner') {
+      // BranchOwner can only delete their own reports
+      if (report.branchId.toString() !== user._id.toString()) {
+        return res.status(403).json({ message: 'Not authorized to delete this report.' });
+      }
+    }
+
+    // Delete the report
+    await DailyReport.findByIdAndDelete(id);
+
+    res.json({ message: 'Daily report deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc    Get daily report by ID
+// @route   GET /api/daily-report/:id
+// @access  Private (Admin, Manager, BranchOwner)
+export const getDailyReportById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const report = await DailyReport.findById(id);
+    if (!report) {
+      return res.status(404).json({ message: 'Daily report not found.' });
+    }
+
+    // Check if user has permission to view this report
+    const user = req.user;
+    
+    if (user.role === 'Manager') {
+      // Check if the manager has access to this branch
+      const managerBranches = await User.find({ assignedManager: user._id }).select('_id');
+      const branchIds = managerBranches.map(branch => branch._id.toString());
+      
+      if (!branchIds.includes(report.branchId.toString())) {
+        return res.status(403).json({ message: 'Not authorized to view this report.' });
+      }
+    } else if (user.role === 'BranchOwner') {
+      // BranchOwner can only view their own reports
+      if (report.branchId.toString() !== user._id.toString()) {
+        return res.status(403).json({ message: 'Not authorized to view this report.' });
+      }
+    }
+
+    res.json(report);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

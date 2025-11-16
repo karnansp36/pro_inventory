@@ -10,6 +10,7 @@ import AdminStock from "../pages/dashboard/admin2/AdminStock";
 import AdminTransport from "../pages/dashboard/admin2/AdminTransport";
 import AdminBranchOwners from "../pages/dashboard/admin2/AdminBranchOwners";
 import AdminDailyStore from "../pages/dashboard/admin2/AdminDailyStore";
+import ProductPaymentsPage from "../pages/dashboard/admin2/ProductPaymentsPage"; // Add this import
 
 const AdminRoutes = () => {
   return (
@@ -17,9 +18,11 @@ const AdminRoutes = () => {
       <Route path="/" element={<AdminDashboard />} />
 
       <Route path="/manager/:managerId" element={<AdminManagerDashboard />} />
+        <Route path="/product-payments" element={<ProductPaymentsPage />} />
 
       <Route path="/branch/:branchId" element={<AdminLayout />}>
         <Route index element={<AdminBranchDashboard />} />
+         
         <Route path="sales" element={<AdminSales />} />
         <Route path="stock-requests" element={<AdminStock />} />
         <Route path="transport" element={<AdminTransport />} />

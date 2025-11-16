@@ -12,6 +12,7 @@ import reportsSlice from './slices/reportsSlice'
 import dailyStoreImageSlice from './slices/dailyStoreImageSlice'
 import dailyReportSlice from './slices/dailyReportSlice'
 import profileSlice from './slices/profileSlice'
+import productPaymentsSlice from './slices/productPaymentsSlice'
 export const store = configureStore({
   reducer: {
     auth: authSlice,
@@ -26,6 +27,7 @@ export const store = configureStore({
     dailyStoreImages: dailyStoreImageSlice,
     dailyReport: dailyReportSlice,
     profile: profileSlice,
+    productPayments: productPaymentsSlice,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

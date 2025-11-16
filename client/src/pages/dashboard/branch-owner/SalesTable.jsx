@@ -131,7 +131,8 @@ const SalesTable = ({
           report.gpay?.toString().includes(searchTerm) ||
           report.card?.toString().includes(searchTerm) ||
           report.cash?.toString().includes(searchTerm) ||
-          report.expenses?.toString().includes(searchTerm);
+          report.regularExpenses?.toString().includes(searchTerm) ||
+          report.otherExpenses?.toString().includes(searchTerm);
         
         let matchesDateRange = true;
         if (dateFilter.type !== 'all') {
@@ -181,7 +182,8 @@ const SalesTable = ({
           case 'gpay':
           case 'card':
           case 'cash':
-          case 'expenses':
+          case 'regularExpenses':
+          case 'otherExpenses':
             aValue = Number(a[sortField]) || 0;
             bValue = Number(b[sortField]) || 0;
             break;
@@ -190,8 +192,14 @@ const SalesTable = ({
             bValue = (Number(b.gpay) || 0) + (Number(b.card) || 0) + (Number(b.cash) || 0);
             break;
           case 'netIncome':
-            aValue = ((Number(a.gpay) || 0) + (Number(a.card) || 0) + (Number(a.cash) || 0)) - (Number(a.expenses) || 0);
-            bValue = ((Number(b.gpay) || 0) + (Number(b.card) || 0) + (Number(b.cash) || 0)) - (Number(b.expenses) || 0);
+            aValue = ((Number(a.gpay) || 0) + (Number(a.card) || 0) + (Number(a.cash) || 0)) - ((Number(a.regularExpenses) || 0) + (Number(a.otherExpenses) || 0));
+            bValue = ((Number(b.gpay) || 0) + (Number(b.card) || 0) + (Number(b.cash) || 0)) - ((Number(b.regularExpenses) || 0) + (Number(b.otherExpenses) || 0));
+            break;
+          case 'profit':
+            const totalExpensesA = (Number(a.regularExpenses) || 0) + (Number(a.otherExpenses) || 0);
+            const totalExpensesB = (Number(b.regularExpenses) || 0) + (Number(b.otherExpenses) || 0);
+            aValue = totalExpensesA * 0.35;
+            bValue = totalExpensesB * 0.35;
             break;
           default:
             return 0;
@@ -211,15 +219,27 @@ const SalesTable = ({
   const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
   const currentReports = processedReports; // When using backend pagination, currentReports is already the sliced data
 
-  // Calculate totals (these should calculate based on the *entire* filtered/sorted dataset if not paginated by backend, or just the current page if it is)
+  // Calculate totals
   const getTotalCollection = () => {
     return processedReports.reduce((sum, report) => {
       return sum + (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
     }, 0);
   };
 
+  const getTotalRegularExpenses = () => {
+    return processedReports.reduce((sum, report) => sum + (Number(report.regularExpenses) || 0), 0);
+  };
+
+  const getTotalOtherExpenses = () => {
+    return processedReports.reduce((sum, report) => sum + (Number(report.otherExpenses) || 0), 0);
+  };
+
   const getTotalExpenses = () => {
-    return processedReports.reduce((sum, report) => sum + (Number(report.expenses) || 0), 0);
+    return getTotalRegularExpenses() + getTotalOtherExpenses();
+  };
+
+  const getTotalProfit = () => {
+    return getTotalExpenses() * 0.35;
   };
 
   const getAverageCollection = () => {
@@ -273,14 +293,19 @@ const SalesTable = ({
   // Copy row data
   const copyRowData = (report) => {
     const totalCollection = (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
-    const netIncome = totalCollection - (Number(report.expenses) || 0);
+    const totalExpenses = (Number(report.regularExpenses) || 0) + (Number(report.otherExpenses) || 0);
+    const netIncome = totalCollection - totalExpenses;
+    const profit = totalExpenses * 0.35;
     
     const text = `Date: ${report.date}
 GPay: ₹${(Number(report.gpay) || 0).toFixed(2)}
 Card: ₹${(Number(report.card) || 0).toFixed(2)}
 Cash: ₹${(Number(report.cash) || 0).toFixed(2)}
-Expenses: ₹${(Number(report.expenses) || 0).toFixed(2)}
+Regular Expenses: ₹${(Number(report.regularExpenses) || 0).toFixed(2)}
+Other Expenses: ₹${(Number(report.otherExpenses) || 0).toFixed(2)}
 Total Collection: ₹${totalCollection.toFixed(2)}
+Total Expenses: ₹${totalExpenses.toFixed(2)}
+Profit (35%): ₹${profit.toFixed(2)}
 Net Income: ₹${netIncome.toFixed(2)}`;
 
     navigator.clipboard.writeText(text).then(() => {
@@ -396,22 +421,30 @@ Net Income: ₹${netIncome.toFixed(2)}`;
         'GPay',
         'Card',
         'Cash',
-        'Expenses',
+        'Regular Expenses',
+        'Other Expenses',
         'Total Collection',
+        'Total Expenses',
+        'Profit (35%)',
         'Net Income'
       ];
 
       const csvRows = processedReports.map(report => {
         const totalCollection = (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
-        const netIncome = totalCollection - (Number(report.expenses) || 0);
+        const totalExpenses = (Number(report.regularExpenses) || 0) + (Number(report.otherExpenses) || 0);
+        const profit = totalExpenses * 0.35;
+        const netIncome = totalCollection - totalExpenses;
         
         return [
           escapeCSV(report.date),
           escapeCSV((Number(report.gpay) || 0).toFixed(2)),
           escapeCSV((Number(report.card) || 0).toFixed(2)),
           escapeCSV((Number(report.cash) || 0).toFixed(2)),
-          escapeCSV((Number(report.expenses) || 0).toFixed(2)),
+          escapeCSV((Number(report.regularExpenses) || 0).toFixed(2)),
+          escapeCSV((Number(report.otherExpenses) || 0).toFixed(2)),
           escapeCSV(totalCollection.toFixed(2)),
+          escapeCSV(totalExpenses.toFixed(2)),
+          escapeCSV(profit.toFixed(2)),
           escapeCSV(netIncome.toFixed(2))
         ];
       });
@@ -425,8 +458,11 @@ Net Income: ₹${netIncome.toFixed(2)}`;
       csvContent.push(`Total Records,${totalItems}`);
       csvContent.push(`Total Collection,₹${getTotalCollection().toFixed(2)}`);
       csvContent.push(`Average Collection,₹${getAverageCollection().toFixed(2)}`);
+      csvContent.push(`Total Regular Expenses,₹${getTotalRegularExpenses().toFixed(2)}`);
+      csvContent.push(`Total Other Expenses,₹${getTotalOtherExpenses().toFixed(2)}`);
       csvContent.push(`Total Expenses,₹${getTotalExpenses().toFixed(2)}`);
       csvContent.push(`Average Expenses,₹${getAverageExpenses().toFixed(2)}`);
+      csvContent.push(`Total Profit (35%),₹${getTotalProfit().toFixed(2)}`);
       csvContent.push(`Net Income,₹${(getTotalCollection() - getTotalExpenses()).toFixed(2)}`);
       csvContent.push(`Export Date,${new Date().toLocaleDateString('en-US')}`);
       csvContent.push(`Export Time,${new Date().toLocaleTimeString('en-US')}`);
@@ -805,7 +841,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
       <div className={`px-6 py-4 border-b ${
         theme === 'dark' ? 'border-slate-700/50' : 'border-gray-200'
       }`}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
           <div className={`p-4 rounded-lg ${
             theme === 'dark'
               ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30'
@@ -864,27 +900,27 @@ Net Income: ₹${netIncome.toFixed(2)}`;
 
           <div className={`p-4 rounded-lg ${
             theme === 'dark'
-              ? 'bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30'
-              : 'bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200'
+              ? 'bg-gradient-to-br from-red-500/20 to-red-600/10 border border-red-500/30'
+              : 'bg-gradient-to-br from-red-50 to-red-100 border border-red-200'
           }`}>
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${
-                theme === 'dark' ? 'bg-purple-500/30' : 'bg-purple-200'
+                theme === 'dark' ? 'bg-red-500/30' : 'bg-red-200'
               }`}>
-                <CreditCard className={`w-4 h-4 ${
-                  theme === 'dark' ? 'text-purple-300' : 'text-purple-700'
+                <Receipt className={`w-4 h-4 ${
+                  theme === 'dark' ? 'text-red-300' : 'text-red-700'
                 }`} />
               </div>
               <div>
                 <p className={`text-xs ${
-                  theme === 'dark' ? 'text-purple-300' : 'text-purple-700'
+                  theme === 'dark' ? 'text-red-300' : 'text-red-700'
                 }`}>
-                  Total Expenses
+                  Regular Expenses
                 </p>
                 <p className={`text-lg font-bold ${
-                  theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
+                  theme === 'dark' ? 'text-red-400' : 'text-red-600'
                 }`}>
-                  ₹{getTotalExpenses().toFixed(2)}
+                  ₹{getTotalRegularExpenses().toFixed(2)}
                 </p>
               </div>
             </div>
@@ -899,7 +935,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
               <div className={`p-2 rounded-lg ${
                 theme === 'dark' ? 'bg-orange-500/30' : 'bg-orange-200'
               }`}>
-                <BarChart3 className={`w-4 h-4 ${
+                <Receipt className={`w-4 h-4 ${
                   theme === 'dark' ? 'text-orange-300' : 'text-orange-700'
                 }`} />
               </div>
@@ -907,12 +943,40 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                 <p className={`text-xs ${
                   theme === 'dark' ? 'text-orange-300' : 'text-orange-700'
                 }`}>
-                  Average Expenses
+                  Other Expenses
                 </p>
                 <p className={`text-lg font-bold ${
                   theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
                 }`}>
-                  ₹{getAverageExpenses().toFixed(2)}
+                  ₹{getTotalOtherExpenses().toFixed(2)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className={`p-4 rounded-lg ${
+            theme === 'dark'
+              ? 'bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30'
+              : 'bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${
+                theme === 'dark' ? 'bg-purple-500/30' : 'bg-purple-200'
+              }`}>
+                <BarChart3 className={`w-4 h-4 ${
+                  theme === 'dark' ? 'text-purple-300' : 'text-purple-700'
+                }`} />
+              </div>
+              <div>
+                <p className={`text-xs ${
+                  theme === 'dark' ? 'text-purple-300' : 'text-purple-700'
+                }`}>
+                  Total Expenses
+                </p>
+                <p className={`text-lg font-bold ${
+                  theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
+                }`}>
+                  ₹{getTotalExpenses().toFixed(2)}
                 </p>
               </div>
             </div>
@@ -935,12 +999,12 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                 <p className={`text-xs ${
                   theme === 'dark' ? 'text-green-300' : 'text-green-700'
                 }`}>
-                  Net Income
+                  Profit (35%)
                 </p>
                 <p className={`text-lg font-bold ${
                   theme === 'dark' ? 'text-green-400' : 'text-green-600'
                 }`}>
-                  ₹{(getTotalCollection() - getTotalExpenses()).toFixed(2)}
+                  ₹{getTotalProfit().toFixed(2)}
                 </p>
               </div>
             </div>
@@ -1013,11 +1077,22 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
                   theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
                 }`}
-                onClick={() => handleSort('expenses')}
+                onClick={() => handleSort('regularExpenses')}
               >
                 <div className="flex items-center gap-2">
-                  Expenses
-                  <SortIcon field="expenses" />
+                  Regular Expenses
+                  <SortIcon field="regularExpenses" />
+                </div>
+              </th>
+              <th
+                className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
+                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                }`}
+                onClick={() => handleSort('otherExpenses')}
+              >
+                <div className="flex items-center gap-2">
+                  Other Expenses
+                  <SortIcon field="otherExpenses" />
                 </div>
               </th>
               <th
@@ -1029,6 +1104,17 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                 <div className="flex items-center gap-2">
                   Total Collection
                   <SortIcon field="total" />
+                </div>
+              </th>
+              <th
+                className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
+                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                }`}
+                onClick={() => handleSort('profit')}
+              >
+                <div className="flex items-center gap-2">
+                  Profit (35%)
+                  <SortIcon field="profit" />
                 </div>
               </th>
               <th
@@ -1052,7 +1138,9 @@ Net Income: ₹${netIncome.toFixed(2)}`;
           }`}>
             {currentReports.map((report, index) => {
               const totalCollection = (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
-              const netIncome = totalCollection - (Number(report.expenses) || 0);
+              const totalExpenses = (Number(report.regularExpenses) || 0) + (Number(report.otherExpenses) || 0);
+              const profit = totalExpenses * 0.35;
+              const netIncome = totalCollection - totalExpenses;
               const isSelected = selectedRows.has(report._id || report.id);
               const isCopied = copiedRow === (report._id || report.id);
 
@@ -1103,12 +1191,22 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                   <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                     theme === 'dark' ? 'text-red-400' : 'text-red-600'
                   }`}>
-                    ₹{(Number(report.expenses) || 0).toFixed(2)}
+                    ₹{(Number(report.regularExpenses) || 0).toFixed(2)}
+                  </td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                    theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                  }`}>
+                    ₹{(Number(report.otherExpenses) || 0).toFixed(2)}
                   </td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
                     theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
                   }`}>
                     ₹{totalCollection.toFixed(2)}
+                  </td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
+                    theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                  }`}>
+                    ₹{profit.toFixed(2)}
                   </td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
                     netIncome >= 0
