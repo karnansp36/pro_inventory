@@ -57,6 +57,7 @@ const userSchema = mongoose.Schema(
       type: String,
       required: false,
     },
+    
     refreshToken: {
       type: String,
       required: false,
