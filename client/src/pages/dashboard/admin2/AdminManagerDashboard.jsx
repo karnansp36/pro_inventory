@@ -25,7 +25,8 @@ import {
   PlusCircle,
   Filter,
   Calendar,
-  Truck
+  Truck,
+  CreditCard
 } from 'lucide-react';
 import { 
   getBranchesByManagerId, 
@@ -375,7 +376,10 @@ const AdminManagerDashboard = () => {
     const { name, value } = e.target;
     setNewBranchData((prevData) => ({ ...prevData, [name]: value }));
   };
-
+ // Add this function for product payments navigation
+  const handleProductPaymentsClick = () => {
+    navigate(`/dashboard/admin/manager/${managerId}/product-payments`);
+  };
   // Handle new branch submission using the new backend endpoint
   const handleAddBranchSubmit = async (e) => {
     e.preventDefault();
@@ -1082,7 +1086,42 @@ const AdminManagerDashboard = () => {
             );
           })}
         </div>
-
+                      {/* Stats Card */}
+        <div className={`p-6 rounded-xl border ${
+          theme === 'dark'
+            ? 'bg-slate-900/50 border-slate-800'
+            : 'bg-gray-50 border-gray-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className={`p-3 rounded-lg ${
+                theme === 'dark' ? 'bg-blue-600/20' : 'bg-blue-100'
+              }`}>
+               
+              </div>
+              <div>
+                <p className={`text-sm font-medium ${
+                  theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                }`}>
+                  Total Owners
+                </p>
+              
+              </div>
+            </div>
+            {/* Add Product Payments Button here */}
+            <button
+              onClick={handleProductPaymentsClick}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                theme === 'dark'
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'bg-green-500 hover:bg-green-600 text-white'
+              }`}
+            >
+              <CreditCard className="h-4 w-4" />
+              Product Payments
+            </button>
+          </div>
+        </div>
         {/* Assigned Branches List */}
         <div className={`rounded-2xl border shadow-lg ${
           theme === 'dark'
@@ -1343,7 +1382,7 @@ const AdminManagerDashboard = () => {
           </div>
         </div>
       </div>
-
+       
       {/* Add Branch Modal - Redesigned */}
       {showAddBranchModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">

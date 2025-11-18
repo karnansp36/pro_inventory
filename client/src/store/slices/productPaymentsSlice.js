@@ -1,15 +1,31 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import productPaymentService from "../../services/productPaymentService";
 
-// Thunk to get all product payments
-export const getProductPayments = createAsyncThunk(
-  "productPayments/getAll",
-  async ({ page = 1, limit = 10, filters = {} } = {}, { rejectWithValue }) => {
+// Thunk to get product payments by user ID from URL parameter
+export const getProductPaymentsByUserId = createAsyncThunk(
+  "productPayments/getByUserId",
+  async ({ userId, page = 1, limit = 10, filters = {} }, { rejectWithValue }) => {
     try {
-      return await productPaymentService.getProductPayments(page, limit, filters);
+      const response = await productPaymentService.getProductPaymentsByUserId(userId, page, limit, filters);
+      return response;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data || { message: "Failed to fetch product payments" }
+        error.response?.data || { message: "Failed to fetch product payments by user" }
+      );
+    }
+  }
+);
+
+// Thunk to get logged-in user's own payments
+export const getMyProductPayments = createAsyncThunk(
+  "productPayments/getMyPayments",
+  async ({ page = 1, limit = 10, filters = {} } = {}, { rejectWithValue }) => {
+    try {
+      const response = await productPaymentService.getMyProductPayments(page, limit, filters);
+      return response;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data || { message: "Failed to fetch your product payments" }
       );
     }
   }
@@ -20,7 +36,8 @@ export const createProductPayment = createAsyncThunk(
   "productPayments/create",
   async (paymentData, { rejectWithValue }) => {
     try {
-      return await productPaymentService.createProductPayment(paymentData);
+      const response = await productPaymentService.createProductPayment(paymentData);
+      return response;
     } catch (error) {
       return rejectWithValue(
         error.response?.data || { message: "Failed to create product payment" }
@@ -34,7 +51,8 @@ export const updateProductPayment = createAsyncThunk(
   "productPayments/update",
   async ({ id, paymentData }, { rejectWithValue }) => {
     try {
-      return await productPaymentService.updateProductPayment(id, paymentData);
+      const response = await productPaymentService.updateProductPayment(id, paymentData);
+      return response;
     } catch (error) {
       return rejectWithValue(
         error.response?.data || { message: "Failed to update product payment" }
@@ -58,20 +76,6 @@ export const deleteProductPayment = createAsyncThunk(
   }
 );
 
-// Thunk to get product payments by user ID
-export const getProductPaymentsByUserId = createAsyncThunk(
-  "productPayments/getByUserId",
-  async ({ userId, page = 1, limit = 10 }, { rejectWithValue }) => {
-    try {
-      return await productPaymentService.getProductPaymentsByUserId(userId, page, limit);
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data || { message: "Failed to fetch product payments by user" }
-      );
-    }
-  }
-);
-
 const productPaymentsSlice = createSlice({
   name: "productPayments",
   initialState: {
@@ -81,6 +85,7 @@ const productPaymentsSlice = createSlice({
     error: null,
     currentPage: 1,
     itemsPerPage: 10,
+    currentUser: null, // User whose payments are being displayed
     summary: {
       totalAmount: 0,
       totalPaid: 0,
@@ -91,7 +96,8 @@ const productPaymentsSlice = createSlice({
       status: 'all',
       minAmount: '',
       maxAmount: '',
-      dateFilter: { type: 'all', startDate: '', endDate: '' }
+      startDate: '',
+      endDate: ''
     }
   },
   reducers: {
@@ -115,28 +121,62 @@ const productPaymentsSlice = createSlice({
         status: 'all',
         minAmount: '',
         maxAmount: '',
-        dateFilter: { type: 'all', startDate: '', endDate: '' }
+        startDate: '',
+        endDate: ''
       };
       state.currentPage = 1;
+    },
+    clearProductPayments: (state) => {
+      state.productPayments = [];
+      state.totalItems = 0;
+      state.currentPage = 1;
+      state.currentUser = null;
+      state.summary = {
+        totalAmount: 0,
+        totalPaid: 0,
+        totalPending: 0,
+      };
+    },
+    setCurrentUser: (state, action) => {
+      state.currentUser = action.payload;
     }
   },
   extraReducers: (builder) => {
     builder
-      // getProductPayments
-      .addCase(getProductPayments.pending, (state) => {
+      // getProductPaymentsByUserId
+      .addCase(getProductPaymentsByUserId.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(getProductPayments.fulfilled, (state, action) => {
+      .addCase(getProductPaymentsByUserId.fulfilled, (state, action) => {
         state.loading = false;
         state.productPayments = action.payload.productPayments || [];
         state.totalItems = action.payload.totalItems || 0;
         state.currentPage = action.payload.currentPage || 1;
+        state.currentUser = action.payload.user || null;
         state.summary = action.payload.summary || state.summary;
       })
-      .addCase(getProductPayments.rejected, (state, action) => {
+      .addCase(getProductPaymentsByUserId.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload?.message || "Failed to fetch product payments";
+        state.error = action.payload?.message || "Failed to fetch product payments by user";
+      })
+      
+      // getMyProductPayments
+      .addCase(getMyProductPayments.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getMyProductPayments.fulfilled, (state, action) => {
+        state.loading = false;
+        state.productPayments = action.payload.productPayments || [];
+        state.totalItems = action.payload.totalItems || 0;
+        state.currentPage = action.payload.currentPage || 1;
+        state.currentUser = action.payload.user || null;
+        state.summary = action.payload.summary || state.summary;
+      })
+      .addCase(getMyProductPayments.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || "Failed to fetch your product payments";
       })
       
       // createProductPayment
@@ -147,7 +187,7 @@ const productPaymentsSlice = createSlice({
       .addCase(createProductPayment.fulfilled, (state, action) => {
         state.loading = false;
         state.productPayments.unshift(action.payload);
-        state.totalItems++;
+        state.totalItems += 1;
         // Update summary
         state.summary.totalAmount += action.payload.totalAmount;
         state.summary.totalPaid += action.payload.paymentDone;
@@ -205,22 +245,6 @@ const productPaymentsSlice = createSlice({
       .addCase(deleteProductPayment.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || "Failed to delete product payment";
-      })
-      
-      // getProductPaymentsByUserId
-      .addCase(getProductPaymentsByUserId.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(getProductPaymentsByUserId.fulfilled, (state, action) => {
-        state.loading = false;
-        state.productPayments = action.payload.productPayments || [];
-        state.totalItems = action.payload.totalItems || 0;
-        state.currentPage = action.payload.currentPage || 1;
-      })
-      .addCase(getProductPaymentsByUserId.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload?.message || "Failed to fetch product payments by user";
       });
   },
 });
@@ -230,7 +254,9 @@ export const {
   setCurrentPage, 
   setItemsPerPage, 
   setFilters, 
-  clearFilters 
+  clearFilters,
+  clearProductPayments,
+  setCurrentUser
 } = productPaymentsSlice.actions;
 
 export default productPaymentsSlice.reducer;

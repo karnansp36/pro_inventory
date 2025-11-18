@@ -9,11 +9,14 @@ import ManagerBranchOwners from '../pages/dashboard/manager/ManagerBranchOwners'
 import ManagerDailyStore from '../pages/dashboard/manager/ManagerDailyStore';
 import UserProfilePage from '../pages/dashboard/UserProfilePage';
 import ManagerBranchDashboard from '../pages/dashboard/manager/ManagerBranchDashboard';
+import ManagerProductPaymentsPage from '../pages/dashboard/manager/ManagerProductPaymentsPage';
 
 const ManagerRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<ManagerDashboard />} />
+
+      <Route path="/manager-product-payments" element={<ManagerProductPaymentsPage />} />
       {/* Add ManagerLayout as the main layout for branch-specific routes */}
       <Route path="/branch/:branchId" element={<ManagerLayout />}>
         <Route index element={<ManagerBranchDashboard />} />

@@ -2,30 +2,32 @@ import api from './api';
 
 const PRODUCT_PAYMENT_URL = '/productpayments';
 
-// Get all product payments with pagination and filters
-const getProductPayments = async (page = 1, limit = 10, filters = {}) => {
-  let url = `${PRODUCT_PAYMENT_URL}?page=${page}&limit=${limit}`;
+// Get product payments for a specific user by user ID
+const getProductPaymentsByUserId = async (userId, page = 1, limit = 10, filters = {}) => {
+  let url = `${PRODUCT_PAYMENT_URL}/user/${userId}?page=${page}&limit=${limit}`;
 
   // Add filters to the URL
   if (filters) {
     Object.keys(filters).forEach(key => {
       if (filters[key] && filters[key] !== 'all' && filters[key] !== '') {
-        if (key === 'dateFilter') {
-          // Handle date filter object separately
-          const dateFilter = filters[key];
-          if (dateFilter.type && dateFilter.type !== 'all') {
-            url += `&dateFilterType=${encodeURIComponent(dateFilter.type)}`;
-            if (dateFilter.startDate) {
-              url += `&startDate=${encodeURIComponent(dateFilter.startDate)}`;
-            }
-            if (dateFilter.endDate) {
-              url += `&endDate=${encodeURIComponent(dateFilter.endDate)}`;
-            }
-          }
-        } else {
-          // Handle other filters
-          url += `&${key}=${encodeURIComponent(filters[key])}`;
-        }
+        url += `&${key}=${encodeURIComponent(filters[key])}`;
+      }
+    });
+  }
+
+  const response = await api.get(url);
+  return response.data;
+};
+
+// Get product payments for the logged-in user
+const getMyProductPayments = async (page = 1, limit = 10, filters = {}) => {
+  let url = `${PRODUCT_PAYMENT_URL}/my-payments?page=${page}&limit=${limit}`;
+
+  // Add filters to the URL
+  if (filters) {
+    Object.keys(filters).forEach(key => {
+      if (filters[key] && filters[key] !== 'all' && filters[key] !== '') {
+        url += `&${key}=${encodeURIComponent(filters[key])}`;
       }
     });
   }
@@ -52,18 +54,12 @@ const deleteProductPayment = async (paymentId) => {
   return response.data;
 };
 
-// Get product payments by user ID
-const getProductPaymentsByUserId = async (userId, page = 1, limit = 10) => {
-  const response = await api.get(`${PRODUCT_PAYMENT_URL}/user/${userId}?page=${page}&limit=${limit}`);
-  return response.data;
-};
-
 const productPaymentService = {
-  getProductPayments,
+  getProductPaymentsByUserId,
+  getMyProductPayments,
   createProductPayment,
   updateProductPayment,
   deleteProductPayment,
-  getProductPaymentsByUserId,
 };
 
 export default productPaymentService;

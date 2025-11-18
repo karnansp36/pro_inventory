@@ -48,6 +48,7 @@ app.use('/api/transport', (await import('./routes/transportRoutes.js')).default)
 app.use('/api/reports', (await import('./routes/reportRoutes.js')).default);
 app.use('/api/export', (await import('./routes/exportRoutes.js')).default);
 app.use('/api/activity-logs', (await import('./routes/activityLogRoutes.js')).default);
+app.use('/api/productpayments', (await import('./routes/productPaymentRoutes.js')).default);
 
 app.use('/api/daily-report', (await import('./routes/dailyReportRoutes.js')).default);
 app.use('/api/daily-store-images', (await import('./routes/dailyStoreImageRoutes.js')).default);

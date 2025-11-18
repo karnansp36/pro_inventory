@@ -31,11 +31,9 @@ import {
   Loader2
 } from 'lucide-react';
 
-const ProductPaymentsTable = () => {
+const ManagerProductPaymentsTable = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const { user } = useSelector((state) => state.auth);
-  
   const dispatch = useDispatch();
   const { 
     productPayments, 
@@ -47,7 +45,8 @@ const ProductPaymentsTable = () => {
     filters,
     summary
   } = useSelector((state) => state.productPayments);
-  
+  const { user } = useSelector((state) => state.auth);
+
   const [showFilters, setShowFilters] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -861,4 +860,4 @@ const ProductPaymentsTable = () => {
   );
 };
 
-export default ProductPaymentsTable;
+export default ManagerProductPaymentsTable;

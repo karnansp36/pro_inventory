@@ -1,33 +1,30 @@
-// pages/dashboard/admin2/ProductPaymentsPage.jsx
+// pages/dashboard/admin2/ManagerProductPaymentsPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTheme } from '../../../context/ThemeContext';
-import ProductPaymentForm from './ProductPaymentForm';
-import ProductPaymentsTable from './ProductPaymentsTable';
+import ManagerProductPaymentForm from './ManagerProductPaymentForm';
+import ManagerProductPaymentsTable from './ManagerProductPaymentsTable';
 import { getProductPaymentsByUserId } from '../../../store/slices/productPaymentsSlice';
 
-const ProductPaymentsPage = () => {
-  const { user } = useSelector((state) => state.auth);
-  
+const ManagerProductPaymentsPage = () => {
   const dispatch = useDispatch();
   const { productPayments, loading, summary } = useSelector((state) => state.productPayments);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [showForm, setShowForm] = useState(false);
   const [refreshTable, setRefreshTable] = useState(0);
-
+    const { user } = useSelector((state) => state.auth);
+  
   const handlePaymentAdded = () => {
     setRefreshTable(prev => prev + 1);
     setShowForm(false);
     // Refresh the table data
-    dispatch(getProductPaymentsByUserId({      userId: user?._id, 
- page: 1, limit: 10 }));
+    dispatch(getProductPaymentsByUserId({  userId: user?._id, page: 1, limit: 10 }));
   };
 
   // Load initial data
   useEffect(() => {
-    dispatch(getProductPaymentsByUserId({      userId: user?._id, 
- page: 1, limit: 10 }));
+    dispatch(getProductPaymentsByUserId({ userId: user?._id, page: 1, limit: 10 }));
   }, [dispatch]);
 
   return (
@@ -174,7 +171,7 @@ const ProductPaymentsPage = () => {
           {/* Form - Conditional */}
           {showForm && (
             <div className="lg:col-span-1">
-              <ProductPaymentForm 
+              <ManagerProductPaymentForm 
                 onPaymentAdded={handlePaymentAdded}
                 onCancel={() => setShowForm(false)}
               />
@@ -183,7 +180,7 @@ const ProductPaymentsPage = () => {
           
           {/* Table */}
           <div className={showForm ? 'lg:col-span-2' : ''}>
-            <ProductPaymentsTable 
+            <ManagerProductPaymentsTable 
               key={refreshTable}
             />
           </div>
@@ -193,4 +190,4 @@ const ProductPaymentsPage = () => {
   );
 };
 
-export default ProductPaymentsPage;
+export default ManagerProductPaymentsPage;

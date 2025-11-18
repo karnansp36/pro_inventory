@@ -22,7 +22,8 @@ import {
   AlertCircle,
   Filter,
   Calendar,
-  Truck
+  Truck,
+  CreditCard
 } from 'lucide-react';
 import { getBranchesByManagerId, clearBranchesByManager } from '../../../store/slices/usersSlice';
 import { 
@@ -34,7 +35,7 @@ import { getDailyReportsByBranch } from '../../../store/slices/dailyReportSlice'
 import { getStockRequestsByBranch } from '../../../store/slices/stockRequestsSlice';
 import { getTransportsByBranch } from '../../../store/slices/transportSlice';
 import { useTheme } from '../../../context/ThemeContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../../../components/layout/Navbar';
 
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL_IMG;
@@ -48,7 +49,8 @@ const ManagerDashboard = () => {
   const { stockRequests } = useSelector((state) => state.stockRequests);
   const { branchesByManager, loading: branchesLoading } = useSelector((state) => state.users);
   const { loading: profileLoading, error: profileError, success: profileSuccess } = useSelector((state) => state.profile);
-  
+  const navigate = useNavigate();
+
   const [isEditingBanner, setIsEditingBanner] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [bannerImage, setBannerImage] = useState(null);
@@ -471,6 +473,10 @@ const ManagerDashboard = () => {
     setProfilePreview(user?.profileImage ? `${VITE_API_BASE_URL}/${user.profileImage}` : null);
   };
 
+    // Add this function for product payments navigation
+  const handleProductPaymentsClick = () => {
+    navigate('/dashboard/manager/manager-product-payments');
+  };
   const handleProfileFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -984,7 +990,42 @@ const ManagerDashboard = () => {
             );
           })}
         </div>
-
+           {/* Stats Card */}
+        <div className={`p-6 rounded-xl border ${
+          theme === 'dark'
+            ? 'bg-slate-900/50 border-slate-800'
+            : 'bg-gray-50 border-gray-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className={`p-3 rounded-lg ${
+                theme === 'dark' ? 'bg-blue-600/20' : 'bg-blue-100'
+              }`}>
+               
+              </div>
+              <div>
+                <p className={`text-sm font-medium ${
+                  theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                }`}>
+                  Total Owners
+                </p>
+              
+              </div>
+            </div>
+            {/* Add Product Payments Button here */}
+            <button
+              onClick={handleProductPaymentsClick}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                theme === 'dark'
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'bg-green-500 hover:bg-green-600 text-white'
+              }`}
+            >
+              <CreditCard className="h-4 w-4" />
+              Product Payments
+            </button>
+          </div>
+        </div>
         {/* Rest of your existing UI remains the same */}
         <div className={`rounded-2xl border shadow-lg ${
           theme === 'dark'

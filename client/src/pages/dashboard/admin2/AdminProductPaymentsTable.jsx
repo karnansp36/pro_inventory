@@ -30,12 +30,11 @@ import {
   AlertCircle,
   Loader2
 } from 'lucide-react';
+import { useParams } from 'react-router-dom'; // Add this import
 
-const ProductPaymentsTable = () => {
+const AdminProductPaymentsTable = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const { user } = useSelector((state) => state.auth);
-  
   const dispatch = useDispatch();
   const { 
     productPayments, 
@@ -47,7 +46,8 @@ const ProductPaymentsTable = () => {
     filters,
     summary
   } = useSelector((state) => state.productPayments);
-  
+  const { managerId } = useParams();
+
   const [showFilters, setShowFilters] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -55,7 +55,7 @@ const ProductPaymentsTable = () => {
 
   useEffect(() => {
     dispatch(getProductPaymentsByUserId({ 
-      userId: user?._id, 
+      userId: managerId,
       page: currentPage, 
       limit: itemsPerPage,
       filters 
@@ -861,4 +861,4 @@ const ProductPaymentsTable = () => {
   );
 };
 
-export default ProductPaymentsTable;
+export default AdminProductPaymentsTable;

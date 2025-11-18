@@ -4,7 +4,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import { useDispatch } from 'react-redux';
 import { createProductPayment } from '../../../store/slices/productPaymentsSlice';
 
-const ProductPaymentForm = ({ onPaymentAdded, onCancel }) => {
+const ManagerProductPaymentForm = ({ onPaymentAdded, onCancel }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const dispatch = useDispatch();
@@ -305,4 +305,4 @@ const ProductPaymentForm = ({ onPaymentAdded, onCancel }) => {
   );
 };
 
-export default ProductPaymentForm;
+export default ManagerProductPaymentForm;
