@@ -1,8 +1,8 @@
 // components/branch-owner/AdminSalesTable.jsx
-import React, { useState, useEffect, useMemo } from 'react';
-import { toast } from 'react-toastify';
-import { useTheme } from '../../../context/ThemeContext';
-import dailyReportService from '../../../services/dailyReportService';
+import React, { useState, useEffect, useMemo } from "react";
+import { toast } from "react-toastify";
+import { useTheme } from "../../../context/ThemeContext";
+import dailyReportService from "../../../services/dailyReportService";
 import {
   Calendar,
   DollarSign,
@@ -27,11 +27,11 @@ import {
   BarChart3,
   RefreshCw,
   Copy,
-  CheckCircle2
-} from 'lucide-react';
+  CheckCircle2,
+} from "lucide-react";
 
-const AdminSalesTable = ({ 
-  branchOwnerId, 
+const AdminSalesTable = ({
+  branchOwnerId,
   salesData = null,
   totalItems: propTotalItems = 0,
   isManagerView = false,
@@ -41,7 +41,7 @@ const AdminSalesTable = ({
   onPageChange = null,
   onItemsPerPageChange = null,
   loading: propLoading = false,
-  onRefresh = null
+  onRefresh = null,
 }) => {
   const [localCurrentPage, setLocalCurrentPage] = useState(1);
   const [localItemsPerPage, setLocalItemsPerPage] = useState(10);
@@ -50,10 +50,14 @@ const AdminSalesTable = ({
   const [localLoading, setLocalLoading] = useState(false);
 
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState({ type: 'all', startDate: '', endDate: '' });
-  const [sortField, setSortField] = useState('date');
-  const [sortOrder, setSortOrder] = useState('desc');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateFilter, setDateFilter] = useState({
+    type: "all",
+    startDate: "",
+    endDate: "",
+  });
+  const [sortField, setSortField] = useState("date");
+  const [sortOrder, setSortOrder] = useState("desc");
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [showFilters, setShowFilters] = useState(false);
   const [copiedRow, setCopiedRow] = useState(null);
@@ -61,7 +65,11 @@ const AdminSalesTable = ({
 
   const currentPage = isManagerView ? propCurrentPage : localCurrentPage;
   const itemsPerPage = isManagerView ? propItemsPerPage : localItemsPerPage;
-  const dailyReports = isManagerView ? (Array.isArray(salesData) ? salesData : []) : localSalesData;
+  const dailyReports = isManagerView
+    ? Array.isArray(salesData)
+      ? salesData
+      : []
+    : localSalesData;
   const totalItems = isManagerView ? propTotalItems : localTotalItems;
   const loading = isManagerView ? propLoading : localLoading;
 
@@ -89,8 +97,8 @@ const AdminSalesTable = ({
           setLocalSalesData(response.dailyReports);
           setLocalTotalItems(response.totalItems);
         } catch (error) {
-          toast.error('Failed to fetch daily reports.');
-          console.error('Error fetching daily reports:', error);
+          toast.error("Failed to fetch daily reports.");
+          console.error("Error fetching daily reports:", error);
         } finally {
           setLocalLoading(false);
         }
@@ -125,37 +133,45 @@ const AdminSalesTable = ({
   // When in ManagerView, we still need to apply local filtering/sorting to the provided salesData
   const processedReports = useMemo(() => {
     if (isManagerView) {
-      let filtered = dailyReports.filter(report => {
-        const matchesSearch = !searchTerm ||
+      let filtered = dailyReports.filter((report) => {
+        const matchesSearch =
+          !searchTerm ||
           report.date?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           report.gpay?.toString().includes(searchTerm) ||
           report.card?.toString().includes(searchTerm) ||
           report.cash?.toString().includes(searchTerm) ||
           report.regularExpenses?.toString().includes(searchTerm) ||
           report.otherExpenses?.toString().includes(searchTerm);
-        
+
         let matchesDateRange = true;
-        if (dateFilter.type !== 'all') {
+        if (dateFilter.type !== "all") {
           const reportDate = new Date(report.date);
-          
+
           switch (dateFilter.type) {
-            case 'today':
+            case "today":
               const today = new Date();
-              matchesDateRange = reportDate.toDateString() === today.toDateString();
+              matchesDateRange =
+                reportDate.toDateString() === today.toDateString();
               break;
-            case 'week':
+            case "week":
               const weekAgo = new Date();
               weekAgo.setDate(weekAgo.getDate() - 7);
               matchesDateRange = reportDate >= weekAgo;
               break;
-            case 'month':
+            case "month":
               const monthAgo = new Date();
               monthAgo.setDate(monthAgo.getDate() - 30);
               matchesDateRange = reportDate >= monthAgo;
               break;
-            case 'custom':
+            case "date":
+              aValue = new Date(a.date);
+              bValue = new Date(b.date);
+              break;
+            case "custom":
               if (dateFilter.startDate) {
-                matchesDateRange = matchesDateRange && reportDate >= new Date(dateFilter.startDate);
+                matchesDateRange =
+                  matchesDateRange &&
+                  reportDate >= new Date(dateFilter.startDate);
               }
               if (dateFilter.endDate) {
                 const endDate = new Date(dateFilter.endDate);
@@ -175,29 +191,47 @@ const AdminSalesTable = ({
         let aValue, bValue;
 
         switch (sortField) {
-          case 'date':
+          case "date":
             aValue = new Date(a.date);
             bValue = new Date(b.date);
             break;
-          case 'gpay':
-          case 'card':
-          case 'cash':
-          case 'regularExpenses':
-          case 'otherExpenses':
+          case "gpay":
+          case "card":
+          case "cash":
+          case "regularExpenses":
+          case "otherExpenses":
             aValue = Number(a[sortField]) || 0;
             bValue = Number(b[sortField]) || 0;
             break;
-          case 'total':
-            aValue = (Number(a.gpay) || 0) + (Number(a.card) || 0) + (Number(a.cash) || 0);
-            bValue = (Number(b.gpay) || 0) + (Number(b.card) || 0) + (Number(b.cash) || 0);
+          case "total":
+            aValue =
+              (Number(a.gpay) || 0) +
+              (Number(a.card) || 0) +
+              (Number(a.cash) || 0);
+            bValue =
+              (Number(b.gpay) || 0) +
+              (Number(b.card) || 0) +
+              (Number(b.cash) || 0);
             break;
-          case 'netIncome':
-            aValue = ((Number(a.gpay) || 0) + (Number(a.card) || 0) + (Number(a.cash) || 0)) - ((Number(a.regularExpenses) || 0) + (Number(a.otherExpenses) || 0));
-            bValue = ((Number(b.gpay) || 0) + (Number(b.card) || 0) + (Number(b.cash) || 0)) - ((Number(b.regularExpenses) || 0) + (Number(b.otherExpenses) || 0));
+          case "netIncome":
+            aValue =
+              (Number(a.gpay) || 0) +
+              (Number(a.card) || 0) +
+              (Number(a.cash) || 0) -
+              ((Number(a.regularExpenses) || 0) +
+                (Number(a.otherExpenses) || 0));
+            bValue =
+              (Number(b.gpay) || 0) +
+              (Number(b.card) || 0) +
+              (Number(b.cash) || 0) -
+              ((Number(b.regularExpenses) || 0) +
+                (Number(b.otherExpenses) || 0));
             break;
-          case 'profit':
-            const totalExpensesA = (Number(a.regularExpenses) || 0) + (Number(a.otherExpenses) || 0);
-            const totalExpensesB = (Number(b.regularExpenses) || 0) + (Number(b.otherExpenses) || 0);
+          case "profit":
+            const totalExpensesA =
+              (Number(a.regularExpenses) || 0) + (Number(a.otherExpenses) || 0);
+            const totalExpensesB =
+              (Number(b.regularExpenses) || 0) + (Number(b.otherExpenses) || 0);
             aValue = totalExpensesA * 0.35;
             bValue = totalExpensesB * 0.35;
             break;
@@ -205,14 +239,21 @@ const AdminSalesTable = ({
             return 0;
         }
 
-        if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+        if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
+        if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
         return 0;
       });
       return sorted;
     }
     return dailyReports; // When not in manager view, data is already filtered/sorted by backend
-  }, [dailyReports, searchTerm, dateFilter, sortField, sortOrder, isManagerView]);
+  }, [
+    dailyReports,
+    searchTerm,
+    dateFilter,
+    sortField,
+    sortOrder,
+    isManagerView,
+  ]);
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -222,16 +263,27 @@ const AdminSalesTable = ({
   // Calculate totals
   const getTotalCollection = () => {
     return processedReports.reduce((sum, report) => {
-      return sum + (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
+      return (
+        sum +
+        (Number(report.gpay) || 0) +
+        (Number(report.card) || 0) +
+        (Number(report.cash) || 0)
+      );
     }, 0);
   };
 
   const getTotalRegularExpenses = () => {
-    return processedReports.reduce((sum, report) => sum + (Number(report.regularExpenses) || 0), 0);
+    return processedReports.reduce(
+      (sum, report) => sum + (Number(report.regularExpenses) || 0),
+      0
+    );
   };
 
   const getTotalOtherExpenses = () => {
-    return processedReports.reduce((sum, report) => sum + (Number(report.otherExpenses) || 0), 0);
+    return processedReports.reduce(
+      (sum, report) => sum + (Number(report.otherExpenses) || 0),
+      0
+    );
   };
 
   const getTotalExpenses = () => {
@@ -243,29 +295,33 @@ const AdminSalesTable = ({
   };
 
   const getAverageCollection = () => {
-    return processedReports.length > 0 ? getTotalCollection() / processedReports.length : 0;
+    return processedReports.length > 0
+      ? getTotalCollection() / processedReports.length
+      : 0;
   };
 
   const getAverageExpenses = () => {
-    return processedReports.length > 0 ? getTotalExpenses() / processedReports.length : 0;
+    return processedReports.length > 0
+      ? getTotalExpenses() / processedReports.length
+      : 0;
   };
 
   // Sort handler
   const handleSort = (field) => {
     if (isManagerView) {
       if (sortField === field) {
-        setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        setSortOrder(sortOrder === "asc" ? "desc" : "asc");
       } else {
         setSortField(field);
-        setSortOrder('asc');
+        setSortOrder("asc");
       }
     } else {
       // For local view, sorting is handled by backend fetch
       if (sortField === field) {
-        setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        setSortOrder(sortOrder === "asc" ? "desc" : "asc");
       } else {
         setSortField(field);
-        setSortOrder('asc');
+        setSortOrder("asc");
       }
       setLocalCurrentPage(1); // Reset to first page on sort change
     }
@@ -286,17 +342,22 @@ const AdminSalesTable = ({
     if (selectedRows.size === currentReports.length) {
       setSelectedRows(new Set());
     } else {
-      setSelectedRows(new Set(currentReports.map(r => r._id || r.id)));
+      setSelectedRows(new Set(currentReports.map((r) => r._id || r.id)));
     }
   };
 
   // Copy row data
   const copyRowData = (report) => {
-    const totalCollection = (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
-    const totalExpenses = (Number(report.regularExpenses) || 0) + (Number(report.otherExpenses) || 0);
+    const totalCollection =
+      (Number(report.gpay) || 0) +
+      (Number(report.card) || 0) +
+      (Number(report.cash) || 0);
+    const totalExpenses =
+      (Number(report.regularExpenses) || 0) +
+      (Number(report.otherExpenses) || 0);
     const netIncome = totalCollection - totalExpenses;
     const profit = totalExpenses * 0.35;
-    
+
     const text = `Date: ${report.date}
 GPay: ₹${(Number(report.gpay) || 0).toFixed(2)}
 Card: ₹${(Number(report.card) || 0).toFixed(2)}
@@ -308,13 +369,16 @@ Total Expenses: ₹${totalExpenses.toFixed(2)}
 Profit (35%): ₹${profit.toFixed(2)}
 Net Income: ₹${netIncome.toFixed(2)}`;
 
-    navigator.clipboard.writeText(text).then(() => {
-      setCopiedRow(report._id || report.id);
-      toast.success('Data copied to clipboard!');
-      setTimeout(() => setCopiedRow(null), 2000);
-    }).catch(() => {
-      toast.error('Failed to copy data');
-    });
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopiedRow(report._id || report.id);
+        toast.success("Data copied to clipboard!");
+        setTimeout(() => setCopiedRow(null), 2000);
+      })
+      .catch(() => {
+        toast.error("Failed to copy data");
+      });
   };
 
   // Pagination handlers
@@ -361,7 +425,44 @@ Net Income: ₹${netIncome.toFixed(2)}`;
       setLocalCurrentPage(page);
     }
   };
+  // Add this helper function at the top of the component, after the imports
+  const formatDateWithDay = (dateString) => {
+    if (!dateString) return "Invalid Date";
 
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Invalid Date";
+
+      const options = {
+        weekday: "long",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      };
+      return date.toLocaleDateString("en-US", options);
+    } catch (error) {
+      return "Invalid Date";
+    }
+  };
+
+  // Also add this helper function for a shorter version if needed
+  const formatDateWithShortDay = (dateString) => {
+    if (!dateString) return "Invalid Date";
+
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Invalid Date";
+
+      const options = {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      };
+      return date.toLocaleDateString("en-US", options);
+    } catch (error) {
+      return "Invalid Date";
+    }
+  };
   const handleItemsPerPageChange = (newItemsPerPage) => {
     if (isManagerView && onItemsPerPageChange) {
       onItemsPerPageChange(newItemsPerPage);
@@ -374,7 +475,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
   const getPageNumbers = () => {
     const pages = [];
     const maxVisible = 5;
-    
+
     if (totalPages <= maxVisible) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
@@ -382,17 +483,17 @@ Net Income: ₹${netIncome.toFixed(2)}`;
     } else {
       if (currentPage <= 3) {
         for (let i = 1; i <= 4; i++) pages.push(i);
-        pages.push('...');
+        pages.push("...");
         pages.push(totalPages);
       } else if (currentPage >= totalPages - 2) {
         pages.push(1);
-        pages.push('...');
+        pages.push("...");
         for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
       } else {
         pages.push(1);
-        pages.push('...');
+        pages.push("...");
         for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-        pages.push('...');
+        pages.push("...");
         pages.push(totalPages);
       }
     }
@@ -402,7 +503,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
   // Enhanced CSV Export
   const downloadCSV = () => {
     if (processedReports.length === 0) {
-      toast.error('No data to export');
+      toast.error("No data to export");
       return;
     }
 
@@ -410,31 +511,40 @@ Net Income: ₹${netIncome.toFixed(2)}`;
       const escapeCSV = (field) => {
         if (field === null || field === undefined) return '""';
         const stringField = String(field);
-        if (stringField.includes('"') || stringField.includes(',') || stringField.includes('\n')) {
+        if (
+          stringField.includes('"') ||
+          stringField.includes(",") ||
+          stringField.includes("\n")
+        ) {
           return `"${stringField.replace(/"/g, '""')}"`;
         }
         return stringField;
       };
 
       const headers = [
-        'Date',
-        'GPay',
-        'Card',
-        'Cash',
-        'Regular Expenses',
-        'Other Expenses',
-        'Total Collection',
-        'Total Expenses',
-        'Profit (35%)',
-        'Net Income'
+        "Date",
+        "GPay",
+        "Card",
+        "Cash",
+        "Regular Expenses",
+        "Other Expenses",
+        "Total Collection",
+        "Total Expenses",
+        "Profit (35%)",
+        "Net Income",
       ];
 
-      const csvRows = processedReports.map(report => {
-        const totalCollection = (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
-        const totalExpenses = (Number(report.regularExpenses) || 0) + (Number(report.otherExpenses) || 0);
+      const csvRows = processedReports.map((report) => {
+        const totalCollection =
+          (Number(report.gpay) || 0) +
+          (Number(report.card) || 0) +
+          (Number(report.cash) || 0);
+        const totalExpenses =
+          (Number(report.regularExpenses) || 0) +
+          (Number(report.otherExpenses) || 0);
         const profit = totalExpenses * 0.35;
         const netIncome = totalCollection - totalExpenses;
-        
+
         return [
           escapeCSV(report.date),
           escapeCSV((Number(report.gpay) || 0).toFixed(2)),
@@ -445,62 +555,74 @@ Net Income: ₹${netIncome.toFixed(2)}`;
           escapeCSV(totalCollection.toFixed(2)),
           escapeCSV(totalExpenses.toFixed(2)),
           escapeCSV(profit.toFixed(2)),
-          escapeCSV(netIncome.toFixed(2))
+          escapeCSV(netIncome.toFixed(2)),
         ];
       });
 
-      let csvContent = [headers.join(',')];
-      csvContent = csvContent.concat(csvRows.map(row => row.join(',')));
+      let csvContent = [headers.join(",")];
+      csvContent = csvContent.concat(csvRows.map((row) => row.join(",")));
 
       // Enhanced summary
-      csvContent.push('');
-      csvContent.push('SUMMARY STATISTICS');
+      csvContent.push("");
+      csvContent.push("SUMMARY STATISTICS");
       csvContent.push(`Total Records,${totalItems}`);
       csvContent.push(`Total Collection,₹${getTotalCollection().toFixed(2)}`);
-      csvContent.push(`Average Collection,₹${getAverageCollection().toFixed(2)}`);
-      csvContent.push(`Total Regular Expenses,₹${getTotalRegularExpenses().toFixed(2)}`);
-      csvContent.push(`Total Other Expenses,₹${getTotalOtherExpenses().toFixed(2)}`);
+      csvContent.push(
+        `Average Collection,₹${getAverageCollection().toFixed(2)}`
+      );
+      csvContent.push(
+        `Total Regular Expenses,₹${getTotalRegularExpenses().toFixed(2)}`
+      );
+      csvContent.push(
+        `Total Other Expenses,₹${getTotalOtherExpenses().toFixed(2)}`
+      );
       csvContent.push(`Total Expenses,₹${getTotalExpenses().toFixed(2)}`);
       csvContent.push(`Average Expenses,₹${getAverageExpenses().toFixed(2)}`);
       csvContent.push(`Total Profit (35%),₹${getTotalProfit().toFixed(2)}`);
-      csvContent.push(`Net Income,₹${(getTotalCollection() - getTotalExpenses()).toFixed(2)}`);
-      csvContent.push(`Export Date,${new Date().toLocaleDateString('en-US')}`);
-      csvContent.push(`Export Time,${new Date().toLocaleTimeString('en-US')}`);
+      csvContent.push(
+        `Net Income,₹${(getTotalCollection() - getTotalExpenses()).toFixed(2)}`
+      );
+      csvContent.push(`Export Date,${new Date().toLocaleDateString("en-US")}`);
+      csvContent.push(`Export Time,${new Date().toLocaleTimeString("en-US")}`);
 
-      const blob = new Blob([csvContent.join('\n')], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
+      const blob = new Blob([csvContent.join("\n")], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
-      
-      const date = new Date().toISOString().split('T')[0];
-      const filename = `daily-reports-${branchOwnerId || 'branch'}-${date}.csv`;
-      
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      link.style.visibility = 'hidden';
-      
+
+      const date = new Date().toISOString().split("T")[0];
+      const filename = `daily-reports-${branchOwnerId || "branch"}-${date}.csv`;
+
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      link.style.visibility = "hidden";
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       URL.revokeObjectURL(url);
-      
-      toast.success('CSV file downloaded successfully!');
+
+      toast.success("CSV file downloaded successfully!");
       setShowExportMenu(false);
     } catch (error) {
-      console.error('Error downloading CSV:', error);
-      toast.error('Failed to download CSV file');
+      console.error("Error downloading CSV:", error);
+      toast.error("Failed to download CSV file");
     }
   };
 
   // Export selected rows
   const exportSelectedRows = () => {
     if (selectedRows.size === 0) {
-      toast.error('No rows selected');
+      toast.error("No rows selected");
       return;
     }
 
-    const selectedData = processedReports.filter(r => selectedRows.has(r._id || r.id));
-    
+    const selectedData = processedReports.filter((r) =>
+      selectedRows.has(r._id || r.id)
+    );
+
     // Temporarily set filtered data for export
     downloadCSV(); // This will now use selectedData if we pass it
   };
@@ -509,71 +631,81 @@ Net Income: ₹${netIncome.toFixed(2)}`;
   const applyQuickDateFilter = (type) => {
     const today = new Date();
     let startDate = new Date();
-    
+
     switch (type) {
-      case 'today':
+      case "today":
         startDate = new Date(today);
         break;
-      case 'week':
+      case "week":
         startDate.setDate(today.getDate() - 7);
         break;
-      case 'month':
+      case "month":
         startDate.setMonth(today.getMonth() - 1);
         break;
-      case 'custom':
-        setDateFilter({ type: 'custom', startDate: '', endDate: '' });
+      case "custom":
+        setDateFilter({ type: "custom", startDate: "", endDate: "" });
         return;
       default:
-        setDateFilter({ type: 'all', startDate: '', endDate: '' });
+        setDateFilter({ type: "all", startDate: "", endDate: "" });
         return;
     }
 
     setDateFilter({
       type,
-      startDate: startDate.toISOString().split('T')[0],
-      endDate: today.toISOString().split('T')[0]
+      startDate: startDate.toISOString().split("T")[0],
+      endDate: today.toISOString().split("T")[0],
     });
     setLocalCurrentPage(1); // Reset to first page on filter change
   };
 
   // Clear all filters
   const clearFilters = () => {
-    setSearchTerm('');
-    setDateFilter({ type: 'all', startDate: '', endDate: '' });
+    setSearchTerm("");
+    setDateFilter({ type: "all", startDate: "", endDate: "" });
     setLocalCurrentPage(1);
     setSelectedRows(new Set());
-    setSortField('date'); // Reset sort field
-    setSortOrder('desc'); // Reset sort order
+    setSortField("date"); // Reset sort field
+    setSortOrder("desc"); // Reset sort order
   };
 
   const SortIcon = ({ field }) => {
     if (sortField !== field) return <ArrowUpDown className="w-3 h-3" />;
-    return sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />;
+    return sortOrder === "asc" ? (
+      <ArrowUp className="w-3 h-3" />
+    ) : (
+      <ArrowDown className="w-3 h-3" />
+    );
   };
 
   const dateFilters = [
-    { key: 'all', label: 'All Time' },
-    { key: 'today', label: 'Today' },
-    { key: 'week', label: 'Last 7 Days' },
-    { key: 'month', label: 'Last 30 Days' },
-    { key: 'custom', label: 'Custom Range' }
+    { key: "all", label: "All Time" },
+    { key: "today", label: "Today" },
+    { key: "week", label: "Last 7 Days" },
+    { key: "month", label: "Last 30 Days" },
+    { key: "custom", label: "Custom Range" },
   ];
 
   // Loading state
   if (loading && dailyReports.length === 0) {
     return (
-      <div className={`rounded-xl p-8 transition-all duration-300 ${
-        theme === 'dark'
-          ? 'bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm'
-          : 'bg-white border border-gray-200 shadow-lg'
-      }`}>
+      <div
+        className={`rounded-xl p-8 transition-all duration-300 ${
+          theme === "dark"
+            ? "bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm"
+            : "bg-white border border-gray-200 shadow-lg"
+        }`}
+      >
         <div className="flex flex-col items-center justify-center py-12">
-          <Loader2 className={`w-12 h-12 animate-spin mb-4 ${
-            theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
-          }`} />
-          <p className={`text-sm ${
-            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-          }`}>
+          <Loader2
+            className={`w-12 h-12 animate-spin mb-4 ${
+              theme === "dark" ? "text-emerald-400" : "text-emerald-600"
+            }`}
+          />
+          <p
+            className={`text-sm ${
+              theme === "dark" ? "text-gray-400" : "text-gray-600"
+            }`}
+          >
             Loading daily reports...
           </p>
         </div>
@@ -582,42 +714,56 @@ Net Income: ₹${netIncome.toFixed(2)}`;
   }
 
   return (
-    <div className={`rounded-xl overflow-hidden transition-all duration-300 ${
-      theme === 'dark'
-        ? 'bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm'
-        : 'bg-white border border-gray-200 shadow-lg'
-    }`}>
+    <div
+      className={`rounded-xl overflow-hidden transition-all duration-300 ${
+        theme === "dark"
+          ? "bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm"
+          : "bg-white border border-gray-200 shadow-lg"
+      }`}
+    >
       {/* Header */}
-      <div className={`px-6 py-4 border-b ${
-        theme === 'dark' ? 'border-slate-700/50' : 'border-gray-200'
-      }`}>
+      <div
+        className={`px-6 py-4 border-b ${
+          theme === "dark" ? "border-slate-700/50" : "border-gray-200"
+        }`}
+      >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${
-              theme === 'dark'
-                ? 'bg-emerald-500/20 border border-emerald-500/30'
-                : 'bg-emerald-50 border border-emerald-200'
-            }`}>
-              <Receipt className={`w-5 h-5 ${
-                theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
-              }`} />
+            <div
+              className={`p-2 rounded-lg ${
+                theme === "dark"
+                  ? "bg-emerald-500/20 border border-emerald-500/30"
+                  : "bg-emerald-50 border border-emerald-200"
+              }`}
+            >
+              <Receipt
+                className={`w-5 h-5 ${
+                  theme === "dark" ? "text-emerald-400" : "text-emerald-600"
+                }`}
+              />
             </div>
             <div>
-              <h2 className={`text-lg font-semibold ${
-                theme === 'dark' ? 'text-white' : 'text-gray-900'
-              }`}>
-                {isManagerView ? 'Daily Reports Overview' : 'Daily Reports'}
+              <h2
+                className={`text-lg font-semibold ${
+                  theme === "dark" ? "text-white" : "text-gray-900"
+                }`}
+              >
+                {isManagerView ? "Daily Reports Overview" : "Daily Reports"}
               </h2>
-              <p className={`text-xs ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                Showing {startIndex + 1} to {endIndex} of {totalItems} report{totalItems !== 1 ? 's' : ''}
-                {totalItems !== dailyReports.length && ` (filtered from ${totalItems})`}
+              <p
+                className={`text-xs ${
+                  theme === "dark" ? "text-gray-400" : "text-gray-600"
+                }`}
+              >
+                Showing {startIndex + 1} to {endIndex} of {totalItems} report
+                {totalItems !== 1 ? "s" : ""}
+                {totalItems !== dailyReports.length &&
+                  ` (filtered from ${totalItems})`}
                 {selectedRows.size > 0 && ` • ${selectedRows.size} selected`}
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             {/* Refresh Button */}
             {onRefresh && (
@@ -625,13 +771,15 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                 onClick={onRefresh}
                 disabled={loading}
                 className={`p-2 rounded-lg transition-colors ${
-                  theme === 'dark'
-                    ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
-                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-                } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  theme === "dark"
+                    ? "hover:bg-slate-700 text-gray-400 hover:text-white"
+                    : "hover:bg-gray-100 text-gray-600 hover:text-gray-900"
+                } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
                 title="Refresh data"
               >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+                />
               </button>
             )}
 
@@ -640,12 +788,12 @@ Net Income: ₹${netIncome.toFixed(2)}`;
               onClick={() => setShowFilters(!showFilters)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                 showFilters
-                  ? theme === 'dark'
-                    ? 'bg-emerald-500/20 text-emerald-400'
-                    : 'bg-emerald-100 text-emerald-700'
-                  : theme === 'dark'
-                  ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
-                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                  ? theme === "dark"
+                    ? "bg-emerald-500/20 text-emerald-400"
+                    : "bg-emerald-100 text-emerald-700"
+                  : theme === "dark"
+                  ? "hover:bg-slate-700 text-gray-400 hover:text-white"
+                  : "hover:bg-gray-100 text-gray-600 hover:text-gray-900"
               }`}
             >
               <Filter className="w-4 h-4" />
@@ -658,10 +806,10 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                 onClick={() => setShowExportMenu(!showExportMenu)}
                 disabled={totalItems === 0}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                  theme === 'dark'
-                    ? 'hover:bg-slate-700 text-gray-400 hover:text-white'
-                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-                } ${totalItems === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  theme === "dark"
+                    ? "hover:bg-slate-700 text-gray-400 hover:text-white"
+                    : "hover:bg-gray-100 text-gray-600 hover:text-gray-900"
+                } ${totalItems === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <Download className="w-4 h-4" />
                 <span>Export</span>
@@ -673,15 +821,19 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                     className="fixed inset-0 z-40"
                     onClick={() => setShowExportMenu(false)}
                   />
-                  <div className={`absolute right-0 top-full mt-1 w-64 rounded-lg shadow-lg border z-50 ${
-                    theme === 'dark'
-                      ? 'bg-slate-800 border-slate-700'
-                      : 'bg-white border-gray-200'
-                  }`}>
+                  <div
+                    className={`absolute right-0 top-full mt-1 w-64 rounded-lg shadow-lg border z-50 ${
+                      theme === "dark"
+                        ? "bg-slate-800 border-slate-700"
+                        : "bg-white border-gray-200"
+                    }`}
+                  >
                     <div className="p-2">
-                      <div className={`px-3 py-2 text-xs font-semibold ${
-                        theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                      }`}>
+                      <div
+                        className={`px-3 py-2 text-xs font-semibold ${
+                          theme === "dark" ? "text-gray-400" : "text-gray-500"
+                        }`}
+                      >
                         Export Options
                       </div>
                       <button
@@ -710,23 +862,27 @@ Net Income: ₹${netIncome.toFixed(2)}`;
 
         {/* Advanced Filters */}
         {showFilters && (
-          <div className={`mt-4 p-4 rounded-lg border ${
-            theme === 'dark'
-              ? 'bg-slate-700/50 border-slate-600'
-              : 'bg-gray-50 border-gray-200'
-          }`}>
+          <div
+            className={`mt-4 p-4 rounded-lg border ${
+              theme === "dark"
+                ? "bg-slate-700/50 border-slate-600"
+                : "bg-gray-50 border-gray-200"
+            }`}
+          >
             <div className="flex items-center justify-between mb-3">
-              <h3 className={`text-sm font-medium ${
-                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <h3
+                className={`text-sm font-medium ${
+                  theme === "dark" ? "text-gray-300" : "text-gray-700"
+                }`}
+              >
                 Filters
               </h3>
               <button
                 onClick={clearFilters}
                 className={`text-xs flex items-center gap-1 ${
-                  theme === 'dark'
-                    ? 'text-gray-400 hover:text-gray-300'
-                    : 'text-gray-500 hover:text-gray-700'
+                  theme === "dark"
+                    ? "text-gray-400 hover:text-gray-300"
+                    : "text-gray-500 hover:text-gray-700"
                 }`}
               >
                 <X className="w-3 h-3" />
@@ -737,15 +893,19 @@ Net Income: ₹${netIncome.toFixed(2)}`;
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Search */}
               <div className="lg:col-span-2">
-                <label className={`block text-xs font-medium mb-1 ${
-                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <label
+                  className={`block text-xs font-medium mb-1 ${
+                    theme === "dark" ? "text-gray-400" : "text-gray-600"
+                  }`}
+                >
                   Search
                 </label>
                 <div className="relative">
-                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
-                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                  }`} />
+                  <Search
+                    className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                      theme === "dark" ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  />
                   <input
                     type="text"
                     placeholder="Search by date, amount..."
@@ -755,9 +915,9 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                       setLocalCurrentPage(1); // Reset to first page on search
                     }}
                     className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
-                      theme === 'dark'
-                        ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400'
-                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                      theme === "dark"
+                        ? "bg-slate-700 border-slate-600 text-white placeholder-gray-400"
+                        : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
                     }`}
                   />
                 </div>
@@ -765,12 +925,14 @@ Net Income: ₹${netIncome.toFixed(2)}`;
 
               {/* Date Filters */}
               <div className="lg:col-span-2 space-y-2">
-                <label className={`text-sm font-medium ${
-                  theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                }`}>
+                <label
+                  className={`text-sm font-medium ${
+                    theme === "dark" ? "text-gray-300" : "text-gray-700"
+                  }`}
+                >
                   Date Range
                 </label>
-                
+
                 {/* Quick Date Filters */}
                 <div className="flex flex-wrap gap-2">
                   {dateFilters.map((filter) => (
@@ -779,12 +941,12 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                       onClick={() => applyQuickDateFilter(filter.key)}
                       className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
                         dateFilter.type === filter.key
-                          ? theme === 'dark'
-                            ? 'bg-emerald-500 text-white'
-                            : 'bg-emerald-500 text-white'
-                          : theme === 'dark'
-                          ? 'bg-slate-600 text-gray-300 hover:bg-slate-500'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          ? theme === "dark"
+                            ? "bg-emerald-500 text-white"
+                            : "bg-emerald-500 text-white"
+                          : theme === "dark"
+                          ? "bg-slate-600 text-gray-300 hover:bg-slate-500"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                       }`}
                     >
                       {filter.label}
@@ -793,39 +955,53 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                 </div>
 
                 {/* Custom Date Range */}
-                {dateFilter.type === 'custom' && (
+                {dateFilter.type === "custom" && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                     <div>
-                      <label className={`block text-xs font-medium mb-1 ${
-                        theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
+                      <label
+                        className={`block text-xs font-medium mb-1 ${
+                          theme === "dark" ? "text-gray-400" : "text-gray-600"
+                        }`}
+                      >
                         Start Date
                       </label>
                       <input
                         type="date"
                         value={dateFilter.startDate}
-                        onChange={(e) => setDateFilter(prev => ({ ...prev, startDate: e.target.value }))}
+                        onChange={(e) =>
+                          setDateFilter((prev) => ({
+                            ...prev,
+                            startDate: e.target.value,
+                          }))
+                        }
                         className={`w-full px-3 py-1.5 rounded border text-sm ${
-                          theme === 'dark'
-                            ? 'bg-slate-600 border-slate-500 text-white'
-                            : 'bg-white border-gray-300 text-gray-900'
+                          theme === "dark"
+                            ? "bg-slate-600 border-slate-500 text-white"
+                            : "bg-white border-gray-300 text-gray-900"
                         }`}
                       />
                     </div>
                     <div>
-                      <label className={`block text-xs font-medium mb-1 ${
-                        theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
+                      <label
+                        className={`block text-xs font-medium mb-1 ${
+                          theme === "dark" ? "text-gray-400" : "text-gray-600"
+                        }`}
+                      >
                         End Date
                       </label>
                       <input
                         type="date"
                         value={dateFilter.endDate}
-                        onChange={(e) => setDateFilter(prev => ({ ...prev, endDate: e.target.value }))}
+                        onChange={(e) =>
+                          setDateFilter((prev) => ({
+                            ...prev,
+                            endDate: e.target.value,
+                          }))
+                        }
                         className={`w-full px-3 py-1.5 rounded border text-sm ${
-                          theme === 'dark'
-                            ? 'bg-slate-600 border-slate-500 text-white'
-                            : 'bg-white border-gray-300 text-gray-900'
+                          theme === "dark"
+                            ? "bg-slate-600 border-slate-500 text-white"
+                            : "bg-white border-gray-300 text-gray-900"
                         }`}
                       />
                     </div>
@@ -838,172 +1014,234 @@ Net Income: ₹${netIncome.toFixed(2)}`;
       </div>
 
       {/* Enhanced Stats Cards */}
-      <div className={`px-6 py-4 border-b ${
-        theme === 'dark' ? 'border-slate-700/50' : 'border-gray-200'
-      }`}>
+      <div
+        className={`px-6 py-4 border-b ${
+          theme === "dark" ? "border-slate-700/50" : "border-gray-200"
+        }`}
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
-          <div className={`p-4 rounded-lg ${
-            theme === 'dark'
-              ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30'
-              : 'bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200'
-          }`}>
+          <div
+            className={`p-4 rounded-lg ${
+              theme === "dark"
+                ? "bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30"
+                : "bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200"
+            }`}
+          >
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${
-                theme === 'dark' ? 'bg-emerald-500/30' : 'bg-emerald-200'
-              }`}>
-                <DollarSign className={`w-4 h-4 ${
-                  theme === 'dark' ? 'text-emerald-300' : 'text-emerald-700'
-                }`} />
+              <div
+                className={`p-2 rounded-lg ${
+                  theme === "dark" ? "bg-emerald-500/30" : "bg-emerald-200"
+                }`}
+              >
+                <DollarSign
+                  className={`w-4 h-4 ${
+                    theme === "dark" ? "text-emerald-300" : "text-emerald-700"
+                  }`}
+                />
               </div>
               <div>
-                <p className={`text-xs ${
-                  theme === 'dark' ? 'text-emerald-300' : 'text-emerald-700'
-                }`}>
+                <p
+                  className={`text-xs ${
+                    theme === "dark" ? "text-emerald-300" : "text-emerald-700"
+                  }`}
+                >
                   Total Collection
                 </p>
-                <p className={`text-lg font-bold ${
-                  theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
-                }`}>
+                <p
+                  className={`text-lg font-bold ${
+                    theme === "dark" ? "text-emerald-400" : "text-emerald-600"
+                  }`}
+                >
                   ₹{getTotalCollection().toFixed(2)}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className={`p-4 rounded-lg ${
-            theme === 'dark'
-              ? 'bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/30'
-              : 'bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200'
-          }`}>
+          <div
+            className={`p-4 rounded-lg ${
+              theme === "dark"
+                ? "bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/30"
+                : "bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200"
+            }`}
+          >
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${
-                theme === 'dark' ? 'bg-blue-500/30' : 'bg-blue-200'
-              }`}>
-                <TrendingUp className={`w-4 h-4 ${
-                  theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
-                }`} />
+              <div
+                className={`p-2 rounded-lg ${
+                  theme === "dark" ? "bg-blue-500/30" : "bg-blue-200"
+                }`}
+              >
+                <TrendingUp
+                  className={`w-4 h-4 ${
+                    theme === "dark" ? "text-blue-300" : "text-blue-700"
+                  }`}
+                />
               </div>
               <div>
-                <p className={`text-xs ${
-                  theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
-                }`}>
+                <p
+                  className={`text-xs ${
+                    theme === "dark" ? "text-blue-300" : "text-blue-700"
+                  }`}
+                >
                   Average Collection
                 </p>
-                <p className={`text-lg font-bold ${
-                  theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                }`}>
+                <p
+                  className={`text-lg font-bold ${
+                    theme === "dark" ? "text-blue-400" : "text-blue-600"
+                  }`}
+                >
                   ₹{getAverageCollection().toFixed(2)}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className={`p-4 rounded-lg ${
-            theme === 'dark'
-              ? 'bg-gradient-to-br from-red-500/20 to-red-600/10 border border-red-500/30'
-              : 'bg-gradient-to-br from-red-50 to-red-100 border border-red-200'
-          }`}>
+          <div
+            className={`p-4 rounded-lg ${
+              theme === "dark"
+                ? "bg-gradient-to-br from-red-500/20 to-red-600/10 border border-red-500/30"
+                : "bg-gradient-to-br from-red-50 to-red-100 border border-red-200"
+            }`}
+          >
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${
-                theme === 'dark' ? 'bg-red-500/30' : 'bg-red-200'
-              }`}>
-                <Receipt className={`w-4 h-4 ${
-                  theme === 'dark' ? 'text-red-300' : 'text-red-700'
-                }`} />
+              <div
+                className={`p-2 rounded-lg ${
+                  theme === "dark" ? "bg-red-500/30" : "bg-red-200"
+                }`}
+              >
+                <Receipt
+                  className={`w-4 h-4 ${
+                    theme === "dark" ? "text-red-300" : "text-red-700"
+                  }`}
+                />
               </div>
               <div>
-                <p className={`text-xs ${
-                  theme === 'dark' ? 'text-red-300' : 'text-red-700'
-                }`}>
+                <p
+                  className={`text-xs ${
+                    theme === "dark" ? "text-red-300" : "text-red-700"
+                  }`}
+                >
                   Regular Expenses
                 </p>
-                <p className={`text-lg font-bold ${
-                  theme === 'dark' ? 'text-red-400' : 'text-red-600'
-                }`}>
+                <p
+                  className={`text-lg font-bold ${
+                    theme === "dark" ? "text-red-400" : "text-red-600"
+                  }`}
+                >
                   ₹{getTotalRegularExpenses().toFixed(2)}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className={`p-4 rounded-lg ${
-            theme === 'dark'
-              ? 'bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/30'
-              : 'bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200'
-          }`}>
+          <div
+            className={`p-4 rounded-lg ${
+              theme === "dark"
+                ? "bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/30"
+                : "bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200"
+            }`}
+          >
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${
-                theme === 'dark' ? 'bg-orange-500/30' : 'bg-orange-200'
-              }`}>
-                <Receipt className={`w-4 h-4 ${
-                  theme === 'dark' ? 'text-orange-300' : 'text-orange-700'
-                }`} />
+              <div
+                className={`p-2 rounded-lg ${
+                  theme === "dark" ? "bg-orange-500/30" : "bg-orange-200"
+                }`}
+              >
+                <Receipt
+                  className={`w-4 h-4 ${
+                    theme === "dark" ? "text-orange-300" : "text-orange-700"
+                  }`}
+                />
               </div>
               <div>
-                <p className={`text-xs ${
-                  theme === 'dark' ? 'text-orange-300' : 'text-orange-700'
-                }`}>
+                <p
+                  className={`text-xs ${
+                    theme === "dark" ? "text-orange-300" : "text-orange-700"
+                  }`}
+                >
                   Other Expenses
                 </p>
-                <p className={`text-lg font-bold ${
-                  theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-                }`}>
+                <p
+                  className={`text-lg font-bold ${
+                    theme === "dark" ? "text-orange-400" : "text-orange-600"
+                  }`}
+                >
                   ₹{getTotalOtherExpenses().toFixed(2)}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className={`p-4 rounded-lg ${
-            theme === 'dark'
-              ? 'bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30'
-              : 'bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200'
-          }`}>
+          <div
+            className={`p-4 rounded-lg ${
+              theme === "dark"
+                ? "bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30"
+                : "bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200"
+            }`}
+          >
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${
-                theme === 'dark' ? 'bg-purple-500/30' : 'bg-purple-200'
-              }`}>
-                <BarChart3 className={`w-4 h-4 ${
-                  theme === 'dark' ? 'text-purple-300' : 'text-purple-700'
-                }`} />
+              <div
+                className={`p-2 rounded-lg ${
+                  theme === "dark" ? "bg-purple-500/30" : "bg-purple-200"
+                }`}
+              >
+                <BarChart3
+                  className={`w-4 h-4 ${
+                    theme === "dark" ? "text-purple-300" : "text-purple-700"
+                  }`}
+                />
               </div>
               <div>
-                <p className={`text-xs ${
-                  theme === 'dark' ? 'text-purple-300' : 'text-purple-700'
-                }`}>
+                <p
+                  className={`text-xs ${
+                    theme === "dark" ? "text-purple-300" : "text-purple-700"
+                  }`}
+                >
                   Total Expenses
                 </p>
-                <p className={`text-lg font-bold ${
-                  theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
-                }`}>
+                <p
+                  className={`text-lg font-bold ${
+                    theme === "dark" ? "text-purple-400" : "text-purple-600"
+                  }`}
+                >
                   ₹{getTotalExpenses().toFixed(2)}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className={`p-4 rounded-lg ${
-            theme === 'dark'
-              ? 'bg-gradient-to-br from-green-500/20 to-green-600/10 border border-green-500/30'
-              : 'bg-gradient-to-br from-green-50 to-green-100 border border-green-200'
-          }`}>
+          <div
+            className={`p-4 rounded-lg ${
+              theme === "dark"
+                ? "bg-gradient-to-br from-green-500/20 to-green-600/10 border border-green-500/30"
+                : "bg-gradient-to-br from-green-50 to-green-100 border border-green-200"
+            }`}
+          >
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${
-                theme === 'dark' ? 'bg-green-500/30' : 'bg-green-200'
-              }`}>
-                <DollarSign className={`w-4 h-4 ${
-                  theme === 'dark' ? 'text-green-300' : 'text-green-700'
-                }`} />
+              <div
+                className={`p-2 rounded-lg ${
+                  theme === "dark" ? "bg-green-500/30" : "bg-green-200"
+                }`}
+              >
+                <DollarSign
+                  className={`w-4 h-4 ${
+                    theme === "dark" ? "text-green-300" : "text-green-700"
+                  }`}
+                />
               </div>
               <div>
-                <p className={`text-xs ${
-                  theme === 'dark' ? 'text-green-300' : 'text-green-700'
-                }`}>
+                <p
+                  className={`text-xs ${
+                    theme === "dark" ? "text-green-300" : "text-green-700"
+                  }`}
+                >
                   Profit (35%)
                 </p>
-                <p className={`text-lg font-bold ${
-                  theme === 'dark' ? 'text-green-400' : 'text-green-600'
-                }`}>
+                <p
+                  className={`text-lg font-bold ${
+                    theme === "dark" ? "text-green-400" : "text-green-600"
+                  }`}
+                >
                   ₹{getTotalProfit().toFixed(2)}
                 </p>
               </div>
@@ -1016,24 +1254,31 @@ Net Income: ₹${netIncome.toFixed(2)}`;
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className={`${
-              theme === 'dark'
-                ? 'bg-slate-900/50 border-b border-slate-700/50'
-                : 'bg-gray-50 border-b border-gray-200'
-            }`}>
+            <tr
+              className={`${
+                theme === "dark"
+                  ? "bg-slate-900/50 border-b border-slate-700/50"
+                  : "bg-gray-50 border-b border-gray-200"
+              }`}
+            >
               <th className="px-6 py-3 text-left">
                 <input
                   type="checkbox"
-                  checked={selectedRows.size === currentReports.length && currentReports.length > 0}
+                  checked={
+                    selectedRows.size === currentReports.length &&
+                    currentReports.length > 0
+                  }
                   onChange={toggleAllRows}
                   className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                 />
               </th>
               <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
-                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                  theme === "dark"
+                    ? "text-gray-300 hover:text-white"
+                    : "text-gray-700 hover:text-gray-900"
                 }`}
-                onClick={() => handleSort('date')}
+                onClick={() => handleSort("date")}
               >
                 <div className="flex items-center gap-2">
                   Date
@@ -1042,9 +1287,11 @@ Net Income: ₹${netIncome.toFixed(2)}`;
               </th>
               <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
-                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                  theme === "dark"
+                    ? "text-gray-300 hover:text-white"
+                    : "text-gray-700 hover:text-gray-900"
                 }`}
-                onClick={() => handleSort('gpay')}
+                onClick={() => handleSort("gpay")}
               >
                 <div className="flex items-center gap-2">
                   GPay
@@ -1053,9 +1300,11 @@ Net Income: ₹${netIncome.toFixed(2)}`;
               </th>
               <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
-                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                  theme === "dark"
+                    ? "text-gray-300 hover:text-white"
+                    : "text-gray-700 hover:text-gray-900"
                 }`}
-                onClick={() => handleSort('card')}
+                onClick={() => handleSort("card")}
               >
                 <div className="flex items-center gap-2">
                   Card
@@ -1064,9 +1313,11 @@ Net Income: ₹${netIncome.toFixed(2)}`;
               </th>
               <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
-                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                  theme === "dark"
+                    ? "text-gray-300 hover:text-white"
+                    : "text-gray-700 hover:text-gray-900"
                 }`}
-                onClick={() => handleSort('cash')}
+                onClick={() => handleSort("cash")}
               >
                 <div className="flex items-center gap-2">
                   Cash
@@ -1075,9 +1326,11 @@ Net Income: ₹${netIncome.toFixed(2)}`;
               </th>
               <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
-                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                  theme === "dark"
+                    ? "text-gray-300 hover:text-white"
+                    : "text-gray-700 hover:text-gray-900"
                 }`}
-                onClick={() => handleSort('regularExpenses')}
+                onClick={() => handleSort("regularExpenses")}
               >
                 <div className="flex items-center gap-2">
                   Regular Expenses
@@ -1086,9 +1339,11 @@ Net Income: ₹${netIncome.toFixed(2)}`;
               </th>
               <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
-                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                  theme === "dark"
+                    ? "text-gray-300 hover:text-white"
+                    : "text-gray-700 hover:text-gray-900"
                 }`}
-                onClick={() => handleSort('otherExpenses')}
+                onClick={() => handleSort("otherExpenses")}
               >
                 <div className="flex items-center gap-2">
                   Other Expenses
@@ -1097,9 +1352,11 @@ Net Income: ₹${netIncome.toFixed(2)}`;
               </th>
               <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
-                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                  theme === "dark"
+                    ? "text-gray-300 hover:text-white"
+                    : "text-gray-700 hover:text-gray-900"
                 }`}
-                onClick={() => handleSort('total')}
+                onClick={() => handleSort("total")}
               >
                 <div className="flex items-center gap-2">
                   Total Collection
@@ -1108,9 +1365,11 @@ Net Income: ₹${netIncome.toFixed(2)}`;
               </th>
               <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
-                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                  theme === "dark"
+                    ? "text-gray-300 hover:text-white"
+                    : "text-gray-700 hover:text-gray-900"
                 }`}
-                onClick={() => handleSort('profit')}
+                onClick={() => handleSort("profit")}
               >
                 <div className="flex items-center gap-2">
                   Profit (35%)
@@ -1119,9 +1378,11 @@ Net Income: ₹${netIncome.toFixed(2)}`;
               </th>
               <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-75 transition-colors ${
-                  theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                  theme === "dark"
+                    ? "text-gray-300 hover:text-white"
+                    : "text-gray-700 hover:text-gray-900"
                 }`}
-                onClick={() => handleSort('netIncome')}
+                onClick={() => handleSort("netIncome")}
               >
                 <div className="flex items-center gap-2">
                   Net Income
@@ -1133,12 +1394,19 @@ Net Income: ₹${netIncome.toFixed(2)}`;
               </th>
             </tr>
           </thead>
-          <tbody className={`divide-y ${
-            theme === 'dark' ? 'divide-slate-700/50' : 'divide-gray-200'
-          }`}>
+          <tbody
+            className={`divide-y ${
+              theme === "dark" ? "divide-slate-700/50" : "divide-gray-200"
+            }`}
+          >
             {currentReports.map((report, index) => {
-              const totalCollection = (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
-              const totalExpenses = (Number(report.regularExpenses) || 0) + (Number(report.otherExpenses) || 0);
+              const totalCollection =
+                (Number(report.gpay) || 0) +
+                (Number(report.card) || 0) +
+                (Number(report.cash) || 0);
+              const totalExpenses =
+                (Number(report.regularExpenses) || 0) +
+                (Number(report.otherExpenses) || 0);
               const profit = totalExpenses * 0.35;
               const netIncome = totalCollection - totalExpenses;
               const isSelected = selectedRows.has(report._id || report.id);
@@ -1149,70 +1417,94 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                   key={report._id || report.id}
                   className={`transition-all duration-200 ${
                     isSelected
-                      ? theme === 'dark'
-                        ? 'bg-emerald-500/10 border-l-4 border-l-emerald-500'
-                        : 'bg-emerald-50 border-l-4 border-l-emerald-500'
-                      : theme === 'dark'
-                      ? 'hover:bg-slate-700/30'
-                      : 'hover:bg-gray-50'
+                      ? theme === "dark"
+                        ? "bg-emerald-500/10 border-l-4 border-l-emerald-500"
+                        : "bg-emerald-50 border-l-4 border-l-emerald-500"
+                      : theme === "dark"
+                      ? "hover:bg-slate-700/30"
+                      : "hover:bg-gray-50"
                   }`}
                 >
                   <td className="px-6 py-4">
                     <input
                       type="checkbox"
                       checked={isSelected}
-                      onChange={() => toggleRowSelection(report._id || report.id)}
+                      onChange={() =>
+                        toggleRowSelection(report._id || report.id)
+                      }
                       className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                     />
                   </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                    theme === 'dark' ? 'text-gray-200' : 'text-gray-900'
-                  }`}>
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
+                      theme === "dark" ? "text-gray-200" : "text-gray-900"
+                    }`}
+                  >
                     <div className="flex items-center gap-2">
                       <CalendarIcon className="w-4 h-4 text-gray-400" />
-                      {report.date}
+                      {formatDateWithDay(report.date)}
                     </div>
                   </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap text-sm ${
+                      theme === "dark" ? "text-gray-300" : "text-gray-700"
+                    }`}
+                  >
                     ₹{(Number(report.gpay) || 0).toFixed(2)}
                   </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap text-sm ${
+                      theme === "dark" ? "text-gray-300" : "text-gray-700"
+                    }`}
+                  >
                     ₹{(Number(report.card) || 0).toFixed(2)}
                   </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap text-sm ${
+                      theme === "dark" ? "text-gray-300" : "text-gray-700"
+                    }`}
+                  >
                     ₹{(Number(report.cash) || 0).toFixed(2)}
                   </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                    theme === 'dark' ? 'text-red-400' : 'text-red-600'
-                  }`}>
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap text-sm ${
+                      theme === "dark" ? "text-red-400" : "text-red-600"
+                    }`}
+                  >
                     ₹{(Number(report.regularExpenses) || 0).toFixed(2)}
                   </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                    theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-                  }`}>
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap text-sm ${
+                      theme === "dark" ? "text-orange-400" : "text-orange-600"
+                    }`}
+                  >
                     ₹{(Number(report.otherExpenses) || 0).toFixed(2)}
                   </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
-                    theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
-                  }`}>
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
+                      theme === "dark" ? "text-emerald-400" : "text-emerald-600"
+                    }`}
+                  >
                     ₹{totalCollection.toFixed(2)}
                   </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
-                    theme === 'dark' ? 'text-green-400' : 'text-green-600'
-                  }`}>
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
+                      theme === "dark" ? "text-green-400" : "text-green-600"
+                    }`}
+                  >
                     ₹{profit.toFixed(2)}
                   </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
-                    netIncome >= 0
-                      ? theme === 'dark' ? 'text-green-400' : 'text-green-600'
-                      : theme === 'dark' ? 'text-red-400' : 'text-red-600'
-                  }`}>
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
+                      netIncome >= 0
+                        ? theme === "dark"
+                          ? "text-green-400"
+                          : "text-green-600"
+                        : theme === "dark"
+                        ? "text-red-400"
+                        : "text-red-600"
+                    }`}
+                  >
                     ₹{netIncome.toFixed(2)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -1221,14 +1513,14 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                         onClick={() => copyRowData(report)}
                         className={`p-1.5 rounded transition-colors ${
                           isCopied
-                            ? theme === 'dark'
-                               ? 'bg-green-500/20 text-green-400'
-                               : 'bg-green-100 text-green-700'
-                            : theme === 'dark'
-                            ? 'hover:bg-slate-600 text-gray-400 hover:text-white'
-                            : 'hover:bg-gray-200 text-gray-600 hover:text-gray-900'
+                            ? theme === "dark"
+                              ? "bg-green-500/20 text-green-400"
+                              : "bg-green-100 text-green-700"
+                            : theme === "dark"
+                            ? "hover:bg-slate-600 text-gray-400 hover:text-white"
+                            : "hover:bg-gray-200 text-gray-600 hover:text-gray-900"
                         }`}
-                        title={isCopied ? 'Copied!' : 'Copy row data'}
+                        title={isCopied ? "Copied!" : "Copy row data"}
                       >
                         {isCopied ? (
                           <CheckCircle2 className="w-4 h-4" />
@@ -1238,9 +1530,9 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                       </button>
                       <button
                         className={`p-1.5 rounded transition-colors ${
-                          theme === 'dark'
-                            ? 'hover:bg-slate-600 text-gray-400 hover:text-white'
-                            : 'hover:bg-gray-200 text-gray-600 hover:text-gray-900'
+                          theme === "dark"
+                            ? "hover:bg-slate-600 text-gray-400 hover:text-white"
+                            : "hover:bg-gray-200 text-gray-600 hover:text-gray-900"
                         }`}
                         title="View details"
                       >
@@ -1257,32 +1549,40 @@ Net Income: ₹${netIncome.toFixed(2)}`;
         {/* Empty State */}
         {currentReports.length === 0 && (
           <div className="text-center py-12">
-            <div className={`mx-auto w-16 h-16 mb-4 rounded-full flex items-center justify-center ${
-              theme === 'dark'
-                ? 'bg-slate-700/50 text-gray-400'
-                : 'bg-gray-100 text-gray-400'
-            }`}>
+            <div
+              className={`mx-auto w-16 h-16 mb-4 rounded-full flex items-center justify-center ${
+                theme === "dark"
+                  ? "bg-slate-700/50 text-gray-400"
+                  : "bg-gray-100 text-gray-400"
+              }`}
+            >
               <Receipt className="w-8 h-8" />
             </div>
-            <h3 className={`text-lg font-medium mb-2 ${
-              theme === 'dark' ? 'text-gray-300' : 'text-gray-900'
-            }`}>
+            <h3
+              className={`text-lg font-medium mb-2 ${
+                theme === "dark" ? "text-gray-300" : "text-gray-900"
+              }`}
+            >
               No reports found
             </h3>
-            <p className={`text-sm max-w-sm mx-auto ${
-              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-            }`}>
+            <p
+              className={`text-sm max-w-sm mx-auto ${
+                theme === "dark" ? "text-gray-400" : "text-gray-600"
+              }`}
+            >
               {totalItems === 0
-                ? 'No daily reports have been added yet.'
-                : 'No reports match your current filters. Try adjusting your search criteria.'}
+                ? "No daily reports have been added yet."
+                : "No reports match your current filters. Try adjusting your search criteria."}
             </p>
             {totalItems === 0 && !isManagerView && (
               <button
-                onClick={() => window.location.href = '/branch-owner/add-sales'}
+                onClick={() =>
+                  (window.location.href = "/branch-owner/add-sales")
+                }
                 className={`mt-4 px-6 py-2 rounded-lg font-medium transition-colors ${
-                  theme === 'dark'
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                    : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  theme === "dark"
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                    : "bg-emerald-600 hover:bg-emerald-700 text-white"
                 }`}
               >
                 Add First Report
@@ -1294,24 +1594,30 @@ Net Income: ₹${netIncome.toFixed(2)}`;
 
       {/* Enhanced Pagination */}
       {totalPages > 1 && (
-        <div className={`px-6 py-4 border-t ${
-          theme === 'dark' ? 'border-slate-700/50' : 'border-gray-200'
-        }`}>
+        <div
+          className={`px-6 py-4 border-t ${
+            theme === "dark" ? "border-slate-700/50" : "border-gray-200"
+          }`}
+        >
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             {/* Items per page */}
             <div className="flex items-center gap-3">
-              <span className={`text-sm ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-              }`}>
+              <span
+                className={`text-sm ${
+                  theme === "dark" ? "text-gray-400" : "text-gray-600"
+                }`}
+              >
                 Show:
               </span>
               <select
                 value={itemsPerPage}
-                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                onChange={(e) =>
+                  handleItemsPerPageChange(Number(e.target.value))
+                }
                 className={`px-3 py-1.5 rounded border text-sm ${
-                  theme === 'dark'
-                    ? 'bg-slate-700 border-slate-600 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
+                  theme === "dark"
+                    ? "bg-slate-700 border-slate-600 text-white"
+                    : "bg-white border-gray-300 text-gray-900"
                 }`}
               >
                 <option value={5}>5</option>
@@ -1320,22 +1626,24 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                 <option value={50}>50</option>
                 <option value={100}>100</option>
               </select>
-              <span className={`text-sm ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-              }`}>
+              <span
+                className={`text-sm ${
+                  theme === "dark" ? "text-gray-400" : "text-gray-600"
+                }`}
+              >
                 items per page
               </span>
             </div>
 
             {/* Page info */}
-            <div className={`text-sm ${
-              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-            }`}>
+            <div
+              className={`text-sm ${
+                theme === "dark" ? "text-gray-400" : "text-gray-600"
+              }`}
+            >
               Showing {startIndex + 1} to {endIndex} of {totalItems} entries
               {totalItems !== dailyReports.length && (
-                <span className="ml-1">
-                  (filtered from {totalItems} total)
-                </span>
+                <span className="ml-1">(filtered from {totalItems} total)</span>
               )}
             </div>
 
@@ -1347,12 +1655,12 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                 disabled={currentPage === 1}
                 className={`p-2 rounded ${
                   currentPage === 1
-                    ? theme === 'dark'
-                      ? 'text-gray-600 cursor-not-allowed'
-                      : 'text-gray-400 cursor-not-allowed'
-                    : theme === 'dark'
-                    ? 'text-gray-400 hover:text-white hover:bg-slate-700'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                    ? theme === "dark"
+                      ? "text-gray-600 cursor-not-allowed"
+                      : "text-gray-400 cursor-not-allowed"
+                    : theme === "dark"
+                    ? "text-gray-400 hover:text-white hover:bg-slate-700"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
                 }`}
               >
                 <ChevronsLeft className="w-4 h-4" />
@@ -1364,12 +1672,12 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                 disabled={currentPage === 1}
                 className={`p-2 rounded ${
                   currentPage === 1
-                    ? theme === 'dark'
-                      ? 'text-gray-600 cursor-not-allowed'
-                      : 'text-gray-400 cursor-not-allowed'
-                    : theme === 'dark'
-                    ? 'text-gray-400 hover:text-white hover:bg-slate-700'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                    ? theme === "dark"
+                      ? "text-gray-600 cursor-not-allowed"
+                      : "text-gray-400 cursor-not-allowed"
+                    : theme === "dark"
+                    ? "text-gray-400 hover:text-white hover:bg-slate-700"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
                 }`}
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -1379,20 +1687,22 @@ Net Income: ₹${netIncome.toFixed(2)}`;
               {getPageNumbers().map((page, index) => (
                 <button
                   key={index}
-                  onClick={() => typeof page === 'number' && handlePageChange(page)}
-                  disabled={page === '...'}
+                  onClick={() =>
+                    typeof page === "number" && handlePageChange(page)
+                  }
+                  disabled={page === "..."}
                   className={`min-w-[40px] h-10 px-3 rounded text-sm font-medium transition-colors ${
                     page === currentPage
-                      ? theme === 'dark'
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-emerald-600 text-white'
-                      : page === '...'
-                      ? theme === 'dark'
-                        ? 'text-gray-500 cursor-default'
-                        : 'text-gray-400 cursor-default'
-                      : theme === 'dark'
-                      ? 'text-gray-400 hover:text-white hover:bg-slate-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                      ? theme === "dark"
+                        ? "bg-emerald-600 text-white"
+                        : "bg-emerald-600 text-white"
+                      : page === "..."
+                      ? theme === "dark"
+                        ? "text-gray-500 cursor-default"
+                        : "text-gray-400 cursor-default"
+                      : theme === "dark"
+                      ? "text-gray-400 hover:text-white hover:bg-slate-700"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
                   }`}
                 >
                   {page}
@@ -1405,12 +1715,12 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                 disabled={currentPage === totalPages}
                 className={`p-2 rounded ${
                   currentPage === totalPages
-                    ? theme === 'dark'
-                      ? 'text-gray-600 cursor-not-allowed'
-                      : 'text-gray-400 cursor-not-allowed'
-                    : theme === 'dark'
-                    ? 'text-gray-400 hover:text-white hover:bg-slate-700'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                    ? theme === "dark"
+                      ? "text-gray-600 cursor-not-allowed"
+                      : "text-gray-400 cursor-not-allowed"
+                    : theme === "dark"
+                    ? "text-gray-400 hover:text-white hover:bg-slate-700"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
                 }`}
               >
                 <ChevronRight className="w-4 h-4" />
@@ -1422,12 +1732,12 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                 disabled={currentPage === totalPages}
                 className={`p-2 rounded ${
                   currentPage === totalPages
-                    ? theme === 'dark'
-                      ? 'text-gray-600 cursor-not-allowed'
-                      : 'text-gray-400 cursor-not-allowed'
-                    : theme === 'dark'
-                    ? 'text-gray-400 hover:text-white hover:bg-slate-700'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                    ? theme === "dark"
+                      ? "text-gray-600 cursor-not-allowed"
+                      : "text-gray-400 cursor-not-allowed"
+                    : theme === "dark"
+                    ? "text-gray-400 hover:text-white hover:bg-slate-700"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
                 }`}
               >
                 <ChevronsRight className="w-4 h-4" />
