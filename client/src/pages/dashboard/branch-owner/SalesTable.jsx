@@ -163,7 +163,7 @@ const SalesTable = ({
               monthAgo.setDate(monthAgo.getDate() - 30);
               matchesDateRange = reportDate >= monthAgo;
               break;
-            case 'date':
+            case "date":
               aValue = new Date(a.date);
               bValue = new Date(b.date);
               break;
@@ -227,13 +227,24 @@ const SalesTable = ({
               ((Number(b.regularExpenses) || 0) +
                 (Number(b.otherExpenses) || 0));
             break;
+          // Fix the profit calculation in the processedReports sorting
           case "profit":
+            const totalCollectionA =
+              (Number(a.gpay) || 0) +
+              (Number(a.card) || 0) +
+              (Number(a.cash) || 0);
+            const totalCollectionB =
+              (Number(b.gpay) || 0) +
+              (Number(b.card) || 0) +
+              (Number(b.cash) || 0);
             const totalExpensesA =
               (Number(a.regularExpenses) || 0) + (Number(a.otherExpenses) || 0);
             const totalExpensesB =
               (Number(b.regularExpenses) || 0) + (Number(b.otherExpenses) || 0);
-            aValue = totalExpensesA * 0.35;
-            bValue = totalExpensesB * 0.35;
+            const netIncomeA = totalCollectionA - totalExpensesA;
+            const netIncomeB = totalCollectionB - totalExpensesB;
+            aValue = netIncomeA * 0.35; // 35% of net income
+            bValue = netIncomeB * 0.35;
             break;
           default:
             return 0;
@@ -326,9 +337,13 @@ const SalesTable = ({
     return getTotalRegularExpenses() + getTotalOtherExpenses();
   };
 
-  const getTotalProfit = () => {
-    return getTotalExpenses() * 0.35;
-  };
+// Fix the getTotalProfit function
+const getTotalProfit = () => {
+  const totalCollection = getTotalCollection();
+  const totalExpenses = getTotalExpenses();
+  const netIncome = totalCollection - totalExpenses;
+  return netIncome * 0.35; // 35% of net income
+};
 
   const getAverageCollection = () => {
     return processedReports.length > 0
@@ -382,19 +397,13 @@ const SalesTable = ({
     }
   };
 
-  // Copy row data
-  const copyRowData = (report) => {
-    const totalCollection =
-      (Number(report.gpay) || 0) +
-      (Number(report.card) || 0) +
-      (Number(report.cash) || 0);
-    const totalExpenses =
-      (Number(report.regularExpenses) || 0) +
-      (Number(report.otherExpenses) || 0);
-    const netIncome = totalCollection - totalExpenses;
-    const profit = totalExpenses * 0.35;
+const copyRowData = (report) => {
+  const totalCollection = (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
+  const totalExpenses = (Number(report.regularExpenses) || 0) + (Number(report.otherExpenses) || 0);
+  const netIncome = totalCollection - totalExpenses;
+  const profit = netIncome * 0.35; // 35% of net income
 
-    const text = `Date: ${report.date}
+  const text = `Date: ${report.date}
 GPay: ₹${(Number(report.gpay) || 0).toFixed(2)}
 Card: ₹${(Number(report.card) || 0).toFixed(2)}
 Cash: ₹${(Number(report.cash) || 0).toFixed(2)}
@@ -402,8 +411,9 @@ Regular Expenses: ₹${(Number(report.regularExpenses) || 0).toFixed(2)}
 Other Expenses: ₹${(Number(report.otherExpenses) || 0).toFixed(2)}
 Total Collection: ₹${totalCollection.toFixed(2)}
 Total Expenses: ₹${totalExpenses.toFixed(2)}
-Profit (35%): ₹${profit.toFixed(2)}
-Net Income: ₹${netIncome.toFixed(2)}`;
+Net Income: ₹${netIncome.toFixed(2)}
+Profit (35%): ₹${profit.toFixed(2)}`;
+
 
     navigator.clipboard
       .writeText(text)
@@ -541,8 +551,8 @@ Net Income: ₹${netIncome.toFixed(2)}`;
         const totalExpenses =
           (Number(report.regularExpenses) || 0) +
           (Number(report.otherExpenses) || 0);
-        const profit = totalExpenses * 0.35;
-        const netIncome = totalCollection - totalExpenses;
+          const netIncome = totalCollection - totalExpenses;
+          const profit = netIncome * 0.35; // 35% of net income
 
         return [
           escapeCSV(report.date),
@@ -553,7 +563,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
           escapeCSV((Number(report.otherExpenses) || 0).toFixed(2)),
           escapeCSV(totalCollection.toFixed(2)),
           escapeCSV(totalExpenses.toFixed(2)),
-          escapeCSV(profit.toFixed(2)),
+          escapeCSV(profit.toFixed(2)), // This is now 35% of net income
           escapeCSV(netIncome.toFixed(2)),
         ];
       });
@@ -1388,7 +1398,6 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                   <SortIcon field="netIncome" />
                 </div>
               </th>
-             
             </tr>
           </thead>
           <tbody
@@ -1404,11 +1413,10 @@ Net Income: ₹${netIncome.toFixed(2)}`;
               const totalExpenses =
                 (Number(report.regularExpenses) || 0) +
                 (Number(report.otherExpenses) || 0);
-              const profit = totalExpenses * 0.35;
               const netIncome = totalCollection - totalExpenses;
               const isSelected = selectedRows.has(report._id || report.id);
               const isCopied = copiedRow === (report._id || report.id);
-
+              const profit = netIncome * 0.35; // 35% of net income
               return (
                 <tr
                   key={report._id || report.id}
@@ -1504,7 +1512,6 @@ Net Income: ₹${netIncome.toFixed(2)}`;
                   >
                     ₹{netIncome.toFixed(2)}
                   </td>
-                  
                 </tr>
               );
             })}

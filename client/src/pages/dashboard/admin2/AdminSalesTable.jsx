@@ -27,7 +27,10 @@ import {
   BarChart3,
   RefreshCw,
   Copy,
-  CheckCircle2,Edit, Trash2, Save
+  CheckCircle2,
+  Edit,
+  Trash2,
+  Save,
 } from "lucide-react";
 
 const AdminSalesTable = ({
@@ -73,11 +76,11 @@ const AdminSalesTable = ({
   const totalItems = isManagerView ? propTotalItems : localTotalItems;
   const loading = isManagerView ? propLoading : localLoading;
   // Add these states after the existing state declarations
-const [editingReport, setEditingReport] = useState(null);
-const [editFormData, setEditFormData] = useState({});
-const [deleteConfirm, setDeleteConfirm] = useState(null);
-const [editLoading, setEditLoading] = useState(false);
-const [deleteLoading, setDeleteLoading] = useState(false);
+  const [editingReport, setEditingReport] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   useEffect(() => {
     if (isManagerView) {
       // Manager view props already control pagination
@@ -233,12 +236,22 @@ const [deleteLoading, setDeleteLoading] = useState(false);
                 (Number(b.otherExpenses) || 0));
             break;
           case "profit":
+            const totalCollectionA =
+              (Number(a.gpay) || 0) +
+              (Number(a.card) || 0) +
+              (Number(a.cash) || 0);
+            const totalCollectionB =
+              (Number(b.gpay) || 0) +
+              (Number(b.card) || 0) +
+              (Number(b.cash) || 0);
             const totalExpensesA =
               (Number(a.regularExpenses) || 0) + (Number(a.otherExpenses) || 0);
             const totalExpensesB =
               (Number(b.regularExpenses) || 0) + (Number(b.otherExpenses) || 0);
-            aValue = totalExpensesA * 0.35;
-            bValue = totalExpensesB * 0.35;
+            const netIncomeA = totalCollectionA - totalExpensesA;
+            const netIncomeB = totalCollectionB - totalExpensesB;
+            aValue = netIncomeA * 0.35; // 35% of net income
+            bValue = netIncomeB * 0.35;
             break;
           default:
             return 0;
@@ -277,124 +290,117 @@ const [deleteLoading, setDeleteLoading] = useState(false);
     }, 0);
   };
 
+  // Edit handlers
+  const handleEdit = (report) => {
+    setEditingReport(report._id || report.id);
+    setEditFormData({
+      gpay: report.gpay || 0,
+      card: report.card || 0,
+      cash: report.cash || 0,
+      regularExpenses: report.regularExpenses || 0,
+      otherExpenses: report.otherExpenses || 0,
+      date: report.date,
+    });
+  };
 
+  const handleEditChange = (field, value) => {
+    setEditFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
-  
-// Edit handlers
-const handleEdit = (report) => {
-  setEditingReport(report._id || report.id);
-  setEditFormData({
-    gpay: report.gpay || 0,
-    card: report.card || 0,
-    cash: report.cash || 0,
-    regularExpenses: report.regularExpenses || 0,
-    otherExpenses: report.otherExpenses || 0,
-    date: report.date,
-  });
-};
+  const handleSaveEdit = async () => {
+    if (!editingReport) return;
 
-const handleEditChange = (field, value) => {
-  setEditFormData(prev => ({
-    ...prev,
-    [field]: value
-  }));
-};
+    setEditLoading(true);
+    try {
+      await dailyReportService.updateDailyReport(editingReport, editFormData);
+      toast.success("Report updated successfully!");
 
-const handleSaveEdit = async () => {
-  if (!editingReport) return;
+      // Refresh the data
+      if (isManagerView && onRefresh) {
+        onRefresh();
+      } else {
+        // Refetch data for local view
+        const filters = {
+          searchTerm,
+          dateFilterType: dateFilter.type,
+          dateFilterStartDate: dateFilter.startDate,
+          dateFilterEndDate: dateFilter.endDate,
+          sortField,
+          sortOrder,
+        };
+        const response = await dailyReportService.getDailyReportsByBranch(
+          branchOwnerId,
+          localCurrentPage,
+          localItemsPerPage,
+          filters
+        );
+        setLocalSalesData(response.dailyReports);
+      }
 
-  setEditLoading(true);
-  try {
-    await dailyReportService.updateDailyReport(editingReport, editFormData);
-    toast.success("Report updated successfully!");
-    
-    // Refresh the data
-    if (isManagerView && onRefresh) {
-      onRefresh();
-    } else {
-      // Refetch data for local view
-      const filters = {
-        searchTerm,
-        dateFilterType: dateFilter.type,
-        dateFilterStartDate: dateFilter.startDate,
-        dateFilterEndDate: dateFilter.endDate,
-        sortField,
-        sortOrder,
-      };
-      const response = await dailyReportService.getDailyReportsByBranch(
-        branchOwnerId,
-        localCurrentPage,
-        localItemsPerPage,
-        filters
-      );
-      setLocalSalesData(response.dailyReports);
+      setEditingReport(null);
+      setEditFormData({});
+    } catch (error) {
+      toast.error("Failed to update report.");
+      console.error("Error updating report:", error);
+    } finally {
+      setEditLoading(false);
     }
-    
+  };
+
+  const handleCancelEdit = () => {
     setEditingReport(null);
     setEditFormData({});
-  } catch (error) {
-    toast.error("Failed to update report.");
-    console.error("Error updating report:", error);
-  } finally {
-    setEditLoading(false);
-  }
-};
+  };
 
-const handleCancelEdit = () => {
-  setEditingReport(null);
-  setEditFormData({});
-};
+  // Delete handlers
+  const handleDelete = async (reportId) => {
+    setDeleteLoading(true);
+    try {
+      await dailyReportService.deleteDailyReport(reportId);
+      toast.success("Report deleted successfully!");
 
-// Delete handlers
-const handleDelete = async (reportId) => {
-  setDeleteLoading(true);
-  try {
-    await dailyReportService.deleteDailyReport(reportId);
-    toast.success("Report deleted successfully!");
-    
-    // Refresh the data
-    if (isManagerView && onRefresh) {
-      onRefresh();
-    } else {
-      // Refetch data for local view
-      const filters = {
-        searchTerm,
-        dateFilterType: dateFilter.type,
-        dateFilterStartDate: dateFilter.startDate,
-        dateFilterEndDate: dateFilter.endDate,
-        sortField,
-        sortOrder,
-      };
-      const response = await dailyReportService.getDailyReportsByBranch(
-        branchOwnerId,
-        localCurrentPage,
-        localItemsPerPage,
-        filters
-      );
-      setLocalSalesData(response.dailyReports);
-      setLocalTotalItems(response.totalItems);
+      // Refresh the data
+      if (isManagerView && onRefresh) {
+        onRefresh();
+      } else {
+        // Refetch data for local view
+        const filters = {
+          searchTerm,
+          dateFilterType: dateFilter.type,
+          dateFilterStartDate: dateFilter.startDate,
+          dateFilterEndDate: dateFilter.endDate,
+          sortField,
+          sortOrder,
+        };
+        const response = await dailyReportService.getDailyReportsByBranch(
+          branchOwnerId,
+          localCurrentPage,
+          localItemsPerPage,
+          filters
+        );
+        setLocalSalesData(response.dailyReports);
+        setLocalTotalItems(response.totalItems);
+      }
+
+      setDeleteConfirm(null);
+    } catch (error) {
+      toast.error("Failed to delete report.");
+      console.error("Error deleting report:", error);
+    } finally {
+      setDeleteLoading(false);
     }
-    
+  };
+
+  const confirmDelete = (reportId) => {
+    setDeleteConfirm(reportId);
+  };
+
+  const cancelDelete = () => {
     setDeleteConfirm(null);
-  } catch (error) {
-    toast.error("Failed to delete report.");
-    console.error("Error deleting report:", error);
-  } finally {
-    setDeleteLoading(false);
-  }
-};
-
-const confirmDelete = (reportId) => {
-  setDeleteConfirm(reportId);
-};
-
-const cancelDelete = () => {
-  setDeleteConfirm(null);
-};
-
-
-
-
+  };
 
   const getTotalRegularExpenses = () => {
     return processedReports.reduce(
@@ -414,10 +420,13 @@ const cancelDelete = () => {
     return getTotalRegularExpenses() + getTotalOtherExpenses();
   };
 
+  // Fix the getTotalProfit function
   const getTotalProfit = () => {
-    return getTotalExpenses() * 0.35;
+    const totalCollection = getTotalCollection();
+    const totalExpenses = getTotalExpenses();
+    const netIncome = totalCollection - totalExpenses;
+    return netIncome * 0.35; // 35% of net income
   };
-
   const getAverageCollection = () => {
     return processedReports.length > 0
       ? getTotalCollection() / processedReports.length
@@ -470,7 +479,7 @@ const cancelDelete = () => {
     }
   };
 
-  // Copy row data
+  // Fix the copyRowData function
   const copyRowData = (report) => {
     const totalCollection =
       (Number(report.gpay) || 0) +
@@ -480,7 +489,7 @@ const cancelDelete = () => {
       (Number(report.regularExpenses) || 0) +
       (Number(report.otherExpenses) || 0);
     const netIncome = totalCollection - totalExpenses;
-    const profit = totalExpenses * 0.35;
+    const profit = netIncome * 0.35; // 35% of net income
 
     const text = `Date: ${report.date}
 GPay: ₹${(Number(report.gpay) || 0).toFixed(2)}
@@ -490,8 +499,8 @@ Regular Expenses: ₹${(Number(report.regularExpenses) || 0).toFixed(2)}
 Other Expenses: ₹${(Number(report.otherExpenses) || 0).toFixed(2)}
 Total Collection: ₹${totalCollection.toFixed(2)}
 Total Expenses: ₹${totalExpenses.toFixed(2)}
-Profit (35%): ₹${profit.toFixed(2)}
-Net Income: ₹${netIncome.toFixed(2)}`;
+Net Income: ₹${netIncome.toFixed(2)}
+Profit (35%): ₹${profit.toFixed(2)}`;
 
     navigator.clipboard
       .writeText(text)
@@ -666,8 +675,8 @@ Net Income: ₹${netIncome.toFixed(2)}`;
         const totalExpenses =
           (Number(report.regularExpenses) || 0) +
           (Number(report.otherExpenses) || 0);
-        const profit = totalExpenses * 0.35;
         const netIncome = totalCollection - totalExpenses;
+        const profit = netIncome * 0.35; // 35% of net income
 
         return [
           escapeCSV(report.date),
@@ -678,7 +687,7 @@ Net Income: ₹${netIncome.toFixed(2)}`;
           escapeCSV((Number(report.otherExpenses) || 0).toFixed(2)),
           escapeCSV(totalCollection.toFixed(2)),
           escapeCSV(totalExpenses.toFixed(2)),
-          escapeCSV(profit.toFixed(2)),
+          escapeCSV(profit.toFixed(2)), // This is now 35% of net income
           escapeCSV(netIncome.toFixed(2)),
         ];
       });
@@ -1518,316 +1527,389 @@ Net Income: ₹${netIncome.toFixed(2)}`;
               </th>
             </tr>
           </thead>
-          <tbody className={`divide-y ${theme === "dark" ? "divide-slate-700/50" : "divide-gray-200"}`}>
-  {currentReports.map((report, index) => {
-    const totalCollection = (Number(report.gpay) || 0) + (Number(report.card) || 0) + (Number(report.cash) || 0);
-    const totalExpenses = (Number(report.regularExpenses) || 0) + (Number(report.otherExpenses) || 0);
-    const profit = totalExpenses * 0.35;
-    const netIncome = totalCollection - totalExpenses;
-    const isSelected = selectedRows.has(report._id || report.id);
-    const isCopied = copiedRow === (report._id || report.id);
-    const isEditing = editingReport === (report._id || report.id);
-    const isDeleteConfirm = deleteConfirm === (report._id || report.id);
+          <tbody
+            className={`divide-y ${
+              theme === "dark" ? "divide-slate-700/50" : "divide-gray-200"
+            }`}
+          >
+            {currentReports.map((report, index) => {
+              const totalCollection =
+                (Number(report.gpay) || 0) +
+                (Number(report.card) || 0) +
+                (Number(report.cash) || 0);
+              const totalExpenses =
+                (Number(report.regularExpenses) || 0) +
+                (Number(report.otherExpenses) || 0);
+              const netIncome = totalCollection - totalExpenses;
+              const profit = netIncome * 0.35; // 35% of net income
+              const isSelected = selectedRows.has(report._id || report.id);
+              const isCopied = copiedRow === (report._id || report.id);
+              const isEditing = editingReport === (report._id || report.id);
+              const isDeleteConfirm =
+                deleteConfirm === (report._id || report.id);
 
-    return (
-      <tr
-        key={report._id || report.id}
-        className={`transition-all duration-200 ${
-          isSelected
-            ? theme === "dark"
-              ? "bg-emerald-500/10 border-l-4 border-l-emerald-500"
-              : "bg-emerald-50 border-l-4 border-l-emerald-500"
-            : theme === "dark"
-            ? "hover:bg-slate-700/30"
-            : "hover:bg-gray-50"
-        }`}
-      >
-        <td className="px-6 py-4">
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => toggleRowSelection(report._id || report.id)}
-            className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-          />
-        </td>
-        
-        {/* Date Column */}
-        <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
-          <div className="flex items-center gap-2">
-            <CalendarIcon className="w-4 h-4 text-gray-400" />
-            {formatDateWithDay(report.date)}
-          </div>
-        </td>
+              return (
+                <tr
+                  key={report._id || report.id}
+                  className={`transition-all duration-200 ${
+                    isSelected
+                      ? theme === "dark"
+                        ? "bg-emerald-500/10 border-l-4 border-l-emerald-500"
+                        : "bg-emerald-50 border-l-4 border-l-emerald-500"
+                      : theme === "dark"
+                      ? "hover:bg-slate-700/30"
+                      : "hover:bg-gray-50"
+                  }`}
+                >
+                  <td className="px-6 py-4">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() =>
+                        toggleRowSelection(report._id || report.id)
+                      }
+                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                  </td>
 
-        {/* Editable Columns */}
-        {/* GPay */}
-        <td className="px-6 py-4 whitespace-nowrap">
-          {isEditing ? (
-            <input
-              type="number"
-              value={editFormData.gpay}
-              onChange={(e) => handleEditChange("gpay", e.target.value)}
-              className={`w-20 px-2 py-1 rounded border text-sm ${
-                theme === "dark"
-                  ? "bg-slate-600 border-slate-500 text-white"
-                  : "bg-white border-gray-300 text-gray-900"
-              }`}
-            />
-          ) : (
-            <span className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-              ₹{(Number(report.gpay) || 0).toFixed(2)}
-            </span>
-          )}
-        </td>
+                  {/* Date Column */}
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
+                      theme === "dark" ? "text-gray-200" : "text-gray-900"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="w-4 h-4 text-gray-400" />
+                      {formatDateWithDay(report.date)}
+                    </div>
+                  </td>
 
-        {/* Card */}
-        <td className="px-6 py-4 whitespace-nowrap">
-          {isEditing ? (
-            <input
-              type="number"
-              value={editFormData.card}
-              onChange={(e) => handleEditChange("card", e.target.value)}
-              className={`w-20 px-2 py-1 rounded border text-sm ${
-                theme === "dark"
-                  ? "bg-slate-600 border-slate-500 text-white"
-                  : "bg-white border-gray-300 text-gray-900"
-              }`}
-            />
-          ) : (
-            <span className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-              ₹{(Number(report.card) || 0).toFixed(2)}
-            </span>
-          )}
-        </td>
+                  {/* Editable Columns */}
+                  {/* GPay */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editFormData.gpay}
+                        onChange={(e) =>
+                          handleEditChange("gpay", e.target.value)
+                        }
+                        className={`w-20 px-2 py-1 rounded border text-sm ${
+                          theme === "dark"
+                            ? "bg-slate-600 border-slate-500 text-white"
+                            : "bg-white border-gray-300 text-gray-900"
+                        }`}
+                      />
+                    ) : (
+                      <span
+                        className={`text-sm ${
+                          theme === "dark" ? "text-gray-300" : "text-gray-700"
+                        }`}
+                      >
+                        ₹{(Number(report.gpay) || 0).toFixed(2)}
+                      </span>
+                    )}
+                  </td>
 
-        {/* Cash */}
-        <td className="px-6 py-4 whitespace-nowrap">
-          {isEditing ? (
-            <input
-              type="number"
-              value={editFormData.cash}
-              onChange={(e) => handleEditChange("cash", e.target.value)}
-              className={`w-20 px-2 py-1 rounded border text-sm ${
-                theme === "dark"
-                  ? "bg-slate-600 border-slate-500 text-white"
-                  : "bg-white border-gray-300 text-gray-900"
-              }`}
-            />
-          ) : (
-            <span className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-              ₹{(Number(report.cash) || 0).toFixed(2)}
-            </span>
-          )}
-        </td>
+                  {/* Card */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editFormData.card}
+                        onChange={(e) =>
+                          handleEditChange("card", e.target.value)
+                        }
+                        className={`w-20 px-2 py-1 rounded border text-sm ${
+                          theme === "dark"
+                            ? "bg-slate-600 border-slate-500 text-white"
+                            : "bg-white border-gray-300 text-gray-900"
+                        }`}
+                      />
+                    ) : (
+                      <span
+                        className={`text-sm ${
+                          theme === "dark" ? "text-gray-300" : "text-gray-700"
+                        }`}
+                      >
+                        ₹{(Number(report.card) || 0).toFixed(2)}
+                      </span>
+                    )}
+                  </td>
 
-        {/* Regular Expenses */}
-        <td className="px-6 py-4 whitespace-nowrap">
-          {isEditing ? (
-            <input
-              type="number"
-              value={editFormData.regularExpenses}
-              onChange={(e) => handleEditChange("regularExpenses", e.target.value)}
-              className={`w-20 px-2 py-1 rounded border text-sm ${
-                theme === "dark"
-                  ? "bg-slate-600 border-slate-500 text-white"
-                  : "bg-white border-gray-300 text-gray-900"
-              }`}
-            />
-          ) : (
-            <span className={`text-sm ${theme === "dark" ? "text-red-400" : "text-red-600"}`}>
-              ₹{(Number(report.regularExpenses) || 0).toFixed(2)}
-            </span>
-          )}
-        </td>
+                  {/* Cash */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editFormData.cash}
+                        onChange={(e) =>
+                          handleEditChange("cash", e.target.value)
+                        }
+                        className={`w-20 px-2 py-1 rounded border text-sm ${
+                          theme === "dark"
+                            ? "bg-slate-600 border-slate-500 text-white"
+                            : "bg-white border-gray-300 text-gray-900"
+                        }`}
+                      />
+                    ) : (
+                      <span
+                        className={`text-sm ${
+                          theme === "dark" ? "text-gray-300" : "text-gray-700"
+                        }`}
+                      >
+                        ₹{(Number(report.cash) || 0).toFixed(2)}
+                      </span>
+                    )}
+                  </td>
 
-        {/* Other Expenses */}
-        <td className="px-6 py-4 whitespace-nowrap">
-          {isEditing ? (
-            <input
-              type="number"
-              value={editFormData.otherExpenses}
-              onChange={(e) => handleEditChange("otherExpenses", e.target.value)}
-              className={`w-20 px-2 py-1 rounded border text-sm ${
-                theme === "dark"
-                  ? "bg-slate-600 border-slate-500 text-white"
-                  : "bg-white border-gray-300 text-gray-900"
-              }`}
-            />
-          ) : (
-            <span className={`text-sm ${theme === "dark" ? "text-orange-400" : "text-orange-600"}`}>
-              ₹{(Number(report.otherExpenses) || 0).toFixed(2)}
-            </span>
-          )}
-        </td>
+                  {/* Regular Expenses */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editFormData.regularExpenses}
+                        onChange={(e) =>
+                          handleEditChange("regularExpenses", e.target.value)
+                        }
+                        className={`w-20 px-2 py-1 rounded border text-sm ${
+                          theme === "dark"
+                            ? "bg-slate-600 border-slate-500 text-white"
+                            : "bg-white border-gray-300 text-gray-900"
+                        }`}
+                      />
+                    ) : (
+                      <span
+                        className={`text-sm ${
+                          theme === "dark" ? "text-red-400" : "text-red-600"
+                        }`}
+                      >
+                        ₹{(Number(report.regularExpenses) || 0).toFixed(2)}
+                      </span>
+                    )}
+                  </td>
 
-        {/* Calculated Columns (Read-only) */}
-        <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>
-          ₹{totalCollection.toFixed(2)}
-        </td>
-        <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${theme === "dark" ? "text-green-400" : "text-green-600"}`}>
-          ₹{profit.toFixed(2)}
-        </td>
-        <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
-          netIncome >= 0
-            ? theme === "dark" ? "text-green-400" : "text-green-600"
-            : theme === "dark" ? "text-red-400" : "text-red-600"
-        }`}>
-          ₹{netIncome.toFixed(2)}
-        </td>
+                  {/* Other Expenses */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editFormData.otherExpenses}
+                        onChange={(e) =>
+                          handleEditChange("otherExpenses", e.target.value)
+                        }
+                        className={`w-20 px-2 py-1 rounded border text-sm ${
+                          theme === "dark"
+                            ? "bg-slate-600 border-slate-500 text-white"
+                            : "bg-white border-gray-300 text-gray-900"
+                        }`}
+                      />
+                    ) : (
+                      <span
+                        className={`text-sm ${
+                          theme === "dark"
+                            ? "text-orange-400"
+                            : "text-orange-600"
+                        }`}
+                      >
+                        ₹{(Number(report.otherExpenses) || 0).toFixed(2)}
+                      </span>
+                    )}
+                  </td>
 
-        {/* Actions Column */}
-        <td className="px-6 py-4 whitespace-nowrap text-sm">
-          {isEditing ? (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleSaveEdit}
-                disabled={editLoading}
-                className={`p-1.5 rounded transition-colors ${
-                  editLoading
-                    ? "opacity-50 cursor-not-allowed"
-                    : theme === "dark"
-                    ? "bg-green-600 hover:bg-green-700 text-white"
-                    : "bg-green-600 hover:bg-green-700 text-white"
-                }`}
-                title="Save changes"
-              >
-                <Save className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleCancelEdit}
-                disabled={editLoading}
-                className={`p-1.5 rounded transition-colors ${
-                  editLoading
-                    ? "opacity-50 cursor-not-allowed"
-                    : theme === "dark"
-                    ? "bg-gray-600 hover:bg-gray-700 text-white"
-                    : "bg-gray-600 hover:bg-gray-700 text-white"
-                }`}
-                title="Cancel"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ) : isDeleteConfirm ? (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleDelete(report._id || report.id)}
-                disabled={deleteLoading}
-                className={`p-1.5 rounded transition-colors text-white ${
-                  deleteLoading
-                    ? "opacity-50 cursor-not-allowed bg-red-500"
-                    : "bg-red-600 hover:bg-red-700"
-                }`}
-                title="Confirm delete"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={cancelDelete}
-                disabled={deleteLoading}
-                className={`p-1.5 rounded transition-colors ${
-                  deleteLoading
-                    ? "opacity-50 cursor-not-allowed"
-                    : theme === "dark"
-                    ? "bg-gray-600 hover:bg-gray-700 text-white"
-                    : "bg-gray-600 hover:bg-gray-700 text-white"
-                }`}
-                title="Cancel delete"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => copyRowData(report)}
-                className={`p-1.5 rounded transition-colors ${
-                  isCopied
-                    ? theme === "dark"
-                      ? "bg-green-500/20 text-green-400"
-                      : "bg-green-100 text-green-700"
-                    : theme === "dark"
-                    ? "hover:bg-slate-600 text-gray-400 hover:text-white"
-                    : "hover:bg-gray-200 text-gray-600 hover:text-gray-900"
-                }`}
-                title={isCopied ? "Copied!" : "Copy row data"}
-              >
-                {isCopied ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              </button>
-              <button
-                onClick={() => handleEdit(report)}
-                className={`p-1.5 rounded transition-colors ${
-                  theme === "dark"
-                    ? "hover:bg-slate-600 text-gray-400 hover:text-white"
-                    : "hover:bg-gray-200 text-gray-600 hover:text-gray-900"
-                }`}
-                title="Edit report"
-              >
-                <Edit className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => confirmDelete(report._id || report.id)}
-                className={`p-1.5 rounded transition-colors ${
-                  theme === "dark"
-                    ? "hover:bg-slate-600 text-red-400 hover:text-red-300"
-                    : "hover:bg-gray-200 text-red-600 hover:text-red-700"
-                }`}
-                title="Delete report"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-        </td>
-      </tr>
-    );
-  })}
-</tbody>
+                  {/* Calculated Columns (Read-only) */}
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
+                      theme === "dark" ? "text-emerald-400" : "text-emerald-600"
+                    }`}
+                  >
+                    ₹{totalCollection.toFixed(2)}
+                  </td>
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
+                      theme === "dark" ? "text-green-400" : "text-green-600"
+                    }`}
+                  >
+                    ₹{profit.toFixed(2)}
+                  </td>
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
+                      netIncome >= 0
+                        ? theme === "dark"
+                          ? "text-green-400"
+                          : "text-green-600"
+                        : theme === "dark"
+                        ? "text-red-400"
+                        : "text-red-600"
+                    }`}
+                  >
+                    ₹{netIncome.toFixed(2)}
+                  </td>
+
+                  {/* Actions Column */}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    {isEditing ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleSaveEdit}
+                          disabled={editLoading}
+                          className={`p-1.5 rounded transition-colors ${
+                            editLoading
+                              ? "opacity-50 cursor-not-allowed"
+                              : theme === "dark"
+                              ? "bg-green-600 hover:bg-green-700 text-white"
+                              : "bg-green-600 hover:bg-green-700 text-white"
+                          }`}
+                          title="Save changes"
+                        >
+                          <Save className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          disabled={editLoading}
+                          className={`p-1.5 rounded transition-colors ${
+                            editLoading
+                              ? "opacity-50 cursor-not-allowed"
+                              : theme === "dark"
+                              ? "bg-gray-600 hover:bg-gray-700 text-white"
+                              : "bg-gray-600 hover:bg-gray-700 text-white"
+                          }`}
+                          title="Cancel"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : isDeleteConfirm ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleDelete(report._id || report.id)}
+                          disabled={deleteLoading}
+                          className={`p-1.5 rounded transition-colors text-white ${
+                            deleteLoading
+                              ? "opacity-50 cursor-not-allowed bg-red-500"
+                              : "bg-red-600 hover:bg-red-700"
+                          }`}
+                          title="Confirm delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={cancelDelete}
+                          disabled={deleteLoading}
+                          className={`p-1.5 rounded transition-colors ${
+                            deleteLoading
+                              ? "opacity-50 cursor-not-allowed"
+                              : theme === "dark"
+                              ? "bg-gray-600 hover:bg-gray-700 text-white"
+                              : "bg-gray-600 hover:bg-gray-700 text-white"
+                          }`}
+                          title="Cancel delete"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => copyRowData(report)}
+                          className={`p-1.5 rounded transition-colors ${
+                            isCopied
+                              ? theme === "dark"
+                                ? "bg-green-500/20 text-green-400"
+                                : "bg-green-100 text-green-700"
+                              : theme === "dark"
+                              ? "hover:bg-slate-600 text-gray-400 hover:text-white"
+                              : "hover:bg-gray-200 text-gray-600 hover:text-gray-900"
+                          }`}
+                          title={isCopied ? "Copied!" : "Copy row data"}
+                        >
+                          {isCopied ? (
+                            <CheckCircle2 className="w-4 h-4" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleEdit(report)}
+                          className={`p-1.5 rounded transition-colors ${
+                            theme === "dark"
+                              ? "hover:bg-slate-600 text-gray-400 hover:text-white"
+                              : "hover:bg-gray-200 text-gray-600 hover:text-gray-900"
+                          }`}
+                          title="Edit report"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => confirmDelete(report._id || report.id)}
+                          className={`p-1.5 rounded transition-colors ${
+                            theme === "dark"
+                              ? "hover:bg-slate-600 text-red-400 hover:text-red-300"
+                              : "hover:bg-gray-200 text-red-600 hover:text-red-700"
+                          }`}
+                          title="Delete report"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
         </table>
         {/* Delete Confirmation Modal */}
-{deleteConfirm && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className={`rounded-lg p-6 max-w-md w-full mx-4 ${
-      theme === "dark" ? "bg-slate-800" : "bg-white"
-    }`}>
-      <h3 className={`text-lg font-semibold mb-2 ${
-        theme === "dark" ? "text-white" : "text-gray-900"
-      }`}>
-        Confirm Delete
-      </h3>
-      <p className={`mb-4 ${
-        theme === "dark" ? "text-gray-300" : "text-gray-600"
-      }`}>
-        Are you sure you want to delete this daily report? This action cannot be undone.
-      </p>
-      <div className="flex justify-end gap-3">
-        <button
-          onClick={cancelDelete}
-          disabled={deleteLoading}
-          className={`px-4 py-2 rounded-lg ${
-            theme === "dark" 
-              ? "bg-gray-600 hover:bg-gray-700 text-white" 
-              : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-          }`}
-        >
-          Cancel
-        </button>
-        <button
-          onClick={() => handleDelete(deleteConfirm)}
-          disabled={deleteLoading}
-          className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center gap-2"
-        >
-          {deleteLoading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Trash2 className="w-4 h-4" />
-          )}
-          Delete
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+        {deleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div
+              className={`rounded-lg p-6 max-w-md w-full mx-4 ${
+                theme === "dark" ? "bg-slate-800" : "bg-white"
+              }`}
+            >
+              <h3
+                className={`text-lg font-semibold mb-2 ${
+                  theme === "dark" ? "text-white" : "text-gray-900"
+                }`}
+              >
+                Confirm Delete
+              </h3>
+              <p
+                className={`mb-4 ${
+                  theme === "dark" ? "text-gray-300" : "text-gray-600"
+                }`}
+              >
+                Are you sure you want to delete this daily report? This action
+                cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={cancelDelete}
+                  disabled={deleteLoading}
+                  className={`px-4 py-2 rounded-lg ${
+                    theme === "dark"
+                      ? "bg-gray-600 hover:bg-gray-700 text-white"
+                      : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDelete(deleteConfirm)}
+                  disabled={deleteLoading}
+                  className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center gap-2"
+                >
+                  {deleteLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Empty State */}
         {currentReports.length === 0 && (
           <div className="text-center py-12">
