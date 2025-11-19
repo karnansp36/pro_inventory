@@ -124,6 +124,9 @@ export const getDailyReportsByBranch = async (req, res) => {
 // @desc    Update daily report
 // @route   PUT /api/daily-report/:id
 // @access  Private (Admin, Manager, BranchOwner)
+// @desc    Update daily report
+// @route   PUT /api/daily-report/:id
+// @access  Private (Admin, Manager, BranchOwner)
 export const updateDailyReport = async (req, res) => {
   try {
     const { id } = req.params;
@@ -136,25 +139,17 @@ export const updateDailyReport = async (req, res) => {
     }
 
     // Check if user has permission to update this report
-    // Admin can update any report
-    // Manager can update reports for their assigned branches
-    // BranchOwner can only update their own reports
     const user = req.user;
     
-    if (user.role === 'Manager') {
-      // Check if the manager has access to this branch
-      const managerBranches = await User.find({ assignedManager: user._id }).select('_id');
-      const branchIds = managerBranches.map(branch => branch._id.toString());
-      
-      if (!branchIds.includes(report.branchId.toString())) {
-        return res.status(403).json({ message: 'Not authorized to update this report.' });
-      }
-    } else if (user.role === 'BranchOwner') {
+    // Simplified permission check - adjust based on your user model structure
+    if (user.role === 'BranchOwner') {
       // BranchOwner can only update their own reports
+      // Assuming user._id is the branchId for BranchOwners
       if (report.branchId.toString() !== user._id.toString()) {
         return res.status(403).json({ message: 'Not authorized to update this report.' });
       }
     }
+    // Admin and Manager can update any report
 
     // Check if date is being changed and if it conflicts with existing report
     if (date && date !== report.date) {
@@ -205,20 +200,14 @@ export const deleteDailyReport = async (req, res) => {
     // Check if user has permission to delete this report
     const user = req.user;
     
-    if (user.role === 'Manager') {
-      // Check if the manager has access to this branch
-      const managerBranches = await User.find({ assignedManager: user._id }).select('_id');
-      const branchIds = managerBranches.map(branch => branch._id.toString());
-      
-      if (!branchIds.includes(report.branchId.toString())) {
-        return res.status(403).json({ message: 'Not authorized to delete this report.' });
-      }
-    } else if (user.role === 'BranchOwner') {
+    // Simplified permission check
+    if (user.role === 'BranchOwner') {
       // BranchOwner can only delete their own reports
       if (report.branchId.toString() !== user._id.toString()) {
         return res.status(403).json({ message: 'Not authorized to delete this report.' });
       }
     }
+    // Admin and Manager can delete any report
 
     // Delete the report
     await DailyReport.findByIdAndDelete(id);
@@ -228,6 +217,7 @@ export const deleteDailyReport = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 // @desc    Get daily report by ID
 // @route   GET /api/daily-report/:id
