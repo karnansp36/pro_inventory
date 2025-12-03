@@ -241,19 +241,19 @@ const BrandOwnerUserManagement = () => {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">{editUser ? 'Edit User' : 'Add User'}</h2>
+            <h2 className="text-xl font-bold mb-4 text-gray-700">{editUser ? 'Edit User' : 'Add User'}</h2>
             <form onSubmit={handleFormSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Name</label>
-                <input type="text" name="name" value={form.name} onChange={handleFormChange} className="w-full border rounded px-3 py-2" required />
+                <input type="text" name="name" value={form.name} onChange={handleFormChange} className="w-full border rounded px-3 py-2 text-gray-700" required />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Email</label>
-                <input type="email" name="email" value={form.email} onChange={handleFormChange} className="w-full border rounded px-3 py-2" required />
+                <input type="email" name="email" value={form.email} onChange={handleFormChange} className="w-full border rounded px-3 py-2 text-gray-700" required />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Password {editUser && <span className="text-xs text-gray-400">(leave blank to keep unchanged)</span>}</label>
-                <input type="password" name="password" value={form.password} onChange={handleFormChange} className="w-full border rounded px-3 py-2" placeholder={editUser ? '••••••••' : ''} required={!editUser} />
+                <input type="password" name="password" value={form.password} onChange={handleFormChange} className="w-full border rounded px-3 py-2 text-gray-700" placeholder={editUser ? '••••••••' : ''} required={!editUser} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Role</label>
