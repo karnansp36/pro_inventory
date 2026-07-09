@@ -69,4 +69,4 @@
 - Include frontend components, pages, and state management
 - Add comments only for critical logic
 - Ensure role-based access and hierarchy constraints are respected
-- Optimize for performance and scalability
+
